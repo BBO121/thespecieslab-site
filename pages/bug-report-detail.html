@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>버그리포트 상세 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .inquiry-thread { border-left:2px solid var(--border); padding-left:16px; display:flex; flex-direction:column; gap:14px; }
+    .thread-item { position:relative; }
+    .thread-item::before { content:''; position:absolute; left:-20px; top:9px; width:12px; height:2px; background:var(--border); }
+    .thread-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:5px; }
+    .thread-author { font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:5px; }
+    .thread-date { font-size:12px; color:var(--text-mute); }
+    .thread-content { font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; color:var(--text); margin:0; }
+    .thread-item--admin { background:var(--sky-pale); border-radius:8px; padding:10px 12px; }
+    .inquiry-input-area { margin-top:16px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
+    .inquiry-textarea { width:100%; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; resize:vertical; outline:none; font-family:inherit; box-sizing:border-box; }
+    .inquiry-textarea:focus { border-color:var(--sky); }
+    .thread-actions { margin-left:auto; display:flex; gap:4px; flex-shrink:0; }
+    .thread-action-btn { background:none; border:none; font-size:12px; color:var(--text-mute); cursor:pointer; padding:2px 6px; border-radius:4px; line-height:1.6; }
+    .thread-action-btn:hover { color:var(--text); background:var(--border); }
+    .mention { color:var(--sky-deep); font-weight:600; }
+    .thread-action-btn--delete:hover { color:#ef4444; background:#fee2e2; }
+    .thread-edit-area { margin-top:6px; display:flex; flex-direction:column; gap:6px; }
+    .thread-edit-btns { display:flex; justify-content:flex-end; gap:6px; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="notice-detail-nav">
+          <span></span>
+          <a href="bug-report.html" class="notice-nav-list-btn">목록보기</a>
+        </div>
+
+        <article class="notice-detail-article">
+
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <span id="detailStatus" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;"></span>
+            </div>
+            <h1 id="detailTitle" class="notice-detail-title"></h1>
+            <div class="notice-detail-meta">
+              <span id="detailNickname"></span>
+              <span class="notice-detail-sep">·</span>
+              <span id="detailDate"></span>
+            </div>
+          </div>
+
+          <div class="notice-detail-divider"></div>
+
+          <div id="detailContent" class="notice-detail-content"></div>
+
+        </article>
+
+        <!-- 댓글 목록 -->
+        <div id="commentSection" style="margin-top:28px;">
+          <p style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:12px;">댓글</p>
+          <div class="inquiry-thread" id="commentList"></div>
+        </div>
+
+        <!-- 댓글 입력 폼 (작성자 또는 관리자/스태프) -->
+        <div id="commentForm" class="inquiry-input-area" style="display:none;">
+          <div id="adminStatusWrap" style="display:none;">
+            <label class="form-label" style="margin-bottom:6px; display:block;">상태 변경</label>
+            <select id="statusSelect" class="form-input" style="width:160px;">
+              <option value="접수됨">접수됨</option>
+              <option value="확인중">확인중</option>
+              <option value="해결됨">해결됨</option>
+              <option value="중복">중복</option>
+            </select>
+          </div>
+          <textarea id="commentInput" class="inquiry-textarea" rows="3" placeholder="댓글을 입력하세요..."></textarea>
+          <p class="auth-error" id="commentError"></p>
+          <div style="display:flex; justify-content:flex-end;">
+            <button class="btn-secondary" onclick="submitComment()">등록</button>
+          </div>
+        </div>
+
+
+        <div class="notice-detail-bottom">
+          <a href="bug-report.html" class="btn-ghost">← 목록으로</a>
+          <button id="deleteBtn" class="btn-ghost" onclick="deleteBugReport()" style="display:none; color:#ef4444;">삭제</button>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js?v=20260607"></script>
+  <script src="../js/sidebar.js?v=20260607"></script>
+  <script src="../js/notifications.js?v=20260607"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js?v=20260607"></script>
+  <script>
+    const STATUS_STYLE = {
+      '접수됨': 'background:#f1f5f9;color:#64748b',
+      '확인중': 'background:#e0f2fe;color:#0284c7',
+      '해결됨': 'background:#dcfce7;color:#166534',
+      '중복':   'background:#fef3c7;color:#92400e',
+    };
+
+    let currentId = null;
+    let reportNickname = null;
+    let currentData = null;
+    let currentUser = null;
+    let isAdminUser = false;
+    let pageAuthorNick = null;
+    let allUserList = [];
+    let allNicknames = [];
+
+    function fmtDate(iso) {
+      if (!iso) return '';
+      return new Date(iso).toLocaleDateString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).replace(/\. /g, '.').replace(/\.$/, '');
+    }
+
+    function escHtml(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function roleBadge(c) {
+      const r = c.role;
+      if (r === 'admin' || (!r && c.is_admin)) return '<span class="badge-admin" style="font-size:11px;border-radius:4px;margin-left:5px;vertical-align:middle;">관리자</span>';
+      if (r === 'staff') return '<span class="badge-staff" style="font-size:11px;border-radius:4px;margin-left:5px;vertical-align:middle;">스태프</span>';
+      return '';
+    }
+
+    function renderComments(data, authorNick) {
+      const allComments = [];
+      // Array.isArray가 true면 comments 시스템을 한 번이라도 사용한 레코드 → 레거시 answer 표시 안 함
+      const commentsEverUsed = Array.isArray(data.comments);
+      const hasComments = commentsEverUsed && data.comments.length > 0;
+
+      if (!commentsEverUsed && data.answer) {
+        allComments.push({
+          author: data.answered_by || '관리자',
+          is_admin: true,
+          content: data.answer,
+          created_at: data.answered_at,
+        });
+      }
+      if (!commentsEverUsed && data.user_reply) {
+        allComments.push({
+          author: data.user_replied_by || authorNick,
+          is_admin: false,
+          content: data.user_reply,
+          created_at: data.user_replied_at,
+        });
+      }
+      if (Array.isArray(data.comments)) {
+        data.comments.forEach((c, idx) => allComments.push({ ...c, _comments_idx: idx }));
+      }
+
+      if (allComments.length === 0) {
+        document.getElementById('commentList').innerHTML = '<p style="font-size:14px;color:var(--text-mute);padding:4px 0;">아직 댓글이 없어요.</p>';
+        return;
+      }
+
+      const myId   = currentUser?.id;
+      const myNick = currentUser?.user_metadata?.display_name || currentUser?.user_metadata?.nickname;
+      document.getElementById('commentList').innerHTML = allComments.map(c => {
+        const hasIdx         = c._comments_idx !== undefined;
+        const canEdit        = hasIdx && !!c.author_user_id && c.author_user_id === myId;
+        const canDeleteLegacy = hasIdx && !c.author_user_id && myNick && (c.author === myNick || c.nickname === myNick);
+        const editedMark     = c.updated_at ? ' <span style="font-size:11px;color:var(--text-mute);font-weight:400;">(수정됨)</span>' : '';
+        const actionsBtns    = canEdit
+          ? `<div class="thread-actions">
+               <button class="thread-action-btn" onclick="editComment(${c._comments_idx})">수정</button>
+               <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment(${c._comments_idx})">삭제</button>
+             </div>`
+          : canDeleteLegacy
+            ? `<div class="thread-actions">
+                 <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment(${c._comments_idx})">삭제</button>
+               </div>`
+            : '';
+        return `
+        <div class="thread-item${c.is_admin ? ' thread-item--admin' : ''}" data-comment-idx="${c._comments_idx ?? ''}">
+          <div class="thread-header">
+            <span class="thread-author">${escHtml(c.author)}${roleBadge(c)}</span>
+            <span class="thread-date">${fmtDate(c.created_at)}${editedMark}</span>
+            ${actionsBtns}
+          </div>
+          <p class="thread-content">${escHtml(c.content)}</p>
+        </div>`;
+      }).join('');
+    }
+
+    function editComment(idx) {
+      const item = document.querySelector(`.thread-item[data-comment-idx="${idx}"]`);
+      if (!item) return;
+      const contentEl = item.querySelector('.thread-content');
+      const original  = currentData.comments[idx].content;
+
+      const editArea = document.createElement('div');
+      editArea.className = 'thread-edit-area';
+      editArea.innerHTML = `
+        <textarea class="inquiry-textarea" rows="3" id="editTextarea_${idx}">${escHtml(original)}</textarea>
+        <div class="thread-edit-btns">
+          <button class="btn-ghost" style="font-size:13px;padding:4px 12px;" onclick="cancelEditComment()">취소</button>
+          <button class="btn-secondary" style="font-size:13px;padding:4px 12px;" onclick="saveEditComment(${idx})">저장</button>
+        </div>`;
+      contentEl.replaceWith(editArea);
+
+      const actionsEl = item.querySelector('.thread-actions');
+      if (actionsEl) actionsEl.style.display = 'none';
+
+      document.getElementById(`editTextarea_${idx}`).focus();
+    }
+
+    function cancelEditComment() {
+      renderComments(currentData, pageAuthorNick);
+    }
+
+    async function saveEditComment(idx) {
+      const textarea = document.getElementById(`editTextarea_${idx}`);
+      if (!textarea) return;
+      const newContent = textarea.value.trim();
+      if (!newContent) { alert('내용을 입력해주세요.'); return; }
+
+      currentData.comments[idx].content    = newContent;
+      currentData.comments[idx].updated_at = new Date().toISOString();
+
+      const { error } = await sb.from('bug_reports').update({ comments: currentData.comments }).eq('id', currentId);
+      if (error) { alert('수정에 실패했어요.'); return; }
+
+      if (isAdminUser) {
+        logAdminAction('bug_comment_edit', 'bug_report', currentId, pageAuthorNick, { bug_report_id: currentId, target_author: pageAuthorNick }).catch(() => {});
+      }
+      renderComments(currentData, pageAuthorNick);
+    }
+
+    async function deleteComment(idx) {
+      if (!confirm('댓글을 삭제할까요?')) return;
+
+      currentData.comments = currentData.comments.filter((_, i) => i !== idx);
+
+      const { error } = await sb.from('bug_reports').update({ comments: currentData.comments }).eq('id', currentId);
+      if (error) { alert('삭제에 실패했어요.'); return; }
+
+      if (isAdminUser) {
+        logAdminAction('bug_comment_delete', 'bug_report', currentId, pageAuthorNick, { bug_report_id: currentId, target_author: pageAuthorNick }).catch(() => {});
+      }
+      renderComments(currentData, pageAuthorNick);
+    }
+
+    async function initPage() {
+      const params = new URLSearchParams(window.location.search);
+      currentId = params.get('id');
+      if (!currentId) { window.location.href = 'bug-report.html'; return; }
+
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      currentUser = user;
+      isAdminUser = isAdminOrStaff(user.user_metadata?.role);
+
+      const [{ data, error }, { data: userList }] = await Promise.all([
+        sb.from('bug_reports').select('*').eq('id', currentId).single(),
+        sb.rpc('get_all_users'),
+      ]);
+      allUserList = userList || [];
+      allNicknames = allUserList.map(u => u.display_name || u.nickname).filter(Boolean);
+      const idToNick = Object.fromEntries(allUserList.filter(u => u.id).map(u => [u.id, u.display_name || u.nickname]).filter(([, n]) => n));
+
+      if (error || !data) { window.location.href = 'bug-report.html'; return; }
+
+      const isOwner = data.user_id != null ? data.user_id === user.id : false;
+      if (!isAdminUser && !isOwner) { window.location.href = 'bug-report.html'; return; }
+
+      currentData = data;
+      reportNickname = data.nickname;
+      const authorNick = (data.user_id && idToNick[data.user_id]) || data.nickname;
+      pageAuthorNick = authorNick;
+
+      document.title = `${data.title} — 종족연구소`;
+      const statusEl = document.getElementById('detailStatus');
+      statusEl.textContent = data.status || '접수됨';
+      statusEl.style.cssText = STATUS_STYLE[data.status] || STATUS_STYLE['접수됨'];
+
+      document.getElementById('detailTitle').textContent = data.title;
+      document.getElementById('detailNickname').textContent = authorNick;
+      document.getElementById('detailDate').textContent = fmtDate(data.created_at);
+      document.getElementById('detailContent').innerHTML = data.content.replace(/\n/g, '<br>');
+
+      renderComments(data, authorNick);
+
+      if (isAdminUser || isOwner) {
+        document.getElementById('commentForm').style.display = 'block';
+        if (isAdminUser) {
+          document.getElementById('adminStatusWrap').style.display = 'block';
+          document.getElementById('statusSelect').value = data.status || '접수됨';
+          // 글 작성자가 본인이 아닐 때 @닉네임 자동 프리필
+          const myNick = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+          if (pageAuthorNick && pageAuthorNick !== myNick) {
+            const inputEl = document.getElementById('commentInput');
+            if (inputEl && !inputEl.value) inputEl.value = `@${pageAuthorNick} `;
+          }
+        }
+      }
+
+      const hasContent = data.answer || (data.comments?.length);
+      if (isAdminUser) {
+        document.getElementById('deleteBtn').style.display = 'inline-flex';
+      } else if (isOwner && !hasContent) {
+        document.getElementById('deleteBtn').style.display = 'inline-flex';
+      }
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+    }
+
+    async function submitComment() {
+      const inputEl   = document.getElementById('commentInput');
+      const errorEl   = document.getElementById('commentError');
+      const submitBtn = document.querySelector('#commentForm .btn-secondary');
+      const content   = inputEl.value.trim();
+
+      errorEl.textContent = '';
+      if (!content) { errorEl.textContent = '내용을 입력해주세요.'; return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '등록 중...';
+
+      const nickname = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+      const role = currentUser.user_metadata?.role || null;
+      const newComment = {
+        author: nickname,
+        author_user_id: currentUser.id,
+        is_admin: isAdminUser,
+        role: isAdminUser ? (role || 'admin') : null,
+        content,
+        created_at: new Date().toISOString(),
+      };
+
+      const existing = Array.isArray(currentData?.comments) ? currentData.comments : [];
+      const updateData = { comments: [...existing, newComment] };
+
+      if (isAdminUser) {
+        const newStatus = document.getElementById('statusSelect').value;
+        updateData.status = newStatus;
+        if (!currentData?.answer) {
+          updateData.answer      = content;
+          updateData.answered_at = newComment.created_at;
+          updateData.answered_by = nickname;
+        }
+      }
+
+      const prevStatus = currentData.status;
+      const { error } = await sb.from('bug_reports').update(updateData).eq('id', currentId);
+      if (error) {
+        errorEl.textContent = `등록에 실패했어요. (${error.message})`;
+        submitBtn.disabled = false;
+        submitBtn.textContent = '등록';
+        return;
+      }
+
+      if (isAdminUser) {
+        const logDetails = { bug_report_id: currentId, target_author: pageAuthorNick };
+        if (updateData.status && updateData.status !== prevStatus) {
+          logDetails.status_from = prevStatus;
+          logDetails.status_to   = updateData.status;
+        }
+        logAdminAction('bug_comment_create', 'bug_report', currentId, pageAuthorNick, logDetails).catch(() => {});
+      }
+
+      // 로컬 상태 업데이트
+      currentData.comments = [...existing, newComment];
+      if (isAdminUser) {
+        currentData.status = updateData.status;
+        if (updateData.answer) currentData.answer = updateData.answer;
+        const statusEl = document.getElementById('detailStatus');
+        statusEl.textContent = updateData.status;
+        statusEl.style.cssText = STATUS_STYLE[updateData.status] || STATUS_STYLE['접수됨'];
+      }
+
+      renderComments(currentData, pageAuthorNick);
+      inputEl.value = '';
+      submitBtn.textContent = '등록';
+      submitBtn.disabled = false;
+
+      const link = `bug-report-detail.html?id=${currentId}`;
+
+      const alreadyNotifiedIds = new Set();
+
+      if (isAdminUser) {
+        // 관리자 → 글 작성자 자동 알림 (본인 글 제외)
+        if (pageAuthorNick && pageAuthorNick !== nickname) {
+          const autoTarget = allUserList.find(u => (u.display_name || u.nickname) === pageAuthorNick);
+          console.log('auto-notify targetUser', autoTarget);
+          if (autoTarget?.id) {
+            alreadyNotifiedIds.add(autoTarget.id);
+            console.log('sending notification', autoTarget.id);
+            sb.rpc('notify_user_by_id', {
+              p_user_id: autoTarget.id,
+              p_type:    'mention',
+              p_message: `💬 내 버그리포트에 ${nickname}님이 댓글을 달았어요.`,
+              p_link:    link,
+            }).then(result => console.log('notification result', result))
+              .catch(e => console.error('[알림 오류] auto-mention:', e));
+          } else {
+            console.warn('auto-notify: pageAuthorNick 에 해당하는 user_id 없음', pageAuthorNick);
+          }
+        }
+      } else {
+        // 일반 유저 → 관리자/스태프 알림 (기존 방식 유지)
+        const targets = allUserList.filter(u =>
+          (u.role === 'admin' || u.role === 'staff') && u.id !== currentUser.id && u.nickname
+        );
+        targets.forEach(u => alreadyNotifiedIds.add(u.id));
+        if (targets.length > 0) {
+          Promise.all(targets.map(u =>
+            sb.rpc('notify_user', { p_user_nickname: u.display_name || u.nickname, p_type: 'bug_reply', p_message: `"${nickname}"님이 버그리포트에 새 댓글을 달았어요.`, p_link: link })
+          )).catch(e => console.error('[알림 오류] bug_reply:', e));
+        }
+      }
+
+      // 멘션 알림 — 이미 위에서 알림 받은 유저는 skip
+      sendMentionNotifications(content, link, nickname, alreadyNotifiedIds);
+    }
+
+    async function sendMentionNotifications(content, link, senderNick, alreadyNotifiedIds = new Set()) {
+      const matches = [...content.matchAll(/@([^\s@]+)/g)].map(m => m[1]);
+      const unique  = [...new Set(matches)];
+      console.log('mentions', unique);
+
+      const toNotify = unique.filter(nick => nick !== senderNick && allNicknames.includes(nick));
+      if (!toNotify.length) { console.log('mentions: 알림 보낼 대상 없음 (일치 닉네임 없음)'); return; }
+
+      for (const nick of toNotify) {
+        const targetUser = allUserList.find(u => (u.display_name || u.nickname) === nick);
+        console.log('targetUser', targetUser);
+        if (!targetUser?.id) { console.warn('mentions: targetUser 없거나 id 없음', nick); continue; }
+        if (alreadyNotifiedIds.has(targetUser.id)) { console.log('mentions: skip (이미 알림 받음)', nick); continue; }
+
+        console.log('sending notification', targetUser.id);
+        const result = await sb.rpc('notify_user_by_id', {
+          p_user_id: targetUser.id,
+          p_type:    'mention',
+          p_message: `💬 버그리포트 댓글에서 ${senderNick}님이 언급했어요.`,
+          p_link:    link,
+        });
+        console.log('notification result', result);
+      }
+    }
+
+    async function deleteBugReport() {
+      if (!confirm('정말 삭제할까요?')) return;
+      const { error } = await sb.from('bug_reports').delete().eq('id', currentId);
+      if (error) { alert('삭제에 실패했어요.'); return; }
+      window.location.href = 'bug-report.html';
+    }
+
+    initPage();
+
+  </script>
+</body>
+</html>
+

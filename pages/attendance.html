@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>출석 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <!-- 브레드크럼 + 타이틀 -->
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span>출석</span>
+            </div>
+            <h1 class="list-page-title">출석</h1>
+          </div>
+        </div>
+
+        <div class="attn-page">
+
+        <!-- 1. 요약 카드 -->
+        <div class="section" style="padding-top:28px; padding-bottom:28px;">
+          <div class="attn-summary-grid">
+            <div class="attn-summary-card">
+              <span class="attn-summary-label">연속 출석</span>
+              <div class="attn-summary-value-row">
+                <span class="attn-summary-value" id="summaryCount">—</span>
+                <span class="attn-summary-unit">일</span>
+              </div>
+            </div>
+            <div class="attn-summary-card">
+              <span class="attn-summary-label">다음 보너스까지</span>
+              <div class="attn-summary-value-row">
+                <span class="attn-summary-value" id="summaryNextBonus">—</span>
+                <span class="attn-summary-unit" id="summaryNextBonusUnit">일 남음</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 출석 버튼 -->
+        <div class="section" style="padding-top:14px; padding-bottom:14px;">
+          <div class="attn-checkin-wrap">
+            <button class="attn-checkin-btn" id="checkinBtn" onclick="checkIn()">출석 체크</button>
+            <div class="attn-checkin-done" id="checkinDone" style="display:none;">출석 완료!</div>
+            <p class="attn-result-msg" id="resultMsg" style="display:none;"></p>
+          </div>
+        </div>
+
+        <!-- 3. 달력 -->
+        <div class="section" style="padding-top:24px; padding-bottom:24px;">
+          <p class="attn-month-title" id="calMonthTitle"></p>
+          <div class="attn-calendar-wrap">
+            <div class="attn-week-header">
+              <div class="attn-week-cell attn-week-cell--sun">일</div>
+              <div class="attn-week-cell">월</div>
+              <div class="attn-week-cell">화</div>
+              <div class="attn-week-cell">수</div>
+              <div class="attn-week-cell">목</div>
+              <div class="attn-week-cell">금</div>
+              <div class="attn-week-cell attn-week-cell--sat">토</div>
+            </div>
+            <div class="attn-grid" id="calGrid"></div>
+          </div>
+        </div>
+
+        <!-- 4. 보너스 안내 -->
+        <div class="section" style="padding-top:24px; padding-bottom:36px;">
+          <div style="text-align:center; margin-bottom:8px;">
+            <h2 style="font-size:14px; font-weight:700; color:var(--text-sub);">7일 연속 출석 보너스</h2>
+          </div>
+          <p class="attn-bonus-subtitle">7일 연속 출석마다 보너스가 지급됩니다. 하루라도 빠지면 연속일이 초기화됩니다.</p>
+          <div class="attn-bonus-track">
+
+            <div class="attn-bonus-step" id="bonusStep7">
+              <div class="attn-bonus-circle">7</div>
+              <div class="attn-bonus-info">
+                <span class="attn-bonus-reward">+연구기록 20</span>
+                <span class="attn-bonus-reward">+열쇠 1</span>
+              </div>
+            </div>
+
+            <div class="attn-bonus-line" id="bonusLine7"></div>
+
+            <div class="attn-bonus-step" id="bonusStep14">
+              <div class="attn-bonus-circle">14</div>
+              <div class="attn-bonus-info">
+                <span class="attn-bonus-reward">+연구기록 25</span>
+                <span class="attn-bonus-reward">+열쇠 1</span>
+              </div>
+            </div>
+
+            <div class="attn-bonus-line" id="bonusLine14"></div>
+
+            <div class="attn-bonus-step" id="bonusStep21">
+              <div class="attn-bonus-circle">21</div>
+              <div class="attn-bonus-info">
+                <span class="attn-bonus-reward">+연구기록 30</span>
+                <span class="attn-bonus-reward">+열쇠 1</span>
+              </div>
+            </div>
+
+            <div class="attn-bonus-line" id="bonusLine21"></div>
+
+            <div class="attn-bonus-step" id="bonusStep28">
+              <div class="attn-bonus-circle">28</div>
+              <div class="attn-bonus-info">
+                <span class="attn-bonus-reward">+연구기록 40</span>
+                <span class="attn-bonus-reward">+열쇠 1</span>
+              </div>
+            </div>
+
+          </div>
+          <p class="attn-bonus-base-note">매 출석마다 연구기록 +5 기본 지급 · 7일마다 보너스 무한 반복</p>
+        </div>
+
+        </div><!-- /attn-page -->
+      </div><!-- /pageContent -->
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/attendance.js"></script>
+</body>
+</html>

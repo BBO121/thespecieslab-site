@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>디자인권 정보 수정 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom: 24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="species-list.html">전체 종족</a>
+          <span>/</span>
+          <a href="#" id="breadcrumbSpecies"></a>
+          <span>/</span>
+          <a href="#" id="breadcrumbSlot"></a>
+          <span>/</span>
+          <span>정보 수정</span>
+        </div>
+
+        <h1 class="register-title">디자인권 정보 수정</h1>
+        <p class="register-subtitle">디자인권 정보를 수정해요</p>
+
+        <form class="register-form" id="editForm">
+
+          <!-- 메인 이미지 -->
+          <div class="form-group">
+            <label class="form-label">메인 이미지</label>
+            <p class="form-hint">새 이미지를 선택하면 기존 이미지가 교체됩니다. 변경하지 않으려면 그대로 두세요.</p>
+            <input type="file" id="imageFile" accept="image/*" style="display:none;">
+            <div class="img-upload-box img-upload-box--portrait" id="uploadBox" onclick="document.getElementById('imageFile').click()">
+              <img id="imagePreview" style="display:none; width:100%; height:100%; object-fit:cover; border-radius: var(--radius);">
+              <div id="uploadPlaceholder">
+                <p class="img-upload-text">클릭하여 이미지 교체</p>
+              </div>
+            </div>
+            <p class="img-upload-ratio">권장 비율 3:4</p>
+            <p class="img-upload-meta">PNG · GIF · JPG · WebP &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하</p>
+            <p class="form-hint" style="margin-top:8px;">업로드된 이미지는 무단 도용 방지를 위해 워터마크가 적용됩니다.</p>
+          </div>
+
+          <!-- 이름 -->
+          <div class="form-group">
+            <label class="form-label">이름 <span class="required">*</span></label>
+            <input type="text" id="slotName" class="form-input" placeholder="디자인권 이름을 입력하세요">
+          </div>
+
+          <!-- 디자이너 -->
+          <div class="form-group">
+            <label class="form-label">디자이너</label>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button type="button" id="btnDesignerSite" onclick="setDesignerType('site')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--sky); background:var(--sky); color:#fff; font-size:13px; cursor:pointer;">
+                사이트 유저
+              </button>
+              <button type="button" id="btnDesignerExternal" onclick="setDesignerType('external')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--border); background:#fff; color:var(--text-sub); font-size:13px; cursor:pointer;">
+                사이트 밖 유저
+              </button>
+            </div>
+            <div id="designerSiteSection">
+              <input type="text" id="designerSearch" class="form-input" placeholder="닉네임으로 검색..." oninput="filterDesigners(this.value)" style="margin-bottom:8px;">
+              <div id="designerUserList" style="border:1px solid var(--border); border-radius:10px; max-height:200px; overflow-y:auto; background:#fff;">
+                <p style="padding:12px; color:var(--text-mute); font-size:13px;">불러오는 중...</p>
+              </div>
+              <p id="designerSelectedDisplay" style="margin-top:8px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+            </div>
+            <div id="designerExternalSection" style="display:none;">
+              <input type="text" id="designerExternalName" class="form-input" placeholder="이름 입력">
+            </div>
+          </div>
+
+          <!-- 소유주 -->
+          <div class="form-group">
+            <label class="form-label">소유주</label>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button type="button" id="btnSiteUser" onclick="setOwnerType('site')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--sky); background:var(--sky); color:#fff; font-size:13px; cursor:pointer;">
+                사이트 유저
+              </button>
+              <button type="button" id="btnExternal" onclick="setOwnerType('external')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--border); background:#fff; color:var(--text-sub); font-size:13px; cursor:pointer;">
+                사이트 밖 유저
+              </button>
+            </div>
+            <div id="ownerSiteSection">
+              <input type="text" id="ownerSearch" class="form-input" placeholder="닉네임으로 검색..." oninput="filterUsers(this.value)" style="margin-bottom:8px;">
+              <div id="ownerUserList" style="border:1px solid var(--border); border-radius:10px; max-height:200px; overflow-y:auto; background:#fff;">
+                <p style="padding:12px; color:var(--text-mute); font-size:13px;">불러오는 중...</p>
+              </div>
+              <p id="ownerSelectedDisplay" style="margin-top:8px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+            </div>
+            <div id="ownerExternalSection" style="display:none;">
+              <input type="text" id="ownerExternalName" class="form-input" placeholder="이름 입력">
+            </div>
+          </div>
+
+          <!-- 디자인권번호 -->
+          <div class="form-group">
+            <label class="form-label">디자인권번호 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항 · 정렬 기준으로 사용됩니다</span></label>
+            <input type="text" id="slotNumber" class="form-input" placeholder="예) SLOT-001">
+          </div>
+
+          <!-- 항목 (자유 입력) -->
+          <div class="form-group">
+            <label class="form-label">항목 <span class="form-hint-inline">선택사항 · 자유롭게 추가</span></label>
+            <div id="traitList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
+            <button type="button" class="btn-field-add" onclick="addTrait()">+ 항목 추가</button>
+          </div>
+
+          <!-- 설명 -->
+          <div class="form-group">
+            <label class="form-label">설명</label>
+            <textarea id="slotDesc" class="form-textarea" placeholder="디자인권 설명을 입력하세요" rows="4"></textarea>
+          </div>
+
+          <p class="auth-error" id="editError"></p>
+
+          <div class="register-actions">
+            <a href="#" id="cancelBtn" class="btn-ghost">취소</a>
+            <button type="submit" class="btn-secondary" id="submitBtn">저장하기</button>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let currentUser          = null;
+    let currentSlot          = null;
+    let ownerType            = 'site';
+    let selectedOwnerId      = null;
+    let designerType         = 'site';
+    let selectedDesignerNick = null;
+    let allUsers             = [];
+    let selectedMainFile     = null;
+    let pendingThumbnailBlob = null;
+    let cropperInstance      = null;
+    let userWatermarkUrl     = null;
+    const slotId = new URLSearchParams(window.location.search).get('id');
+
+    async function initPage() {
+      if (!slotId) { document.querySelector('.register-wrap').innerHTML = '<p class="page-loading">잘못된 접근이에요.</p>'; return; }
+
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      currentUser = user;
+
+      // 슬롯 + 유저 목록 병렬 로드
+      const [{ data: slot, error }, { data: siteUserData }] = await Promise.all([
+        sb.from('slots').select('*').eq('id', slotId).single(),
+        sb.rpc('get_all_users'),
+      ]);
+
+      if (error || !slot) {
+        document.querySelector('.register-wrap').innerHTML = '<p class="page-loading">디자인권을 찾을 수 없어요.</p>';
+        return;
+      }
+
+      // 종족주 권한 확인
+      const { data: sp } = await sb.from('species')
+        .select('id, name, owner_user_id, custom_fields').eq('id', slot.species_id).single();
+
+      const isSpeciesOwner = !!(sp && sp.owner_user_id && user.id === sp.owner_user_id);
+      const isAdminUser    = isAdminOrStaff(user.user_metadata?.role);
+
+      if (!isSpeciesOwner && !isAdminUser) {
+        alert('수정 권한이 없어요.');
+        window.location.href = `slot.html?id=${slotId}`;
+        return;
+      }
+
+      currentSlot = slot;
+
+      // 브레드크럼
+      const backHref = `slot.html?id=${slotId}`;
+      if (sp) {
+        const speciesHref = `species.html?id=${sp.id}`;
+        document.getElementById('breadcrumbSpecies').textContent = sp.name;
+        document.getElementById('breadcrumbSpecies').href = speciesHref;
+      }
+      document.getElementById('breadcrumbSlot').textContent = slot.name;
+      document.getElementById('breadcrumbSlot').href = backHref;
+      document.getElementById('cancelBtn').href = backHref;
+
+      // 워터마크
+      const myNick = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+      if (myNick) {
+        const { data: profData } = await sb.from('user_profiles').select('watermark_url').eq('nickname', myNick).single();
+        userWatermarkUrl = profData?.watermark_url || null;
+      }
+
+      // 유저 목록 구성
+      allUsers = (siteUserData || [])
+        .map(u => ({ nickname: u.nickname || '', id: u.id || '' }))
+        .filter(u => u.nickname && u.id)
+        .sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
+
+      const idToNick = Object.fromEntries(allUsers.map(u => [u.id, u.nickname]));
+
+      // 기존 이미지 미리보기
+      if (slot.thumbnail_url || slot.image_url) {
+        const preview = document.getElementById('imagePreview');
+        preview.src = slot.thumbnail_url || slot.image_url;
+        preview.style.display = 'block';
+        document.getElementById('uploadPlaceholder').style.display = 'none';
+      }
+
+      // 기존 값 채우기
+      document.getElementById('slotName').value   = slot.name || '';
+      document.getElementById('slotNumber').value = slot.slot_number || '';
+      document.getElementById('slotDesc').value   = slot.description || '';
+
+      // 소유주 초기화
+      renderUserList([]);
+      renderDesignerList([]);
+
+      if (slot.owner_user_id) {
+        setOwnerType('site');
+        selectedOwnerId = slot.owner_user_id;
+        const ownerNick = idToNick[slot.owner_user_id] || '(알 수 없음)';
+        document.getElementById('ownerSelectedDisplay').textContent = `선택됨: ${ownerNick}`;
+        document.getElementById('ownerSelectedDisplay').style.display = 'block';
+      } else if (slot.owner_name) {
+        setOwnerType('external');
+        document.getElementById('ownerExternalName').value = slot.owner_name;
+      } else {
+        setOwnerType('site');
+      }
+
+      // 디자이너 초기화
+      if (slot.designer) {
+        const isSiteDesigner = allUsers.some(u => u.nickname === slot.designer);
+        if (isSiteDesigner) {
+          setDesignerType('site');
+          selectDesigner(slot.designer);
+        } else {
+          setDesignerType('external');
+          document.getElementById('designerExternalName').value = slot.designer;
+        }
+      }
+
+      // 기존 항목값 복원
+      if (slot.trait_values && typeof slot.trait_values === 'object') {
+        Object.entries(slot.trait_values).forEach(([k, v]) => addTrait(k, v));
+      }
+    }
+
+    function addTrait(key = '', value = '') {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; gap:8px; align-items:center;';
+      row.innerHTML = `
+        <input type="text" class="form-input trait-key" placeholder="항목명" value="${key}" style="flex:1;">
+        <input type="text" class="form-input trait-val" placeholder="값" value="${value}" style="flex:1.5;">
+        <button type="button" onclick="this.closest('div').remove()"
+          style="padding:0 10px; height:38px; border:1px solid #fca5a5; border-radius:8px; background:#fff; color:#ef4444; font-size:16px; cursor:pointer; flex-shrink:0; font-family:inherit;">✕</button>
+      `;
+      document.getElementById('traitList').appendChild(row);
+    }
+
+    function collectTraitValues() {
+      const result = {};
+      document.querySelectorAll('#traitList > div').forEach(row => {
+        const key = row.querySelector('.trait-key').value.trim();
+        const val = row.querySelector('.trait-val').value.trim();
+        if (key) result[key] = val;
+      });
+      return Object.keys(result).length ? result : null;
+    }
+
+    function renderUserList(list) {
+      const el = document.getElementById('ownerUserList');
+      if (!list.length) {
+        el.innerHTML = '<p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임을 입력하세요</p>';
+        return;
+      }
+      el.innerHTML = list.map(u => `
+        <div onclick="selectUser('${u.id}','${u.nickname.replace(/'/g, "\\'")}')" id="ownerItem_${u.id}"
+          style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); transition:background 0.1s;"
+          onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background= selectedOwnerId==='${u.id}' ? 'var(--sky-light)' : ''">
+          ${u.nickname}
+        </div>
+      `).join('');
+    }
+
+    function selectUser(id, nick) {
+      selectedOwnerId = id;
+      document.querySelectorAll('#ownerUserList > div').forEach(el => {
+        el.style.background = el.id === `ownerItem_${id}` ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = el.id === `ownerItem_${id}` ? '600' : '';
+      });
+      const disp = document.getElementById('ownerSelectedDisplay');
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    function filterUsers(q) {
+      const qLow = q.toLowerCase();
+      renderUserList(q ? allUsers.filter(u => u.nickname.toLowerCase().includes(qLow)) : []);
+      if (selectedOwnerId) {
+        const found = allUsers.find(u => u.id === selectedOwnerId);
+        if (found) selectUser(found.id, found.nickname);
+      }
+    }
+
+    function renderDesignerList(list) {
+      const el = document.getElementById('designerUserList');
+      if (!list.length) {
+        el.innerHTML = '<p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임을 입력하세요</p>';
+        return;
+      }
+      el.innerHTML = list.map(u => `
+        <div onclick="selectDesigner('${u.nickname.replace(/'/g, "\\'")}')" id="designerItem_${u.id}"
+          style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); transition:background 0.1s;"
+          onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background= selectedDesignerNick==='${u.nickname}' ? 'var(--sky-light)' : ''">
+          ${u.nickname}
+        </div>
+      `).join('');
+    }
+
+    function selectDesigner(nick) {
+      selectedDesignerNick = nick;
+      document.querySelectorAll('#designerUserList > div').forEach(el => {
+        el.style.background = el.textContent.trim() === nick ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = el.textContent.trim() === nick ? '600' : '';
+      });
+      const disp = document.getElementById('designerSelectedDisplay');
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    function filterDesigners(q) {
+      const qLow = q.toLowerCase();
+      renderDesignerList(q ? allUsers.filter(u => u.nickname.toLowerCase().includes(qLow)) : []);
+      if (selectedDesignerNick) selectDesigner(selectedDesignerNick);
+    }
+
+    function setDesignerType(type) {
+      designerType = type;
+      const isSite = type === 'site';
+      document.getElementById('designerSiteSection').style.display    = isSite ? '' : 'none';
+      document.getElementById('designerExternalSection').style.display = isSite ? 'none' : '';
+      const btnS = document.getElementById('btnDesignerSite');
+      const btnE = document.getElementById('btnDesignerExternal');
+      btnS.style.background  = isSite ? 'var(--sky)' : '#fff';
+      btnS.style.color       = isSite ? '#fff' : 'var(--text-sub)';
+      btnS.style.borderColor = isSite ? 'var(--sky)' : 'var(--border)';
+      btnE.style.background  = isSite ? '#fff' : 'var(--sky)';
+      btnE.style.color       = isSite ? 'var(--text-sub)' : '#fff';
+      btnE.style.borderColor = isSite ? 'var(--border)' : 'var(--sky)';
+    }
+
+    function setOwnerType(type) {
+      ownerType = type;
+      const isSite = type === 'site';
+      document.getElementById('ownerSiteSection').style.display    = isSite ? '' : 'none';
+      document.getElementById('ownerExternalSection').style.display = isSite ? 'none' : '';
+      const btnS = document.getElementById('btnSiteUser');
+      const btnE = document.getElementById('btnExternal');
+      btnS.style.background  = isSite ? 'var(--sky)' : '#fff';
+      btnS.style.color       = isSite ? '#fff' : 'var(--text-sub)';
+      btnS.style.borderColor = isSite ? 'var(--sky)' : 'var(--border)';
+      btnE.style.background  = isSite ? '#fff' : 'var(--sky)';
+      btnE.style.color       = isSite ? 'var(--text-sub)' : '#fff';
+      btnE.style.borderColor = isSite ? 'var(--border)' : 'var(--sky)';
+    }
+
+    document.getElementById('imageFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const errorEl = document.getElementById('editError');
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        errorEl.textContent = 'PNG, GIF, JPG, WebP 형식의 이미지만 업로드할 수 있어요.';
+        e.target.value = '';
+        return;
+      }
+      errorEl.textContent = '';
+      selectedMainFile = file;
+      pendingThumbnailBlob = null;
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const cropImg = document.getElementById('cropImage');
+        cropImg.src = ev.target.result;
+        document.getElementById('cropModal').style.display = 'flex';
+        if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+        cropperInstance = new Cropper(cropImg, {
+          aspectRatio: 3 / 4, viewMode: 1, dragMode: 'move',
+          autoCropArea: 0.85, guides: true, center: true,
+          cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: false,
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    async function confirmCrop() {
+      try {
+        pendingThumbnailBlob = await cropToBlob(cropperInstance, 600, 0.85);
+        showThumbPreview(pendingThumbnailBlob);
+        closeCropModal();
+      } catch (err) { document.getElementById('editError').textContent = err.message; }
+    }
+
+    async function useCropAsIs() {
+      if (!selectedMainFile) return;
+      try {
+        pendingThumbnailBlob = await autoCenterCropToBlob(selectedMainFile, 3/4, 600, 0.85);
+        showThumbPreview(pendingThumbnailBlob);
+        closeCropModal();
+      } catch (err) { document.getElementById('editError').textContent = err.message; }
+    }
+
+    function cancelCropModal() {
+      selectedMainFile = null; pendingThumbnailBlob = null;
+      document.getElementById('imageFile').value = '';
+      // 기존 이미지 복원
+      if (currentSlot?.thumbnail_url || currentSlot?.image_url) {
+        const preview = document.getElementById('imagePreview');
+        preview.src = currentSlot.thumbnail_url || currentSlot.image_url;
+        preview.style.display = 'block';
+        document.getElementById('uploadPlaceholder').style.display = 'none';
+      } else {
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('uploadPlaceholder').style.display = '';
+      }
+      closeCropModal();
+    }
+
+    function showThumbPreview(blob) {
+      const url = URL.createObjectURL(blob);
+      document.getElementById('imagePreview').src = url;
+      document.getElementById('imagePreview').style.display = 'block';
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+    }
+
+    function closeCropModal() {
+      document.getElementById('cropModal').style.display = 'none';
+      if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name    = document.getElementById('slotName').value.trim();
+      const errorEl = document.getElementById('editError');
+      const btn     = document.getElementById('submitBtn');
+
+      errorEl.textContent = '';
+      if (!name) { errorEl.textContent = '이름을 입력해주세요.'; return; }
+
+      let owner_user_id = null;
+      let owner_name    = null;
+      if (ownerType === 'site') {
+        if (!selectedOwnerId) { errorEl.textContent = '소유주를 선택해주세요.'; return; }
+        owner_user_id = selectedOwnerId;
+      } else {
+        owner_name = document.getElementById('ownerExternalName').value.trim() || null;
+      }
+
+      let designer = null;
+      if (designerType === 'site') {
+        designer = selectedDesignerNick || null;
+      } else {
+        designer = document.getElementById('designerExternalName').value.trim() || null;
+      }
+
+      btn.textContent = '저장 중...';
+      btn.disabled = true;
+
+      try {
+        const updateData = {
+          name,
+          designer,
+          owner_user_id,
+          owner_name,
+          slot_number:  document.getElementById('slotNumber').value.trim() || null,
+          description:  document.getElementById('slotDesc').value.trim() || null,
+        };
+
+        // 이미지 교체 (새 파일 선택 시에만)
+        const file = document.getElementById('imageFile').files[0];
+        if (file) {
+          const wmSrc = userWatermarkUrl || '../images/watermark.png';
+          const ts    = Date.now();
+          const blob  = await compressImage(file);
+
+          const origName = `slot_${ts}_orig.jpg`;
+          const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: 'image/jpeg' });
+          if (origErr) throw new Error(`원본 이미지 업로드 실패: ${origErr.message}`);
+          updateData.original_image_url = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
+
+          const wmBlob   = await applyWatermark(blob, wmSrc);
+          const mainName = `slot_${ts}.jpg`;
+          const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: 'image/jpeg' });
+          if (mainErr) throw new Error(`메인 이미지 업로드 실패: ${mainErr.message}`);
+          updateData.image_url = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
+
+          const thumbBlob = pendingThumbnailBlob || await autoCenterCropToBlob(file, 3/4, 600, 0.85);
+          const thumbName = `slot_${ts}_thumb.jpg`;
+          const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
+          if (thumbErr) throw new Error(`썸네일 업로드 실패: ${thumbErr.message}`);
+          updateData.thumbnail_url = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
+        }
+
+        updateData.trait_values = collectTraitValues();
+
+        const { error } = await sb.from('slots').update(updateData).eq('id', slotId);
+        if (error) throw new Error(`저장 실패: ${error.message}`);
+
+        window.location.href = `slot.html?id=${slotId}`;
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        btn.textContent = '저장하기';
+        btn.disabled = false;
+      }
+    });
+
+    initPage();
+  </script>
+
+  <!-- 크롭 모달 -->
+  <div id="cropModal" class="crop-modal-overlay" style="display:none;">
+    <div class="crop-modal-box">
+      <div class="crop-modal-header">
+        <h3>썸네일 편집</h3>
+        <p>드래그로 이동 · 스크롤로 확대/축소 — 목록 카드에 표시될 영역을 선택하세요.</p>
+      </div>
+      <div class="crop-modal-canvas">
+        <img id="cropImage" src="">
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn-ghost" style="color:var(--text-mute);" onclick="cancelCropModal()">취소</button>
+        <button type="button" class="btn-ghost" onclick="useCropAsIs()">원본 그대로 사용</button>
+        <button type="button" class="btn-secondary" onclick="confirmCrop()">확정</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

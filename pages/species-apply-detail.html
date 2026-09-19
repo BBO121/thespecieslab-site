@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>종족주 신청 상세 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="notice-detail-nav">
+          <span></span>
+          <a href="species-apply.html" class="notice-nav-list-btn">목록보기</a>
+        </div>
+
+        <article class="notice-detail-article">
+
+          <div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+              <span id="detailStatus" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;"></span>
+            </div>
+            <h1 id="detailTitle" class="notice-detail-title"></h1>
+            <div class="notice-detail-meta">
+              <span id="detailNickname"></span>
+              <span class="notice-detail-sep">·</span>
+              <span id="detailDate"></span>
+            </div>
+          </div>
+
+          <div class="notice-detail-divider"></div>
+
+          <!-- 참고 이미지 -->
+          <div id="imageSection" style="display:none; margin-bottom:20px;">
+            <img id="detailImage" style="max-width:100%; border-radius:var(--radius); display:block;">
+          </div>
+
+          <!-- 참고 링크 -->
+          <div id="linkSection" style="display:none; margin-bottom:16px; padding:10px 14px; background:#f8fafc; border-radius:10px; border:1px solid var(--border);">
+            <p style="font-size:12px; color:var(--text-mute); margin-bottom:4px;">참고 링크</p>
+            <a id="detailLink" href="#" target="_blank" rel="noopener noreferrer" style="font-size:14px; color:var(--sky-dark); word-break:break-all;"></a>
+          </div>
+
+
+        </article>
+
+        <!-- 관리자 답변 표시 -->
+        <div id="answerSection" style="margin-top:32px; display:none;">
+          <div style="background:var(--sky-pale); border:1px solid var(--sky-light); border-radius:var(--radius); padding:20px 24px;">
+            <p style="font-size:13px; font-weight:700; color:var(--sky-deep); margin-bottom:12px;">💬 관리자 답변</p>
+            <div id="answerContent" class="notice-detail-content" style="color:var(--text);"></div>
+            <p id="answerDate" style="font-size:12px; color:var(--text-mute); margin-top:10px;"></p>
+          </div>
+        </div>
+
+        <!-- 관리자 전용 처리 폼 -->
+        <div id="adminAnswerForm" style="margin-top:32px; display:none;">
+          <div style="background:var(--sky-pale); border:1px solid var(--sky-light); border-radius:var(--radius); padding:20px 24px;">
+            <p style="font-size:13px; font-weight:700; color:var(--sky-deep); margin-bottom:16px;">신청 처리</p>
+
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label" style="margin-bottom:6px; display:block;">상태 변경</label>
+              <select id="statusSelect" class="form-input" style="width:160px;">
+                <option value="접수됨">접수됨</option>
+                <option value="검토중">검토중</option>
+                <option value="승인됨">승인됨</option>
+                <option value="반려됨">반려됨</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:16px;">
+              <label class="form-label" style="margin-bottom:6px; display:block;">답변 내용</label>
+              <textarea id="answerInput" class="form-textarea" rows="4" placeholder="신청자에게 전달할 답변을 입력하세요"></textarea>
+            </div>
+
+            <p class="auth-error" id="answerError"></p>
+
+            <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+              <button class="btn-ghost" onclick="saveAnswer()">답변 저장</button>
+              <button class="btn-secondary" id="approveBtn" onclick="approveApplication()" style="background:#166534; border-color:#166534;">✓ 승인 + 권한 부여</button>
+              <button class="btn-ghost" id="rejectBtn" onclick="rejectApplication()" style="color:#ef4444; border-color:#fca5a5;">✗ 반려</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="notice-detail-bottom">
+          <a href="species-apply.html" class="btn-ghost">← 목록으로</a>
+          <a id="editBtn" href="#" class="btn-ghost" style="display:none;">수정</a>
+          <button id="deleteBtn" class="btn-ghost" onclick="deleteApply()" style="display:none; color:#ef4444;">삭제</button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const STATUS_STYLE = {
+      '접수됨': 'background:#f1f5f9;color:#64748b',
+      '검토중': 'background:#e0f2fe;color:#0284c7',
+      '승인됨': 'background:#dcfce7;color:#166534',
+      '반려됨': 'background:#fee2e2;color:#dc2626',
+    };
+
+    let currentId = null;
+    let applicantNickname = null;
+    let applicantUserId = null;
+    let adminNickname = null;
+    let applySpeciesName = '';
+
+    async function initPage() {
+      currentId = new URLSearchParams(window.location.search).get('id');
+      if (!currentId) { window.location.href = 'species-apply.html'; return; }
+
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      const isAdminUser = isAdminOrStaff(user.user_metadata?.role);
+      adminNickname     = user.user_metadata?.display_name || user.user_metadata?.nickname;
+
+      const [{ data, error }, { data: userList }] = await Promise.all([
+        sb.from('species_applications').select('*').eq('id', currentId).single(),
+        sb.rpc('get_all_users'),
+      ]);
+      const idToNick = Object.fromEntries((userList || []).filter(u => u.id && u.nickname).map(u => [u.id, u.nickname]));
+
+      if (error || !data) { window.location.href = 'species-apply.html'; return; }
+      if (!isAdminUser && data.user_id !== user.id) { window.location.href = 'species-apply.html'; return; }
+
+      applicantNickname = (data.user_id && idToNick[data.user_id]) || data.nickname;
+      applicantUserId = data.user_id || null;
+      applySpeciesName = data.species_name || '';
+
+      document.title = `${data.species_name} 종족주 신청 — 종족연구소`;
+
+      // 상태 뱃지
+      const statusEl = document.getElementById('detailStatus');
+      statusEl.textContent = data.status || '접수됨';
+      statusEl.style.cssText = STATUS_STYLE[data.status] || STATUS_STYLE['접수됨'];
+
+      document.getElementById('detailTitle').textContent     = `${data.species_name} 종족주 신청`;
+      document.getElementById('detailNickname').textContent  = applicantNickname;
+      const date = new Date(data.created_at).toLocaleDateString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).replace(/\. /g, '.').replace(/\.$/, '');
+      document.getElementById('detailDate').textContent = date;
+      // 참고 이미지
+      if (data.image_url) {
+        document.getElementById('detailImage').src = data.image_url;
+        document.getElementById('imageSection').style.display = 'block';
+      }
+
+      // 참고 링크
+      if (data.link) {
+        const linkEl = document.getElementById('detailLink');
+        linkEl.href = data.link;
+        linkEl.textContent = data.link;
+        document.getElementById('linkSection').style.display = 'block';
+      }
+
+      // 관리자 답변
+      if (data.answer) {
+        document.getElementById('answerContent').innerHTML = data.answer.replace(/\n/g, '<br>');
+        if (data.answered_at) {
+          const aDate = new Date(data.answered_at).toLocaleDateString('ko-KR', {
+            year: 'numeric', month: '2-digit', day: '2-digit'
+          }).replace(/\. /g, '.').replace(/\.$/, '');
+          document.getElementById('answerDate').textContent = `답변일: ${aDate}`;
+        }
+        document.getElementById('answerSection').style.display = 'block';
+      }
+
+      if (isAdminUser) {
+        document.getElementById('adminAnswerForm').style.display = 'block';
+        document.getElementById('statusSelect').value = data.status || '접수됨';
+        if (data.answer) document.getElementById('answerInput').value = data.answer;
+        document.getElementById('deleteBtn').style.display = 'inline-flex';
+        // 이미 승인/반려된 경우 버튼 숨김
+        if (data.status === '승인됨' || data.status === '반려됨') {
+          document.getElementById('approveBtn').style.display = 'none';
+          document.getElementById('rejectBtn').style.display  = 'none';
+        }
+
+        // 관리자가 이 신청 상세를 열람했다면 "확인함" 처리
+        // (신청자가 접수/검토중 상태에서 새로 수정한 뒤 다시 열람하는 경우도 포함)
+        const isUnread = !data.admin_checked_at ||
+          (data.applicant_updated_at && data.applicant_updated_at > data.admin_checked_at);
+        if (isUnread && (data.status === '접수됨' || data.status === '검토중')) {
+          sb.from('species_applications')
+            .update({ admin_checked_at: new Date().toISOString() })
+            .eq('id', currentId)
+            .then(({ error }) => { if (error) console.warn('[admin_checked_at 갱신 실패]', error.message); });
+        }
+      } else if (data.user_id === user.id) {
+        if (!data.answer) {
+          document.getElementById('deleteBtn').style.display = 'inline-flex';
+        }
+        if (data.status === '접수됨' || data.status === '검토중') {
+          const editBtn = document.getElementById('editBtn');
+          editBtn.href = `species-apply-write.html?id=${currentId}`;
+          editBtn.style.display = 'inline-flex';
+        }
+      }
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+    }
+
+    async function saveAnswer() {
+      const answer   = document.getElementById('answerInput').value.trim();
+      const status   = document.getElementById('statusSelect').value;
+      const errorEl  = document.getElementById('answerError');
+      errorEl.textContent = '';
+      if (!answer) { errorEl.textContent = '답변 내용을 입력해주세요.'; return; }
+
+      const { error } = await sb.from('species_applications').update({
+        answer, status,
+        answered_by: adminNickname,
+        answered_at: new Date().toISOString(),
+      }).eq('id', currentId);
+
+      if (error) { errorEl.textContent = `저장에 실패했어요. (${error.message})`; return; }
+
+      await sb.from('notifications').insert({
+        user_nickname: applicantNickname,
+        type: 'apply_answer',
+        message: `종족주 신청에 답변이 등록됐어요. (상태: ${status})`,
+        link: `species-apply-detail.html?id=${currentId}`,
+        is_read: false,
+      });
+
+      window.location.reload();
+    }
+
+    async function approveApplication() {
+      if (!confirm(`"${applicantNickname}"의 신청을 승인하고 종족주 권한을 부여할까요?`)) return;
+
+      const btn = document.getElementById('approveBtn');
+      btn.textContent = '처리 중...';
+      btn.disabled = true;
+
+      console.log('[approveApplication]', {
+        applicationId: currentId,
+        applicantNickname,
+        applicantUserId,
+        status: document.getElementById('statusSelect')?.value,
+      });
+
+      try {
+        if (!applicantUserId) {
+          throw new Error('해당 유저를 찾을 수 없어요. (user_id 없음)');
+        }
+
+        const { error: roleError } = await sb.rpc('set_user_role', {
+          target_id: applicantUserId,
+          new_role: 'species_owner',
+        });
+        if (roleError) throw new Error(`권한 부여 실패: ${roleError.message}`);
+
+        const answer = document.getElementById('answerInput').value.trim() || '종족주 신청이 승인됐어요! 이제 종족을 등록하고 관리할 수 있어요.';
+
+        const { error: updateError } = await sb.from('species_applications').update({
+          status: '승인됨', answer,
+          answered_by: adminNickname,
+          answered_at: new Date().toISOString(),
+        }).eq('id', currentId);
+        if (updateError) throw new Error(`신청 상태 업데이트 실패: ${updateError.message}`);
+
+        const { error: notiError } = await sb.from('notifications').insert({
+          user_nickname: applicantNickname,
+          type: 'apply_approved',
+          message: '종족주 신청이 승인됐어요! 이제 종족을 등록할 수 있어요. 🎉',
+          link: `species-apply-detail.html?id=${currentId}`,
+          is_read: false,
+        });
+        if (notiError) console.warn('[approveApplication] 알림 저장 실패:', notiError.message);
+
+        await logAdminAction('species_apply_approve', 'species_apply', currentId, applySpeciesName, {
+          species_name: applySpeciesName,
+          applicant:    applicantNickname,
+        });
+
+        window.location.reload();
+      } catch (err) {
+        console.error('[approveApplication] 오류:', err);
+        alert(`승인 처리 중 오류가 발생했어요.\n${err.message}`);
+      } finally {
+        btn.textContent = '✓ 승인 + 권한 부여';
+        btn.disabled = false;
+      }
+    }
+
+    async function rejectApplication() {
+      const answer = document.getElementById('answerInput').value.trim();
+      if (!answer) { document.getElementById('answerError').textContent = '반려 사유를 먼저 입력해주세요.'; return; }
+      if (!confirm('신청을 반려할까요?')) return;
+
+      await sb.from('species_applications').update({
+        status: '반려됨', answer,
+        answered_by: adminNickname,
+        answered_at: new Date().toISOString(),
+      }).eq('id', currentId);
+
+      await sb.from('notifications').insert({
+        user_nickname: applicantNickname,
+        type: 'apply_rejected',
+        message: '종족주 신청 결과가 등록됐어요.',
+        link: `species-apply-detail.html?id=${currentId}`,
+        is_read: false,
+      });
+
+      await logAdminAction('species_apply_reject', 'species_apply', currentId, applySpeciesName, {
+        species_name: applySpeciesName,
+        applicant:    applicantNickname,
+      });
+
+      window.location.reload();
+    }
+
+    async function deleteApply() {
+      if (!confirm('정말 삭제할까요?')) return;
+      const { error } = await sb.from('species_applications').delete().eq('id', currentId);
+      if (error) { alert('삭제에 실패했어요.'); return; }
+      window.location.href = 'species-apply.html';
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

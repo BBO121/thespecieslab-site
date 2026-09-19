@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>전체 종족 — 종족연구소</title>
+  <meta name="description" content="종족연구소에 등록된 창작 종족의 목록과 각 종족의 기본 정보를 확인할 수 있습니다.">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <section class="section">
+
+        <div class="list-page-header">
+          <div>
+            <h1 class="list-page-title">전체 종족</h1>
+            <p class="list-page-count" id="speciesCount">불러오는 중...</p>
+          </div>
+          <a href="species-register.html" class="btn-secondary" id="btnRegisterSpecies" style="display:none;">+ 종족 등록</a>
+        </div>
+
+        <!-- 종족 유형 필터 -->
+        <div class="species-filter-chips" id="openFilterChips">
+          <button class="species-filter-chip active" data-filter="all">전체보기</button>
+          <button class="species-filter-chip" data-filter="open">열린종족</button>
+          <button class="species-filter-chip" data-filter="closed">닫힌종족</button>
+        </div>
+
+        <!-- 연령 제한 필터 -->
+        <div class="species-filter-chips" id="ageFilterChips">
+          <button class="species-filter-chip active" data-age-filter="all">전체</button>
+          <button class="species-filter-chip" data-age-filter="none">전체 이용 가능만</button>
+          <button class="species-filter-chip" data-age-filter="restricted">연령 제한 종족만</button>
+        </div>
+
+        <!-- 검색 + 정렬 -->
+        <div class="list-controls">
+          <input type="text" class="list-search" id="searchInput" placeholder="종족 이름으로 검색">
+          <select class="list-sort" id="sortSelect">
+            <option value="recent">최근 등록순</option>
+            <option value="name">이름순</option>
+          </select>
+        </div>
+
+        <div class="species-grid species-grid--large" id="speciesGrid">
+          <p class="page-loading">불러오는 중...</p>
+        </div>
+        <div id="paginationWrap"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <style>
+    .species-filter-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .species-filter-chip {
+      padding:6px 14px; border:1.5px solid var(--border); border-radius:9px;
+      background:#fff; font-size:13px; font-weight:600; color:var(--text-sub);
+      cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap;
+    }
+    .species-filter-chip:hover  { border-color:var(--sky-dark); color:var(--sky-dark); }
+    .species-filter-chip.active { background:var(--sky-dark); border-color:var(--sky-dark); color:#fff; }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js?v=20260919"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/search.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    let isInitialLoad = true;
+    let openFilter    = 'all';
+    let ageFilter     = 'all';
+    let searchController = null;
+    let searchToken   = 0;
+    const pager = createPager(render, 'paginationWrap', 'page', 28);
+
+    // 전체 종족을 미리 캐싱해 브라우저에서 필터링하는 대신, 검색어/필터가
+    // 바뀔 때마다 searchSpecies()로 서버에 직접 요청한다.
+    function loadSpecies() {
+      const p = new URLSearchParams(location.search);
+      const q      = p.get('q');
+      const sort   = p.get('sort');
+      const filter = p.get('filter');
+      const ageF   = p.get('ageFilter');
+      if (q)      document.getElementById('searchInput').value = q;
+      if (sort)   document.getElementById('sortSelect').value  = sort;
+      if (filter) {
+        openFilter = filter;
+        document.querySelectorAll('#openFilterChips .species-filter-chip').forEach(b =>
+          b.classList.toggle('active', b.dataset.filter === filter));
+      }
+      if (ageF) {
+        ageFilter = ageF;
+        document.querySelectorAll('#ageFilterChips .species-filter-chip').forEach(b =>
+          b.classList.toggle('active', b.dataset.ageFilter === ageF));
+      }
+      applyFilter();
+    }
+
+    async function applyFilter() {
+      const q    = normalizeSearchQuery(document.getElementById('searchInput').value);
+      const sort = document.getElementById('sortSelect').value;
+
+      if (searchController) searchController.abort();
+      searchController = new AbortController();
+      const myToken = ++searchToken;
+
+      const { data, count, error } = await searchSpecies(q, {
+        openType: openFilter,
+        ageFilter,
+        sort,
+        limit: 2000,
+        signal: searchController.signal,
+      });
+
+      if (myToken !== searchToken) return; // 이전 요청보다 늦게 온 응답은 무시
+
+      if (error) {
+        document.getElementById('speciesGrid').innerHTML = '<p class="page-loading">불러오기 실패</p>';
+        document.getElementById('paginationWrap').innerHTML = '';
+        return;
+      }
+
+      const list = data;
+      const countEl = document.getElementById('speciesCount');
+      countEl.textContent = `총 ${count ?? list.length}개의 종족`;
+
+      const grid = document.getElementById('speciesGrid');
+      if (!list.length) {
+        grid.innerHTML = '<p class="page-loading">검색 결과가 없어요</p>';
+        document.getElementById('paginationWrap').innerHTML = '';
+        if (q) {
+          window.awardAchievement?.('no_species_search');
+          const _fc = await window.incrementAchCounter?.('species_search_fail') || 0;
+          if (_fc >= 10) window.awardAchievement?.('species_search_fail_10');
+          if (_fc >= 5) {
+            const _cfc = await window.getCounterValue?.('char_search_fail') || 0;
+            if (_cfc >= 5) window.awardAchievement?.('odd_search');
+          }
+        }
+        return;
+      }
+
+      if (isInitialLoad) {
+        isInitialLoad = false;
+        pager.init(list);
+      } else {
+        const url = new URL(location.href);
+        if (q)    url.searchParams.set('q', q);             else url.searchParams.delete('q');
+        if (sort) url.searchParams.set('sort', sort);       else url.searchParams.delete('sort');
+        if (openFilter !== 'all') url.searchParams.set('filter', openFilter);
+        else url.searchParams.delete('filter');
+        if (ageFilter !== 'all') url.searchParams.set('ageFilter', ageFilter);
+        else url.searchParams.delete('ageFilter');
+        url.searchParams.delete('page');
+        history.replaceState(null, '', url);
+        pager.load(list);
+      }
+      loadAdSense(); // 종족 목록이 1개 이상 렌더된 뒤에만 광고 로드
+    }
+
+    const debouncedApplyFilter = debounce(applyFilter, 300);
+
+    function speciesImgHtml(s) {
+      const imgSrc = s.thumbnail_url || s.image_url;
+      if (s.is_sensitive && speciesHasVisibleRealImage(s)) {
+        const ageBadge = s.age_limit > 0 ? `<span class="species-age-badge">${s.age_limit}세 이상</span>` : '';
+        return `
+          <div style="position:relative; overflow:hidden; border-radius:var(--radius);">
+            <div class="species-img blurred" style="background-image:url('${imgSrc}'); background-size:cover; background-position:center;"></div>
+            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${ageBadge}${s.sensitive_note ? '<span class="sensitive-overlay-note">' + s.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+          </div>`;
+      }
+      const displaySrc = resolveSpeciesImage(s);
+      if (s.age_limit > 0) {
+        // 연령 제한은 썸네일을 가리는 조건이 아니다 — 썸네일은 정상 노출하고
+        // 좌측 상단에 연령 배지만 오버레이한다.
+        // (민감 요소로 인한 가림은 위 s.is_sensitive 분기에서 이미 별도로 처리됨)
+        return `<div class="species-img" style="position:relative; background-image:url('${displaySrc}'); background-size:cover; background-position:center;"><span class="species-age-badge species-age-badge--overlay">${s.age_limit}세 이상</span></div>`;
+      }
+      return `<div class="species-img" style="background-image:url('${displaySrc}'); background-size:cover; background-position:center;"></div>`;
+    }
+
+    function render(data) {
+      const grid = document.getElementById('speciesGrid');
+      grid.innerHTML = data.map(s => `
+        <a href="species.html?id=${s.id}" class="species-card">
+          ${speciesImgHtml(s)}
+          <div class="species-info">
+            <p class="species-name">${s.name}</p>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    function revealSensitive(overlayEl, e) {
+      e.stopPropagation();
+      e.preventDefault();
+      const wrap = overlayEl.parentElement;
+      wrap.querySelectorAll('.blurred').forEach(el => el.classList.remove('blurred'));
+      overlayEl.remove();
+    }
+
+    document.getElementById('openFilterChips').addEventListener('click', e => {
+      const btn = e.target.closest('[data-filter]');
+      if (!btn) return;
+      openFilter = btn.dataset.filter;
+      document.querySelectorAll('#openFilterChips .species-filter-chip').forEach(el =>
+        el.classList.toggle('active', el === btn)
+      );
+      isInitialLoad = false;
+      applyFilter();
+    });
+
+    document.getElementById('ageFilterChips').addEventListener('click', e => {
+      const btn = e.target.closest('[data-age-filter]');
+      if (!btn) return;
+      ageFilter = btn.dataset.ageFilter;
+      document.querySelectorAll('#ageFilterChips .species-filter-chip').forEach(el =>
+        el.classList.toggle('active', el === btn)
+      );
+      isInitialLoad = false;
+      applyFilter();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', debouncedApplyFilter);
+    document.getElementById('sortSelect').addEventListener('change', applyFilter);
+
+    async function initPage() {
+      const user = await getUser();
+      const role = user?.user_metadata?.role;
+      if (isAdminOrStaff(role) || role === 'species_owner') {
+        document.getElementById('btnRegisterSpecies').style.display = '';
+      }
+    }
+
+    initPage();
+    loadSpecies();
+  </script>
+</body>
+</html>
+
+
+

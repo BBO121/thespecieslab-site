@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# 로그인·관리자·작성/수정 등 비공개 성격의 HTML 페이지는
+# Disallow 하지 않고 각 페이지의 <meta name="robots" content="noindex, nofollow"> 로 처리한다.
+# (Disallow 하면 크롤러가 페이지를 열지 못해 noindex 를 읽을 수 없기 때문)
+
+Sitemap: https://thespecieslab.com/sitemap.xml

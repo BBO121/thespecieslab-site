@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>종족 연구소 (Species Lab)</title>
+
+  <!-- SEO -->
+  <meta name="description" content="종족과 개체를 기록하고 관리하는 아카이브">
+  <link rel="canonical" href="https://thespecieslab.com/pages/index.html">
+
+  <!-- Open Graph (카카오톡, 디스코드, 페이스북 등) -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thespecieslab.com/pages/index.html">
+  <meta property="og:title" content="종족 연구소 (Species Lab)">
+  <meta property="og:description" content="종족과 개체를 기록하고 관리하는 아카이브">
+  <meta property="og:image" content="https://thespecieslab.com/images/og-thumbnail.jpg">
+  <meta property="og:locale" content="ko_KR">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="종족 연구소 (Species Lab)">
+  <meta name="twitter:description" content="종족과 개체를 기록하고 관리하는 아카이브">
+  <meta name="twitter:image" content="https://thespecieslab.com/images/og-thumbnail.jpg">
+
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="page-index">
+
+  <!-- 헤더 -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+        
+      </nav>
+    </div>
+  </header>
+
+  <!-- 상단 이벤트 배너 -->
+  <div class="top-banner" id="topBanner" style="display:none;">
+    <ul class="banner-list" id="bannerList"></ul>
+    <button class="close-btn"><i class="ico ico-close"></i></button>
+  </div>
+
+  <!-- 굿즈 홍보 팝업 -->
+  <div class="goods-popup-overlay" id="goodsPopupOverlay" style="display:none;">
+    <div class="goods-popup-card" role="dialog" aria-modal="true" aria-labelledby="goodsPopupTitle">
+      <img src="../images/popup_image_goods.png" alt="종족연구소 굿즈" class="goods-popup-img">
+      <p class="goods-popup-title" id="goodsPopupTitle">🎉 종족연구소 굿즈가 찾아왔어요!</p>
+      <p class="goods-popup-desc">코믹월드에서 판매되는 굿즈의
+선입금이 시작되었습니다!
+
+현장 수령과 택배 배송 모두 가능합니다!
+
+현장 판매분이 매우 적으니, 구매를 원하신다면 이벤트에서 자세한 내용을 확인해주세요! ❤️</p>
+      <a href="event-detail.html?id=4" class="goods-popup-cta">이벤트 자세히 보기</a>
+      <div class="goods-popup-footer">
+        <button type="button" class="goods-popup-minor" id="goodsPopupHideToday">오늘 하루 보지 않기</button>
+        <button type="button" class="goods-popup-minor" id="goodsPopupCloseBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="main">
+
+      <!-- 검색 -->
+      <div class="search-wrap">
+        <div class="search-box">
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="개체, 종족, 유저 검색..."
+            autocomplete="off"
+          >
+          <svg class="search-icon" viewBox="0 0 20 20" fill="none">
+            <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <ul class="search-dropdown" id="searchDropdown"></ul>
+        </div>
+      </div>
+
+      <!-- 공지/업데이트/이벤트 바 묶음 -->
+      <div style="display:flex; flex-direction:column; gap:3px; margin-bottom:16px;">
+        <div id="noticeBar"></div>
+        <div id="updateNoteBar"></div>
+        <div id="eventBar"></div>
+      </div>
+
+      <!-- 종족 섹션 -->
+      <section class="section">
+        <div class="section-header">
+          <h2>종족</h2>
+          <a href="species-list.html" class="btn-more">전체보기</a>
+        </div>
+        <div class="species-grid" id="speciesGrid">
+          <p class="page-loading" id="speciesLoading" style="padding:20px 0;">불러오는 중...</p>
+        </div>
+      </section>
+
+      <!-- 분양 섹션 -->
+      <section class="section">
+        <div class="section-header">
+          <h2>분양</h2>
+          <a href="adoption.html" class="btn-more">전체보기</a>
+        </div>
+        <div id="adoptionEventBox" class="event-adoption-box" style="display:none;">
+          <p class="event-adoption-label">이벤트 분양</p>
+          <div class="adoption-grid" id="adoptionEventGrid"></div>
+        </div>
+        <div class="adoption-grid" id="adoptionGrid">
+          <p class="page-loading" id="adoptionLoading" style="padding:20px 0;">불러오는 중...</p>
+        </div>
+        <p id="adoptionEmpty" style="display:none; color:var(--text-mute); font-size:14px; padding:20px 0;">등록된 분양 글이 없어요.</p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 푸터 -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-about">
+          <p class="footer-about-title">종족연구소</p>
+          <p class="footer-about-desc">종족연구소는 창작 종족과 개체를 연구하고 기록하는 아카이브입니다. 다양한 창작 종족의 설정과 성장 과정, 소속 개체의 정보를 한곳에서 살펴볼 수 있으며, 소유권과 디자인권의 흐름을 기록하고 관리합니다.</p>
+          <p class="footer-about-desc footer-about-desc-sub">개체의 등록과 분양, 소유권 이전을 통해 변화하는 기록을 보존하고, 창작자와 이용자가 함께 각 종족의 설정과 세계관을 지속적으로 이어갈 수 있는 공간입니다.</p>
+          <div class="footer-about-links">
+            <a href="species-list.html">종족리스트</a>
+            <a href="character-list.html">개체리스트</a>
+          </div>
+        </div>
+        <nav class="footer-nav">
+          <div class="footer-nav-col">
+            <a href="terms.html">이용약관</a>
+            <a href="privacy.html">개인정보처리방침</a>
+          </div>
+          <div class="footer-nav-col">
+            <a href="credits.html">운영진</a>
+            <a href="mailto:contact@thespecieslab.com">문의</a>
+            <a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a>
+          </div>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <span class="footer-copy">© 2026 종족연구소</span>
+        <span class="footer-version">ver.2.1</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js?v=20260919"></script>
+  <script src="../js/search.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const TYPE_LABEL = { free: '무료', paid: '유료', currency: '재화거래', auction: '경매', etc: '기타' };
+    const TYPE_CLASS  = { free: 'adoption-type--free', paid: 'adoption-type--paid', currency: 'adoption-type--currency', auction: 'adoption-type--auction', etc: 'adoption-type--paid' };
+
+    async function loadIndex() {
+      const [
+        { data: speciesList },
+        { data: adoptionList },
+        { data: eventAdoptionList },
+        { data: noticeList },
+        { data: updateNoteList },
+        { data: eventList },
+      ] = await Promise.all([
+        sb.from('species').select('id, name, image_url, thumbnail_url, default_image_index, is_sensitive, sensitive_note, age_limit').neq('id', LABBER_SPECIES_ID).order('created_at', { ascending: false }).limit(18),
+        sb.from('adoptions').select('id, character_name, species_name, adoption_type, status, image_url, thumbnail_url, characters(is_sensitive, sensitive_note)').eq('is_featured_event', false).or('status.is.null,status.neq.완료').order('created_at', { ascending: false }).limit(8),
+        // 이벤트 경매 — 일반 8개 제한과 무관하게 항상 최상단에 전부 표시 (일반 목록과 중복 없음)
+        sb.from('adoptions').select('id, character_name, species_name, adoption_type, status, image_url, thumbnail_url, characters(is_sensitive, sensitive_note)').eq('is_featured_event', true).or('status.is.null,status.neq.완료').order('created_at', { ascending: false }),
+        sb.from('notices').select('id, title').eq('is_pinned', true).order('created_at', { ascending: false }),
+        sb.from('update_notes').select('id, title').eq('is_pinned', true).order('created_at', { ascending: false }).limit(2),
+        // 진행 중인 이벤트 = 상단 고정(is_pinned)된 이벤트. 종료 시 관리자가 고정을 해제하면 메인에서 자동으로 사라짐
+        sb.from('events').select('id, title').eq('is_pinned', true).order('created_at', { ascending: false }).limit(1),
+      ]);
+
+      // 공지 바 렌더 — 고정된 공지가 여러 개면 전부 표시
+      if (noticeList && noticeList.length > 0) {
+        document.getElementById('noticeBar').innerHTML = noticeList.map((n, i) => `
+          <div class="notice-bar" style="display:flex; margin-bottom:0;">
+            <span class="notice-bar-label">공지</span>
+            <a class="notice-bar-title" href="notice-detail.html?id=${n.id}">${n.title}</a>
+            ${i === 0 ? `<a class="notice-bar-more" href="notice.html">전체보기 ›</a>` : ''}
+          </div>
+        `).join('');
+      }
+
+      // 업데이트노트 바 렌더
+      if (updateNoteList && updateNoteList.length > 0) {
+        document.getElementById('updateNoteBar').innerHTML = updateNoteList.map((n, i) => `
+          <div class="notice-bar" style="display:flex; margin-bottom:0;">
+            <span class="notice-bar-label">업데이트</span>
+            <a class="notice-bar-title" href="update-note-detail.html?id=${n.id}">${n.title}</a>
+            ${i === 0 ? `<a class="notice-bar-more" href="update-note.html">전체보기 ›</a>` : ''}
+          </div>
+        `).join('');
+      }
+
+      // 이벤트 바 렌더 — 진행 중(고정)인 이벤트가 없으면 행 자체를 숨김
+      if (eventList && eventList.length > 0) {
+        document.getElementById('eventBar').innerHTML = eventList.map(e => `
+          <div class="notice-bar" style="display:flex; margin-bottom:0;">
+            <span class="notice-bar-label notice-bar-label--event">이벤트</span>
+            <a class="notice-bar-title" href="event-detail.html?id=${e.id}">${e.title}</a>
+            <a class="notice-bar-more" href="events.html">전체보기 ›</a>
+          </div>
+        `).join('');
+      }
+
+      // 종족 렌더
+      const speciesGrid    = document.getElementById('speciesGrid');
+      const speciesLoading = document.getElementById('speciesLoading');
+      speciesLoading.remove();
+
+      if (!speciesList || speciesList.length === 0) {
+        speciesGrid.innerHTML = '<p style="color:var(--text-mute);font-size:14px;padding:20px 0;">등록된 종족이 없어요.</p>';
+      } else {
+        speciesGrid.innerHTML = speciesList.map(s => `
+          <a href="species.html?id=${s.id}" class="species-card">
+            ${speciesImgHtml(s)}
+            <div class="species-info">
+              <p class="species-name">${s.name}</p>
+            </div>
+          </a>
+        `).join('');
+
+        function revealSensitive(overlayEl, e) {
+          e.stopPropagation(); e.preventDefault();
+          const wrap = overlayEl.parentElement;
+          wrap.querySelectorAll('.blurred').forEach(el => el.classList.remove('blurred'));
+          overlayEl.remove();
+        }
+
+        function buildSensitiveOverlay(note, ageBadge) {
+          return `<div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div class="sensitive-overlay-inner"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span class="sensitive-overlay-title">민감한 요소</span>${ageBadge || ''}${note ? '<span class="sensitive-overlay-note">' + note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>`;
+        }
+
+        function speciesImgHtml(s) {
+          const imgSrc = s.thumbnail_url || s.image_url;
+          if (s.is_sensitive && speciesHasVisibleRealImage(s)) {
+            const ageBadge = s.age_limit > 0 ? `<span class="species-age-badge">${s.age_limit}세 이상</span>` : '';
+            return `
+            <div style="position:relative; overflow:hidden; border-radius:var(--radius);">
+              <div class="species-img blurred" style="background-image:url('${imgSrc}');background-size:cover;background-position:center;"></div>
+              ${buildSensitiveOverlay(s.sensitive_note, ageBadge)}
+            </div>`;
+          }
+          const displaySrc = resolveSpeciesImage(s);
+          if (s.age_limit > 0) {
+            // 연령 제한은 썸네일을 가리는 조건이 아니다 — 썸네일은 정상 노출하고
+            // 좌측 상단에 연령 배지만 오버레이한다.
+            // (민감 요소로 인한 가림은 위 s.is_sensitive 분기에서 이미 별도로 처리됨)
+            return `<div class="species-img" style="position:relative; background-image:url('${displaySrc}');background-size:cover;background-position:center;"><span class="species-age-badge species-age-badge--overlay">${s.age_limit}세 이상</span></div>`;
+          }
+          return `<div class="species-img" style="background-image:url('${displaySrc}');background-size:cover;background-position:center;"></div>`;
+        }
+
+2      }
+
+      // 분양 렌더
+      document.getElementById('adoptionLoading').remove();
+
+      function buildAdoptionCard(a) {
+        const isSensitive   = a.characters?.is_sensitive === true;
+        const sensitiveNote = a.characters?.sensitive_note || null;
+        const typeLabel = TYPE_LABEL[a.adoption_type] || '';
+        const typeClass = TYPE_CLASS[a.adoption_type] || '';
+        const closed    = a.status === '완료';
+
+        const cardImg = a.thumbnail_url || a.image_url;
+        const stamp = closed ? `<img src="../images/adoption-complete.png" class="adoption-stamp" alt="분양완료">` : '';
+        let cardImgHtml;
+        if (isSensitive && cardImg) {
+          cardImgHtml = `<div class="adoption-card-img"><div style="position:absolute;inset:0;background-image:url('${cardImg}');background-size:cover;background-position:center;" class="blurred"></div>${buildSensitiveOverlay(sensitiveNote)}</div>`;
+        } else {
+          const imgStyle = cardImg ? `background-image:url('${cardImg}');background-size:cover;background-position:center;` : '';
+          cardImgHtml = `<div class="adoption-card-img" style="${imgStyle}"></div>`;
+        }
+
+        return `
+          <a class="adoption-card${closed ? ' adoption-card--closed' : ''}" href="adoption-detail.html?id=${a.id}">
+            ${cardImgHtml}
+            ${stamp}
+            <div class="adoption-card-info">
+              <div class="adoption-card-badges">
+                <span class="adoption-type-badge ${typeClass}">${typeLabel}</span>
+                <span class="adoption-status ${closed ? 'adoption-status--closed' : ''}">${a.status || '분양중'}</span>
+              </div>
+              <p class="adoption-card-charname">${a.character_name || '—'}</p>
+              <p class="adoption-card-species">${a.species_name || '—'}</p>
+            </div>
+          </a>
+        `;
+      }
+
+      // 이벤트 경매 — 카드 개별 강조가 아니라 영역(box) 전체가 이벤트 구역임을 표시.
+      // 항상 최상단, 일반 목록과 중복 없음. 이벤트가 없으면 박스 자체를 렌더링하지 않는다.
+      const eventBox  = document.getElementById('adoptionEventBox');
+      const eventGrid = document.getElementById('adoptionEventGrid');
+      if (eventAdoptionList && eventAdoptionList.length > 0) {
+        eventBox.style.display = 'block';
+        eventGrid.innerHTML = eventAdoptionList.map(buildAdoptionCard).join('');
+      }
+
+      if ((!adoptionList || adoptionList.length === 0) && (!eventAdoptionList || eventAdoptionList.length === 0)) {
+        document.getElementById('adoptionEmpty').style.display = 'block';
+      } else if (adoptionList && adoptionList.length > 0) {
+        document.getElementById('adoptionGrid').innerHTML = adoptionList.map(buildAdoptionCard).join('');
+      }
+
+      // 종족 또는 분양 카드가 실제로 렌더된 경우에만 광고 로드
+      if ((speciesList && speciesList.length) || (adoptionList && adoptionList.length)) loadAdSense();
+    }
+
+    loadIndex();
+
+    // ── 상단 이벤트 배너 (롤링 티커) ──────────────────
+    const BANNER_ROLL_INTERVAL = 4000;
+    const EVENT_BANNER_HIDE_UNTIL_KEY = 'eventBannerHiddenUntil';
+    const EVENT_BANNER_HIDE_IDS_KEY   = 'eventBannerHiddenIds';
+    let currentBannerIds = [];
+
+    // 다음 KST(UTC+9) 자정의 실제 epoch(ms) 타임스탬프
+    function getNextKstMidnightMs() {
+      const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+      const shifted = new Date(Date.now() + KST_OFFSET_MS);
+      const nextMidnightShifted = Date.UTC(
+        shifted.getUTCFullYear(),
+        shifted.getUTCMonth(),
+        shifted.getUTCDate() + 1,
+        0, 0, 0
+      );
+      return nextMidnightShifted - KST_OFFSET_MS;
+    }
+
+    function readHiddenBannerState() {
+      try {
+        const until = Number(localStorage.getItem(EVENT_BANNER_HIDE_UNTIL_KEY));
+        return {
+          until: Number.isFinite(until) ? until : 0,
+          ids: localStorage.getItem(EVENT_BANNER_HIDE_IDS_KEY) || '',
+        };
+      } catch {
+        return { until: 0, ids: '' };
+      }
+    }
+
+    function clearHiddenBannerState() {
+      try {
+        localStorage.removeItem(EVENT_BANNER_HIDE_UNTIL_KEY);
+        localStorage.removeItem(EVENT_BANNER_HIDE_IDS_KEY);
+      } catch {}
+    }
+
+    function saveHiddenBannerState(ids) {
+      try {
+        localStorage.setItem(EVENT_BANNER_HIDE_UNTIL_KEY, String(getNextKstMidnightMs()));
+        localStorage.setItem(EVENT_BANNER_HIDE_IDS_KEY, ids.join(','));
+      } catch {}
+    }
+
+    function bannerHref(b) {
+      if (b.link_url) return b.link_url;
+      if (b.event_id) return `event-detail.html?id=${b.event_id}`;
+      return null; // 연결안함 — 클릭 비활성화
+    }
+
+    function buildBannerMarqueeItem(banner, hasLink) {
+      const item = document.createElement('span');
+      item.className = 'banner-marquee-item';
+
+      const mainText = document.createElement('span');
+      mainText.className = 'banner-main-text';
+      mainText.textContent = banner.text;
+      item.appendChild(mainText);
+
+      // 연결이 없으면 show_cta가 true여도 CTA를 표시하지 않음
+      if (banner.show_cta && hasLink) {
+        const cta = document.createElement('span');
+        cta.className = 'banner-cta';
+        cta.textContent = banner.cta_text || '자세히 보기 ▶';
+        item.appendChild(cta);
+      }
+
+      return item;
+    }
+
+    function applyBannerMarquee(link, track) {
+      // 이전에 붙였던 복제본 제거 후 원본 1벌 폭으로 재측정
+      while (track.children.length > 1) track.removeChild(track.lastChild);
+      track.classList.remove('banner-marquee');
+
+      // 문구가 배너 폭보다 길 때만 marquee 적용 (모바일 CSS에서만 실제로 흐름)
+      if (track.scrollWidth > link.clientWidth) {
+        track.classList.add('banner-marquee');
+        // 뉴스 티커처럼 공백 없이 이어지도록 동일 문구를 1벌 더 복제
+        track.appendChild(track.firstChild.cloneNode(true));
+      }
+    }
+
+    function renderBannerItem(bannerList, banner, animate) {
+      const li = document.createElement('li');
+      if (animate) li.classList.add('banner-rolling');
+
+      const href = bannerHref(banner);
+      const hasLink = !!href;
+      // 연결이 없으면 클릭 불가능한 span으로, 있으면 a로 렌더링
+      const wrapper = document.createElement(hasLink ? 'a' : 'span');
+      if (hasLink) wrapper.href = href;
+      wrapper.className = 'banner-link';
+
+      const track = document.createElement('span');
+      track.className = 'banner-track';
+      track.appendChild(buildBannerMarqueeItem(banner, hasLink));
+
+      wrapper.appendChild(track);
+      li.appendChild(wrapper);
+      bannerList.innerHTML = '';
+      bannerList.appendChild(li);
+
+      requestAnimationFrame(() => applyBannerMarquee(wrapper, track));
+    }
+
+    async function initEventBanner() {
+      const topBanner  = document.getElementById('topBanner');
+      const bannerList = document.getElementById('bannerList');
+
+      const { data, error } = await sb
+        .from('event_banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return;
+
+      const nowMs = Date.now();
+      const banners = data.filter(b => {
+        if (b.starts_at && new Date(b.starts_at).getTime() > nowMs) return false;
+        if (b.ends_at && new Date(b.ends_at).getTime() < nowMs) return false;
+        return true;
+      });
+
+      if (banners.length === 0) return;
+
+      currentBannerIds = banners.map(b => b.id);
+
+      const hidden = readHiddenBannerState();
+      const idsMatch = hidden.ids === currentBannerIds.join(',');
+      if (hidden.until && nowMs < hidden.until && idsMatch) {
+        return; // 사용자가 오늘 숨김 처리했고, 그 사이 배너 구성도 안 바뀜
+      }
+      if (hidden.until) clearHiddenBannerState(); // 만료됐거나 배너 구성이 바뀌었으면 정리
+
+      topBanner.style.display = 'flex';
+      let idx = 0;
+      renderBannerItem(bannerList, banners[idx], false);
+
+      if (banners.length > 1) {
+        setInterval(() => {
+          idx = (idx + 1) % banners.length;
+          renderBannerItem(bannerList, banners[idx], true);
+        }, BANNER_ROLL_INTERVAL);
+      }
+    }
+
+    initEventBanner();
+
+    // ── 굿즈 홍보 팝업 ──────────────────
+    const GOODS_POPUP_ENABLED = false; // 선입금 종료로 비활성화. 재사용 시 true로 변경
+    const GOODS_POPUP_HIDE_UNTIL_KEY = 'goodsPopupHiddenUntil';
+
+    function initGoodsPopup() {
+      if (!GOODS_POPUP_ENABLED) return;
+
+      const overlay = document.getElementById('goodsPopupOverlay');
+      if (!overlay) return;
+
+      try {
+        const until = Number(localStorage.getItem(GOODS_POPUP_HIDE_UNTIL_KEY));
+        if (Number.isFinite(until) && until > 0 && Date.now() < until) return;
+      } catch {}
+
+      function openGoodsPopup() {
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        document.addEventListener('keydown', onGoodsPopupKeydown);
+      }
+
+      function closeGoodsPopup() {
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', onGoodsPopupKeydown);
+      }
+
+      function onGoodsPopupKeydown(e) {
+        if (e.key === 'Escape') closeGoodsPopup();
+      }
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeGoodsPopup();
+      });
+
+      document.getElementById('goodsPopupCloseBtn').addEventListener('click', closeGoodsPopup);
+
+      document.getElementById('goodsPopupHideToday').addEventListener('click', () => {
+        try {
+          localStorage.setItem(GOODS_POPUP_HIDE_UNTIL_KEY, String(getNextKstMidnightMs()));
+        } catch {}
+        closeGoodsPopup();
+      });
+
+      openGoodsPopup();
+    }
+
+    initGoodsPopup();
+
+    // 창 크기/orientation 변경 시 marquee 재판정
+    window.addEventListener('resize', () => {
+      const link = document.querySelector('#bannerList .banner-link');
+      const track = link?.querySelector('.banner-track');
+      if (link && track) applyBannerMarquee(link, track);
+    });
+
+    // 배너 닫기 기능
+    const closeBtn = document.querySelector('.close-btn');
+    const topBannerEl = document.getElementById('topBanner');
+
+    closeBtn.addEventListener('click', () => {
+      topBannerEl.classList.add('hidden');
+      saveHiddenBannerState(currentBannerIds);
+    });
+</script>
+</body>
+</html>
+
+
+
+
+

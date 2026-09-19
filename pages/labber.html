@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수상한 연구실 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="labber-theme">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <a href="shop.html">상점</a>
+              <span>/</span>
+              <span>수상한 연구실</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">수상한 연구실</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+            <p class="labber-intro">
+              지하 2층 복도 끝에 위치한 연구실.<br>
+              이곳의 연구원은 연구소 곳곳에서 발견되는 <span class="labber-intro-accent">'열쇠'</span>를 수집하고 있는 듯하다.
+            </p>
+          </div>
+        </div>
+
+        <!-- NPC 대화 영역: 대화창(왼쪽) + NPC(오른쪽)가 나란한 하나의 장면 -->
+        <section class="labber-dialogue-scene">
+          <div class="labber-speech-bubble">
+            <p class="labber-npc-name">A</p>
+            <p class="labber-npc-line" id="labberNpcLine" aria-live="polite"></p>
+          </div>
+          <div class="labber-npc-image-wrap">
+            <img id="labberNpcImage" class="labber-npc-image" src="../images/labber/labber_a_2.png" alt="A">
+          </div>
+        </section>
+
+        <!-- 교환소 패널 -->
+        <section class="labber-exchange-panel" id="labberExchangePanel">
+          <div class="labber-exchange-card">
+            <div class="labber-exchange-top">
+              <p class="labber-exchange-rate">열쇠 <strong>1개</strong> → 연구기록 <strong>25개</strong></p>
+
+              <div class="labber-exchange-balance">
+                <img src="../images/icons/currency-key.png" class="labber-currency-icon" alt="열쇠">
+                <span>보유 열쇠: <strong id="labberKeysAmt">0개</strong></span>
+              </div>
+            </div>
+
+            <div class="labber-exchange-interact">
+              <div class="labber-exchange-controls">
+                <div class="labber-exchange-qty">
+                  <span class="labber-control-label">교환 수량</span>
+                  <div class="labber-exchange-stepper">
+                    <button type="button" class="labber-qty-btn" id="labberQtyMinus" aria-label="교환 수량 감소">－</button>
+                    <span class="labber-qty-value" id="labberQty">0</span>
+                    <button type="button" class="labber-qty-btn" id="labberQtyPlus" aria-label="교환 수량 증가">＋</button>
+                  </div>
+                </div>
+
+                <div class="labber-exchange-receive">
+                  <span class="labber-receive-label">받을 연구기록</span>
+                  <span class="labber-receive-value" id="labberReceive">0개</span>
+                </div>
+              </div>
+
+              <button type="button" class="btn-submit labber-exchange-btn" id="labberExchangeBtn" disabled>교환하기</button>
+            </div>
+
+            <p class="labber-empty-state" id="labberEmptyState" style="display:none;">
+              열쇠가 없어요. 열쇠를 모아서 다시 찾아와주세요.
+            </p>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/labber.js"></script>
+</body>
+</html>

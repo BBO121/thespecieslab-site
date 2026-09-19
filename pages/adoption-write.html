@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>분양 글 작성 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom:24px;">
+          <a href="index.html">홈</a><span>/</span>
+          <a href="adoption.html">분양</a><span>/</span>
+          <span>작성</span>
+        </div>
+
+        <h1 class="register-title">분양 글 작성</h1>
+
+        <p class="auth-error" id="noCharsMsg" style="display:none; margin-bottom:16px;"></p>
+
+        <form class="register-form" id="adoptionForm">
+
+          <!-- 캐릭터 선택 -->
+          <div class="form-group">
+            <label class="form-label">분양할 캐릭터 <span class="required">*</span></label>
+            <select id="characterSelect" class="form-input" onchange="onCharSelect(this.value)">
+              <option value="">불러오는 중...</option>
+            </select>
+            <div id="charPreview" style="display:none; margin-top:10px; width:100px; height:100px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);">
+              <img id="charPreviewImg" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <p id="resaleWarning" style="display:none; margin-top:8px; font-size:13px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 12px;">⚠ 재분양 불가 설정 되어있는 개체입니다. 유의해주세요!</p>
+          </div>
+
+          <!-- 분양 형식 -->
+          <div class="form-group">
+            <label class="form-label">분양 형식 <span class="required">*</span></label>
+            <div class="owner-type-tabs">
+              <button type="button" class="owner-tab active" id="type-free"     onclick="setType('free')">무료</button>
+              <button type="button" class="owner-tab"        id="type-paid"     onclick="setType('paid')">유료</button>
+              <button type="button" class="owner-tab"        id="type-currency" onclick="setType('currency')">재화거래</button>
+              <button type="button" class="owner-tab"        id="type-auction"  onclick="setType('auction')">경매</button>
+              <button type="button" class="owner-tab"        id="type-etc"      onclick="setType('etc')">기타</button>
+            </div>
+          </div>
+
+          <!-- 무료 서브 옵션 -->
+          <div class="form-group" id="freeSubOptions">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+              <label class="form-label" style="margin:0;">진행 방식</label>
+              <p id="freeNormalNotice" class="form-hint" style="display:block; margin:0;">댓글 또는 연락수단을 통해 원하시는 방식으로 자유롭게 진행해주세요.</p>
+            </div>
+            <div class="owner-type-tabs">
+              <button type="button" class="owner-tab active" id="free-normal"     onclick="setFreeType('normal')">일반</button>
+              <button type="button" class="owner-tab"        id="free-random"     onclick="setFreeType('random')">랜덤 추첨</button>
+              <button type="button" class="owner-tab"        id="free-first_come" onclick="setFreeType('first_come')">선착순</button>
+            </div>
+          </div>
+
+          <!-- 무료: 추첨/선착순 날짜 -->
+          <div class="form-group" id="raffleAtField" style="display:none;">
+            <label class="form-label" id="raffleAtLabel">추첨 날짜/시간 <span class="required">*</span></label>
+            <input type="datetime-local" id="raffleAt" class="form-input">
+            <p class="form-hint" id="raffleAtHint"></p>
+          </div>
+
+          <!-- 랜덤 추첨: 리추첨 안내문 (기존 안내 박스 스타일 재사용) -->
+          <div id="redrawNotice" style="display:none; margin:-4px 0 16px; background:#F0F9FF; border:1.5px solid #BAE6FD; border-radius:var(--radius); padding:14px 16px;">
+            <p style="font-size:13px; font-weight:700; color:#0369A1; margin:0 0 4px;">안내</p>
+            <p style="font-size:13px; color:#0369A1; margin:0; line-height:1.6; word-break:keep-all; overflow-wrap:break-word;">
+              당첨자가 <strong>14일 동안 당첨 확인을 하지 않을 경우</strong>, 분양자는 <strong>리추첨</strong>을 진행할 수 있습니다.<br>
+              리추첨 시 기존 당첨은 자동으로 취소되며, 새로운 당첨자가 선정됩니다.
+            </p>
+          </div>
+
+          <!-- 유료: 가격 -->
+          <div class="form-group" id="paidFields" style="display:none;">
+            <label class="form-label" id="priceLabel">가격 <span class="required">*</span></label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="text" id="price" class="form-input" inputmode="numeric"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                placeholder="금액 입력" style="flex:1;">
+              <span style="font-size:14px; color:var(--text-sub); white-space:nowrap;">원</span>
+            </div>
+          </div>
+
+          <!-- 재화거래: 사용 재화 / 거래 금액 -->
+          <div class="form-group" id="currencyFields" style="display:none;">
+            <label class="form-label">사용 재화 <span class="required">*</span></label>
+            <select id="currencyType" class="form-input" style="margin-bottom:14px;">
+              <option value="research_records">연구기록</option>
+              <option value="keys">열쇠</option>
+            </select>
+
+            <label class="form-label">거래 금액 <span class="required">*</span></label>
+            <input type="text" id="currencyAmount" class="form-input" inputmode="numeric"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+              placeholder="금액 입력">
+
+            <p style="margin-top:10px; font-size:13px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 12px;">
+              ⚠ 분양 완료 처리 전에 구매자와 직접 재화 거래를 완료한 후, 분양 확정을 눌러주세요!
+            </p>
+          </div>
+
+          <!-- 경매 필드 -->
+          <div id="auctionFields" style="display:none;">
+
+            <div class="form-group">
+              <label class="form-label">사용 재화 <span class="required">*</span></label>
+              <div class="owner-type-tabs">
+                <button type="button" class="owner-tab active" id="currency-krw"              onclick="setAuctionCurrency('krw')">원</button>
+                <button type="button" class="owner-tab"        id="currency-research_records" onclick="setAuctionCurrency('research_records')">연구기록</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">시작가 <span class="required">*</span></label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="text" id="startPrice" class="form-input" placeholder="0" inputmode="numeric"
+                  oninput="fmtNum(this)" style="flex:1;">
+                <span id="startPriceUnit" style="font-size:14px; color:var(--text-sub); white-space:nowrap;">원</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">즉시 낙찰가 <span class="required">*</span></label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="text" id="instantPrice" class="form-input" placeholder="0" inputmode="numeric"
+                  oninput="fmtNum(this)" style="flex:1;">
+                <span id="instantPriceUnit" style="font-size:14px; color:var(--text-sub); white-space:nowrap;">원</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">입찰 단위 <span class="required">*</span></label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="text" id="bidUnit" class="form-input" placeholder="0" inputmode="numeric"
+                  oninput="fmtNum(this)" style="flex:1;">
+                <span id="bidUnitUnit" style="font-size:14px; color:var(--text-sub); white-space:nowrap;">원</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">마감 방법</label>
+              <div class="owner-type-tabs">
+                <button type="button" class="owner-tab active" id="closeMethodDate"    onclick="setCloseMethod('date')">날짜 지정</button>
+                <button type="button" class="owner-tab"        id="closeMethodLastBid" onclick="setCloseMethod('last_bid')">마지막 입찰 후</button>
+              </div>
+            </div>
+
+            <div class="form-group" id="closeDateField">
+              <label class="form-label">마감 날짜</label>
+              <input type="datetime-local" id="closeAt" class="form-input">
+              <p class="form-hint" style="color:#b45309; margin-top:6px;">
+                ⚠️ 자동으로 닫히지 않으니 날짜와 시간을 확인하여 꼭 직접 분양확정 해주세요!
+              </p>
+            </div>
+
+            <div class="form-group" id="closeHoursField" style="display:none;">
+              <label class="form-label">마지막 입찰 후 마감</label>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <input type="number" id="closeHours" class="form-input" min="1" max="168" placeholder="24" style="max-width:120px;">
+                <span style="font-size:14px; color:var(--text-sub);">시간 후 마감</span>
+              </div>
+              <p class="form-hint" style="color:#b45309; margin-top:6px;">
+                ⚠️ 자동으로 닫히지 않으니 꼭 직접 분양확정 해주세요!
+              </p>
+            </div>
+
+            <!-- admin 전용: 입찰 시작 시각 -->
+            <div class="form-group" id="bidOpenAtField" style="display:none;">
+              <label class="form-label">입찰 시작 시각 <span style="font-size:11px; color:var(--text-mute); font-weight:400;">(admin 전용 · 선택)</span></label>
+              <input type="datetime-local" id="bidOpenAt" class="form-input">
+              <p class="form-hint">비워두면 게시 즉시 입찰 가능해요. 값을 넣으면 해당 시각 전에는 아무도 입찰할 수 없어요(서버에서도 차단돼요).</p>
+            </div>
+
+            <!-- admin 전용: 이벤트 경매 지정 -->
+            <div class="form-group" id="eventFeaturedField" style="display:none;">
+              <label class="form-label">이벤트 경매 <span style="font-size:11px; color:var(--text-mute); font-weight:400;">(admin 전용)</span></label>
+              <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" id="isFeaturedEvent" style="width:16px; height:16px; margin:0;">
+                이 경매를 분양 목록/메인 최상단에 고정되는 이벤트 경매로 지정
+              </label>
+            </div>
+
+          </div>
+
+          <!-- 기타: 조건 -->
+          <div class="form-group" id="etcFields" style="display:none;">
+            <label class="form-label">조건</label>
+            <input type="text" id="etcPrice" class="form-input" placeholder="예) 리퀘, arpg 재화 등 — 없으면 비워두세요">
+          </div>
+
+          <!-- 추가 이미지 -->
+          <div class="form-group">
+            <label class="form-label">추가 이미지</label>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <input type="text" id="extraImg1" class="form-input" placeholder="이미지 URL (선택)">
+              <input type="text" id="extraImg2" class="form-input" placeholder="이미지 URL (선택)">
+              <input type="text" id="extraImg3" class="form-input" placeholder="이미지 URL (선택)">
+            </div>
+            <p class="form-hint">최대 3장까지 추가 가능해요</p>
+          </div>
+
+          <!-- 설명 -->
+          <div class="form-group">
+            <label class="form-label">설명</label>
+            <textarea id="description" class="form-textarea" rows="6" placeholder="분양 관련 설명 (선택)"></textarea>
+          </div>
+
+          <!-- 연락 수단 -->
+          <div class="form-group">
+            <label class="form-label">연락 수단</label>
+            <input type="text" id="contact" class="form-input" placeholder="예) 트위터(X): @xxx / 디스코드: xxx#0000">
+          </div>
+
+          <p class="auth-error" id="writeError"></p>
+
+          <div class="register-actions">
+            <a href="adoption.html" class="btn-ghost">취소</a>
+            <button type="submit" class="btn-secondary" id="submitBtn">등록하기</button>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    let selectedType           = 'free';
+    let selectedFreeType       = 'normal';
+    let selectedCloseMethod    = 'date';
+    let selectedAuctionCurrency = 'krw';
+    const AUCTION_CURRENCY_LABEL = { krw: '원', research_records: '연구기록' };
+    let myCharacters        = [];
+    let mySlots             = [];
+    let speciesRulesMap     = {};
+    let isAdminUser         = false; // 이벤트 경매 지정/입찰 시작 시각 필드 노출 여부 (admin 전용)
+    let isAdminLoginIdUser  = false; // 공식 관리자 로그인 ID 계정 전용 — 유료분양/경매 allow_paid_adoption 검증 예외 (서버: is_admin_login_id_user RPC로 확인, 조작 불가)
+    let mySpeciesIdSet      = new Set(); // 내가 종족주인 종족 id — 분양 규칙 예외 판정용
+
+    function fmtNum(el) {
+      const raw = el.value.replace(/[^0-9]/g, '');
+      el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+    }
+
+    function getRawNum(id) {
+      return document.getElementById(id).value.replace(/,/g, '').trim() || null;
+    }
+
+    function onCharSelect(val) {
+      const preview = document.getElementById('charPreview');
+      const img     = document.getElementById('charPreviewImg');
+
+      if (!val) { preview.style.display = 'none'; document.getElementById('resaleWarning').style.display = 'none'; return; }
+
+      const isSlot = val.startsWith('s:');
+      const rawId  = val.slice(2);
+
+      if (isSlot) {
+        const slot = mySlots.find(s => String(s.id) === rawId);
+        const imgUrl = slot?.thumbnail_url || slot?.image_url;
+        if (imgUrl) { img.src = imgUrl; preview.style.display = 'block'; } else { preview.style.display = 'none'; }
+        document.getElementById('resaleWarning').style.display = 'none';
+      } else {
+        const char = myCharacters.find(c => String(c.id) === rawId);
+        if (char?.image_url) { img.src = char.image_url; preview.style.display = 'block'; } else { preview.style.display = 'none'; }
+        const sp = speciesRulesMap[char?.species_name] || {};
+        const finalAllowResale = char ? (char.allow_resale ?? sp.allow_resale ?? true) : true;
+        document.getElementById('resaleWarning').style.display = (char && !finalAllowResale) ? 'block' : 'none';
+      }
+    }
+
+    function setType(type) {
+      selectedType = type;
+      ['free', 'paid', 'currency', 'auction', 'etc'].forEach(t =>
+        document.getElementById(`type-${t}`).classList.toggle('active', t === type)
+      );
+
+      document.getElementById('freeSubOptions').style.display = type === 'free'     ? 'block' : 'none';
+      document.getElementById('paidFields').style.display     = type === 'paid'     ? 'block' : 'none';
+      document.getElementById('currencyFields').style.display = type === 'currency' ? 'block' : 'none';
+      document.getElementById('auctionFields').style.display  = type === 'auction'  ? 'block' : 'none';
+      document.getElementById('etcFields').style.display      = type === 'etc'      ? 'block' : 'none';
+      refreshAdminAuctionFields();
+
+      // 무료가 아닐 때 추첨 날짜 필드 숨김
+      if (type !== 'free') {
+        document.getElementById('raffleAtField').style.display = 'none';
+      } else {
+        setFreeType(selectedFreeType);
+      }
+    }
+
+    function setFreeType(freeType) {
+      selectedFreeType = freeType;
+      ['normal', 'random', 'first_come'].forEach(t =>
+        document.getElementById(`free-${t}`).classList.toggle('active', t === freeType)
+      );
+
+      const raffleField = document.getElementById('raffleAtField');
+      const raffleLabel = document.getElementById('raffleAtLabel');
+      const raffleHint  = document.getElementById('raffleAtHint');
+
+      const normalNotice = document.getElementById('freeNormalNotice');
+      const redrawNotice = document.getElementById('redrawNotice');
+      if (freeType === 'random') {
+        raffleField.style.display  = 'block';
+        normalNotice.style.display = 'none';
+        redrawNotice.style.display = 'block';
+        raffleLabel.innerHTML      = '추첨 날짜/시간 <span class="required">*</span>';
+        raffleHint.textContent     = '이 날짜/시간이 지나면 신청이 마감되고 분양자에게 추첨 버튼이 활성화돼요.';
+      } else if (freeType === 'first_come') {
+        raffleField.style.display  = 'block';
+        normalNotice.style.display = 'none';
+        redrawNotice.style.display = 'none';
+        raffleLabel.innerHTML      = '선착순 시작 날짜/시간 <span class="required">*</span>';
+        raffleHint.textContent     = '이 날짜/시간이 지나면 [분양받기] 버튼이 활성화돼요.';
+      } else {
+        raffleField.style.display  = 'none';
+        normalNotice.style.display = 'block';
+        redrawNotice.style.display = 'none';
+      }
+    }
+
+    function setAuctionCurrency(currency) {
+      selectedAuctionCurrency = currency;
+      document.getElementById('currency-krw').classList.toggle('active', currency === 'krw');
+      document.getElementById('currency-research_records').classList.toggle('active', currency === 'research_records');
+      const label = AUCTION_CURRENCY_LABEL[currency] || '원';
+      document.getElementById('startPriceUnit').textContent   = label;
+      document.getElementById('instantPriceUnit').textContent = label;
+      document.getElementById('bidUnitUnit').textContent      = label;
+    }
+
+    // admin에게만 이벤트 경매 지정 / 입찰 시작 시각 필드를 보여준다.
+    // (경매 타입일 때만 의미가 있으므로 auctionFields가 열려있을 때만 노출)
+    function refreshAdminAuctionFields() {
+      const show = isAdminUser && selectedType === 'auction';
+      document.getElementById('bidOpenAtField').style.display     = show ? 'block' : 'none';
+      document.getElementById('eventFeaturedField').style.display = show ? 'block' : 'none';
+    }
+
+    function setCloseMethod(method) {
+      selectedCloseMethod = method;
+      document.getElementById('closeMethodDate').classList.toggle('active',    method === 'date');
+      document.getElementById('closeMethodLastBid').classList.toggle('active', method === 'last_bid');
+      document.getElementById('closeDateField').style.display    = method === 'date'     ? 'block' : 'none';
+      document.getElementById('closeHoursField').style.display   = method === 'last_bid' ? 'block' : 'none';
+    }
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) {
+        window.location.href = 'adoption.html';
+        return;
+      }
+      isAdminUser = user.user_metadata?.role === 'admin';
+      refreshAdminAuctionFields();
+
+      // 공식 관리자 로그인 ID 계정 전용 유료분양/경매 예외 여부 — 서버 RPC로 확인
+      // (조작 가능한 user_metadata가 아니라 auth.uid() 기반 실제 login_id로 판정됨)
+      const { data: isAdminLoginId } = await sb.rpc('is_admin_login_id_user');
+      isAdminLoginIdUser = isAdminLoginId === true;
+
+      await loadCharacters(user);
+    }
+
+    async function loadCharacters(user) {
+      // 내 종족 id 목록 (디자인권 분양 권한은 종족주에게만)
+      const { data: mySpecies } = await sb.from('species')
+        .select('id').eq('owner_user_id', user.id);
+      const mySpeciesIds = (mySpecies || []).map(s => s.id);
+      mySpeciesIdSet = new Set(mySpeciesIds);
+
+      const slotsQuery = mySpeciesIds.length > 0
+        ? sb.from('slots').select('id, name, slot_number, species_id, image_url, thumbnail_url, status')
+            .in('species_id', mySpeciesIds).eq('status', 'active')
+            .order('slot_number', { ascending: true, nullsFirst: false })
+        : { data: [] };
+
+      const [{ data: chars }, { data: slots }, { data: activeAdoptions }, { data: allSpecies }] = await Promise.all([
+        sb.from('characters').select('id, name, species_name, image_url, thumbnail_url, allow_free_adoption, allow_resale, allow_paid_adoption, allow_other_adoption')
+          .eq('owner_user_id', user.id).neq('owner_is_offsite', true).order('name'),
+        slotsQuery,
+        sb.from('adoptions').select('character_id, slot_id').in('status', ['분양중', '확인 대기중']),
+        sb.from('species').select('id, name, allow_free_adoption, allow_resale, allow_paid_adoption, allow_other_adoption'),
+      ]);
+
+      speciesRulesMap = Object.fromEntries((allSpecies || []).map(s => [s.name, s]));
+
+      // 슬롯에 종족명 붙이기
+      const speciesIdToName = Object.fromEntries((allSpecies || []).map(s => [s.id, s.name]));
+      const activeCharIds = new Set((activeAdoptions || []).map(a => a.character_id).filter(Boolean));
+      const activeSlotIds = new Set((activeAdoptions || []).map(a => a.slot_id).filter(Boolean));
+
+      myCharacters = (chars || []).filter(c => !activeCharIds.has(c.id));
+      mySlots      = (slots  || [])
+        .filter(s => !activeSlotIds.has(s.id))
+        .map(s => ({ ...s, speciesName: speciesIdToName[s.species_id] || '' }));
+
+      const hasItems = myCharacters.length > 0 || mySlots.length > 0;
+      if (!hasItems) {
+        showNoChars('분양 가능한 캐릭터 또는 디자인권이 없어요.');
+        return;
+      }
+
+      const select = document.getElementById('characterSelect');
+      let html = '<option value="">선택하세요</option>';
+
+      if (myCharacters.length > 0) {
+        html += '<optgroup label="캐릭터">' +
+          myCharacters.map(c =>
+            `<option value="c:${c.id}">${c.name}${c.species_name ? ` (${c.species_name})` : ''}</option>`
+          ).join('') + '</optgroup>';
+      }
+
+      if (mySlots.length > 0) {
+        html += '<optgroup label="디자인권">' +
+          mySlots.map(s =>
+            `<option value="s:${s.id}">[디자인권${s.speciesName ? `-${s.speciesName}` : ''}] ${s.name}${s.slot_number ? ` (${s.slot_number})` : ''}</option>`
+          ).join('') + '</optgroup>';
+      }
+
+      select.innerHTML = html;
+    }
+
+    function showNoChars(msg) {
+      document.getElementById('noCharsMsg').textContent = msg;
+      document.getElementById('noCharsMsg').style.display = 'block';
+      document.getElementById('adoptionForm').style.display = 'none';
+    }
+
+    document.getElementById('adoptionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const selectedVal = document.getElementById('characterSelect').value;
+      const errorEl     = document.getElementById('writeError');
+      const btn         = document.getElementById('submitBtn');
+      errorEl.textContent = '';
+
+      if (!selectedVal) { errorEl.textContent = '캐릭터 또는 디자인권을 선택해주세요.'; return; }
+
+      if (!confirm('분양글은 등록 후 수정할 수 없습니다.\n분양가, 조건, 분양 방식 등을 다시 한 번 확인해주세요.\n이대로 등록하시겠습니까?')) return;
+
+      const isSlot = selectedVal.startsWith('s:');
+      const rawId  = selectedVal.slice(2);
+      const charId = isSlot ? null : rawId;
+
+      // 유료 필수 검증
+      if (selectedType === 'paid' && !document.getElementById('price').value.trim()) {
+        errorEl.textContent = '가격을 입력해주세요.'; return;
+      }
+
+      // 재화거래 필수 검증
+      if (selectedType === 'currency') {
+        const amount = document.getElementById('currencyAmount').value.trim();
+        if (!amount || Number(amount) <= 0) { errorEl.textContent = '거래 금액을 1 이상의 숫자로 입력해주세요.'; return; }
+      }
+
+      // 경매 필수 검증
+      if (selectedType === 'auction') {
+        if (!document.getElementById('startPrice').value.trim())   { errorEl.textContent = '시작가를 입력해주세요.'; return; }
+        if (!document.getElementById('instantPrice').value.trim()) { errorEl.textContent = '즉시 낙찰가를 입력해주세요.'; return; }
+        if (!document.getElementById('bidUnit').value.trim())      { errorEl.textContent = '입찰 단위를 입력해주세요.'; return; }
+
+        // 마감 방법별 검증
+        if (selectedCloseMethod === 'date') {
+          const closeAtRaw = document.getElementById('closeAt').value;
+          if (!closeAtRaw) { errorEl.textContent = '마감 날짜를 입력해주세요.'; return; }
+          const closeAtDate = new Date(closeAtRaw);
+          if (isNaN(closeAtDate.getTime())) { errorEl.textContent = '마감 날짜 형식이 올바르지 않아요.'; return; }
+          if (closeAtDate.getTime() <= Date.now()) { errorEl.textContent = '마감 날짜는 현재 시각보다 뒤여야 해요.'; return; }
+        } else if (selectedCloseMethod === 'last_bid') {
+          const closeHoursRaw = document.getElementById('closeHours').value.trim();
+          if (!closeHoursRaw) { errorEl.textContent = '마지막 입찰 후 마감 시간을 입력해주세요.'; return; }
+          if (!/^\d+$/.test(closeHoursRaw)) { errorEl.textContent = '마감 시간은 1 이상의 정수로 입력해주세요. (소수·음수·문자 불가)'; return; }
+          const closeHoursNum = Number(closeHoursRaw);
+          if (closeHoursNum <= 0)  { errorEl.textContent = '마감 시간은 1 이상이어야 해요.'; return; }
+          if (closeHoursNum > 168) { errorEl.textContent = '마감 시간은 최대 168시간(7일)까지 가능해요.'; return; }
+        }
+
+        // admin 전용: 입찰 시작 시각은 마감 시각(날짜 지정)보다 빨라야 함
+        if (isAdminUser) {
+          const bidOpenAtRaw = document.getElementById('bidOpenAt').value;
+          const closeAtRaw   = document.getElementById('closeAt').value;
+          if (bidOpenAtRaw && selectedCloseMethod === 'date' && closeAtRaw &&
+              new Date(bidOpenAtRaw) >= new Date(closeAtRaw)) {
+            errorEl.textContent = '입찰 시작 시각은 마감 시각보다 빨라야 해요.'; return;
+          }
+        }
+      }
+
+      // 무료 추첨/선착순 날짜 필수 검증
+      if (selectedType === 'free' && selectedFreeType !== 'normal') {
+        if (!document.getElementById('raffleAt').value) {
+          errorEl.textContent = '날짜/시간을 입력해주세요.'; return;
+        }
+      }
+
+      // 분양 규칙 검증 (캐릭터만 적용, 슬롯은 제외)
+      const char = isSlot ? null : myCharacters.find(c => String(c.id) === rawId);
+      const slot = isSlot ? mySlots.find(s => String(s.id) === rawId) : null;
+      const item = char || slot;
+      if (!item) { errorEl.textContent = '선택한 항목을 찾을 수 없어요.'; return; }
+
+      if (!isSlot) {
+        const sp = speciesRulesMap[char?.species_name] || {};
+        // 해당 종족의 종족주 본인은 자기 종족 개체에 한해 분양 규칙 제한을 받지 않는다.
+        const isSpeciesOwner = !!(sp.id && mySpeciesIdSet.has(sp.id));
+
+        if (!isSpeciesOwner) {
+          // 공식 관리자 로그인 ID 계정(공식 이벤트 경매 등록용)만 이 검증들을 예외로 건너뛴다.
+          // isAdminLoginIdUser는 클라이언트 조작이 불가능한 is_admin_login_id_user RPC 결과이며,
+          // 실제 강제는 서버 RLS(adoptions INSERT WITH CHECK)가 담당한다.
+          if (!isAdminLoginIdUser && !(char.allow_resale ?? sp.allow_resale ?? true)) {
+            errorEl.textContent = '재분양 불가능 개체입니다!'; return;
+          }
+          if (selectedType === 'free' && !(char.allow_free_adoption ?? sp.allow_free_adoption ?? true)) {
+            errorEl.textContent = '무료분양 불가능 개체입니다!'; return;
+          }
+          if ((selectedType === 'paid' || selectedType === 'auction' || selectedType === 'currency') && !isAdminLoginIdUser
+              && !(char.allow_paid_adoption ?? sp.allow_paid_adoption ?? true)) {
+            errorEl.textContent = selectedType === 'currency' ? '재화거래 분양 불가능 개체입니다!' : '유료분양 불가능 개체입니다!'; return;
+          }
+          if (selectedType === 'etc' && !(char.allow_other_adoption ?? sp.allow_other_adoption ?? true)) {
+            errorEl.textContent = '기타분양 불가능 개체입니다!'; return;
+          }
+        }
+      }
+
+      btn.textContent = '등록 중...';
+      btn.disabled = true;
+
+      const user    = await getUser();
+      const extraImages = [1,2,3]
+        .map(i => document.getElementById(`extraImg${i}`).value.trim())
+        .filter(Boolean);
+
+      // 가격 결정
+      let priceValue = null;
+      if (selectedType === 'paid') {
+        priceValue = document.getElementById('price').value.trim() || null;
+      } else if (selectedType === 'etc') {
+        priceValue = document.getElementById('etcPrice').value.trim() || null;
+      }
+
+      // 무료 서브타입
+      const freeType = (selectedType === 'free' && selectedFreeType !== 'normal') ? selectedFreeType : null;
+      const raffleAtRaw = freeType ? (document.getElementById('raffleAt').value || null) : null;
+      const raffleAt = raffleAtRaw ? new Date(raffleAtRaw).toISOString() : null;
+
+      const currencyType   = selectedType === 'currency' ? document.getElementById('currencyType').value : null;
+      const currencyAmount = selectedType === 'currency' ? (parseInt(getRawNum('currencyAmount'), 10) || null) : null;
+
+      const { data: adoption, error } = await sb.from('adoptions').insert({
+        character_id:   isSlot ? null        : item.id,
+        slot_id:        isSlot ? item.id     : null,
+        character_name: item.name,
+        species_name:   isSlot ? item.speciesName : item.species_name,
+        image_url:      item.image_url    || null,
+        thumbnail_url:  item.thumbnail_url || null,
+        adoption_type:  selectedType,
+        free_type:      freeType,
+        raffle_at:      raffleAt,
+        price:          priceValue,
+        currency_type:   currencyType,
+        currency_amount: currencyAmount,
+        extra_images:   extraImages.length ? extraImages : null,
+        description:    document.getElementById('description').value.trim() || null,
+        contact:        document.getElementById('contact').value.trim() || null,
+        status:         '분양중',
+        author:         user?.user_metadata?.display_name || user?.user_metadata?.nickname || '익명',
+        user_id:        user?.id,
+        is_featured_event: (isAdminUser && selectedType === 'auction' && document.getElementById('isFeaturedEvent').checked) || false,
+      }).select().single();
+
+      if (error) {
+        console.error('[adoption insert error]', error);
+        errorEl.textContent = `등록에 실패했어요. (${error.message})`;
+        btn.textContent = '등록하기';
+        btn.disabled = false;
+        return;
+      }
+
+      if (selectedType === 'auction') {
+        await sb.from('auction_details').insert({
+          adoption_id:   adoption.id,
+          start_price:   getRawNum('startPrice'),
+          instant_price: getRawNum('instantPrice'),
+          bid_unit:      getRawNum('bidUnit'),
+          auction_currency: selectedAuctionCurrency,
+          close_method:  selectedCloseMethod,
+          // datetime-local(로컬=KST 벽시계) → 절대시각(ISO/UTC)으로 변환해 저장.
+          // bid_open_at / raffle_at 과 동일 방식. (원본 문자열 그대로 저장하면
+          // DB 세션이 UTC라 9시간 늦게 저장되는 버그 — 신규 등록분부터 정상화)
+          close_at:      selectedCloseMethod === 'date'
+                            ? (document.getElementById('closeAt').value
+                                ? new Date(document.getElementById('closeAt').value).toISOString()
+                                : null)
+                            : null,
+          close_hours:   selectedCloseMethod === 'last_bid'
+                            ? (parseInt(document.getElementById('closeHours').value, 10) || null)
+                            : null,
+          bid_open_at:   (isAdminUser && document.getElementById('bidOpenAt').value)
+                            ? new Date(document.getElementById('bidOpenAt').value).toISOString()
+                            : null,
+        });
+      }
+
+      await window.awardAchievement?.('first_adoption', { pending: true });
+      window.location.href = `adoption-detail.html?id=${adoption.id}`;
+    });
+
+    initPage();
+  </script>
+</body>
+</html>
+

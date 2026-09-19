@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>개체 이전 확인 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .confirm-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      max-width: 480px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .confirm-thumb {
+      width: 96px;
+      height: 96px;
+      border-radius: 14px;
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin: 0 auto 16px;
+    }
+    .confirm-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .confirm-char-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .confirm-species   { font-size: 13px; color: var(--text-sub); margin-bottom: 20px; }
+    .confirm-info-box {
+      background: var(--sky-pale);
+      border: 1px solid var(--sky-light);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .confirm-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .confirm-info-row span:first-child { color: var(--text-mute); }
+    .confirm-info-row span:last-child  { font-weight: 600; color: var(--text); }
+    .confirm-method-full {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--sky-light);
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-accept {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--sky);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-accept:hover { background: var(--sky-dark); }
+    .btn-decline {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #fca5a5;
+      background: #fff;
+      color: #ef4444;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .confirm-error {
+      font-size: 13px;
+      color: #ef4444;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+    .confirm-expired {
+      font-size: 14px;
+      color: var(--text-mute);
+      padding: 40px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main" style="display:flex; justify-content:center; padding-top:40px;">
+
+      <div style="width:100%; max-width:480px;">
+        <div class="breadcrumb" style="margin-bottom:24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <span>개체 이전 확인</span>
+        </div>
+
+        <p id="loadingMsg" class="page-loading">확인 중...</p>
+        <div id="confirmWrap" style="display:none;">
+
+          <div class="confirm-card">
+            <div class="confirm-thumb" id="confirmThumb"></div>
+            <p class="confirm-char-name" id="confirmCharName"></p>
+            <p class="confirm-species" id="confirmSpecies"></p>
+
+            <div class="confirm-info-box">
+              <div class="confirm-info-row">
+                <span>보내는 분</span>
+                <span id="confirmFrom"></span>
+              </div>
+              <div class="confirm-info-row">
+                <span>이전 방법</span>
+                <span id="confirmMethodShort"></span>
+              </div>
+              <p class="confirm-method-full" id="confirmMethodFull" style="display:none;"></p>
+            </div>
+
+            <div class="confirm-actions">
+              <button class="btn-decline" onclick="declineTransfer()">거절하기</button>
+              <button class="btn-accept" onclick="acceptTransfer()">이전 받기</button>
+            </div>
+            <p class="confirm-error" id="confirmError"></p>
+          </div>
+
+        </div>
+        <div id="expiredWrap" style="display:none;">
+          <p class="confirm-expired" id="expiredMsg">이미 처리되었거나 유효하지 않은 요청이에요.</p>
+          <div style="text-align:center; margin-top:16px;">
+            <a href="index.html" class="btn-ghost">홈으로</a>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const params      = new URLSearchParams(window.location.search);
+    const charId      = params.get('char_id');
+    const fromNick    = params.get('from');
+    const fromUserId  = params.get('from_user_id') || null;
+    const toNick      = params.get('to');
+    const toUserId    = params.get('to_user_id')   || null;
+    const method      = params.get('method') || '';
+
+    let currentUser = null;
+    let charData    = null;
+
+    function showExpired(msg) {
+      document.getElementById('loadingMsg').style.display  = 'none';
+      document.getElementById('confirmWrap').style.display = 'none';
+      document.getElementById('expiredWrap').style.display = '';
+      if (msg) document.getElementById('expiredMsg').textContent = msg;
+    }
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      currentUser = user;
+
+      const myNick = user.user_metadata?.display_name || user.user_metadata?.nickname;
+
+      // 본인 확인 — user_id 우선, 없으면 nickname fallback
+      const isForMe = toUserId ? currentUser.id === toUserId : myNick === toNick;
+      if (!isForMe) {
+        showExpired('이 이전 요청은 나에게 온 요청이 아니에요.');
+        return;
+      }
+
+      if (!charId || !fromNick) { showExpired(); return; }
+
+      // 개체 조회 — 이 화면은 받는 사람(아직 소유자가 아님)이 보므로 연락처가 빠진
+      // 공개 뷰를 쓴다(get_character_for_edit는 "현재" 소유자/관리자만 허용해서 여기서는 못 씀)
+      const { data: c, error } = await sb.from('characters_public').select('*').eq('id', charId).single();
+      if (error || !c) { showExpired('개체를 찾을 수 없어요.'); return; }
+
+      // 소유주 유효성 검증 — owner_user_id 우선, 없으면 nickname fallback
+      const ownerMatch = fromUserId && c.owner_user_id
+        ? c.owner_user_id === fromUserId
+        : c.owner_nickname === fromNick;
+      if (!ownerMatch) {
+        showExpired('이미 처리되었거나 유효하지 않은 요청이에요.');
+        return;
+      }
+
+      charData = c;
+
+      // 화면 구성
+      document.getElementById('confirmCharName').textContent = c.name;
+      document.getElementById('confirmSpecies').textContent  = c.species_name || '';
+      document.getElementById('confirmFrom').textContent     = fromNick;
+
+      // 방법: " / " 기준으로 앞/뒤 분리
+      const slashIdx = method.indexOf(' / ');
+      const methodShort = slashIdx >= 0 ? method.slice(0, slashIdx) : method;
+      const methodDetail = slashIdx >= 0 ? method.slice(slashIdx + 3) : '';
+      document.getElementById('confirmMethodShort').textContent = methodShort || '—';
+      if (methodDetail) {
+        const fullEl = document.getElementById('confirmMethodFull');
+        fullEl.textContent = methodDetail;
+        fullEl.style.display = '';
+      }
+
+      if (c.image_url) {
+        document.getElementById('confirmThumb').innerHTML =
+          `<img src="${c.image_url}" alt="${c.name}">`;
+      }
+
+      document.getElementById('loadingMsg').style.display  = 'none';
+      document.getElementById('confirmWrap').style.display = '';
+    }
+
+    async function acceptTransfer() {
+      const errorEl    = document.getElementById('confirmError');
+      const acceptBtn  = document.querySelector('.btn-accept');
+      const declineBtn = document.querySelector('.btn-decline');
+      errorEl.textContent = '';
+      acceptBtn.disabled  = true;
+      declineBtn.disabled = true;
+      acceptBtn.textContent = '처리 중...';
+
+      try {
+        const myNick = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+
+        // SECURITY DEFINER RPC가 소유권 변경 + 이전 기록까지 원자적으로 처리
+        const { data, error } = await sb.rpc('accept_transfer', {
+          p_char_id:        charId,
+          p_new_owner_nick: myNick || toNick || '',
+        });
+
+        if (error) throw new Error(`이전 처리에 실패했어요: ${error.message}`);
+        if (!data?.ok) throw new Error(data?.error || '이전 수락에 실패했어요.');
+
+        await window.awardAchievement?.('first_owned_character', { pending: true });
+        // 서로 다른 종족 소유 업적
+        const _ds = await window.getDistinctOwnedSpeciesCount?.() || 0;
+        if (_ds >= 5)  window.awardAchievement?.('own_variety_5',  { pending: true });
+        if (_ds >= 10) window.awardAchievement?.('own_variety_10', { pending: true });
+        if (_ds >= 20) window.awardAchievement?.('own_variety_20', { pending: true });
+        window.location.href = `character.html?id=${charId}`;
+      } catch (e) {
+        console.error('[acceptTransfer 오류]', e);
+        errorEl.textContent = e.message || '처리에 실패했어요. 다시 시도해주세요.';
+        acceptBtn.disabled  = false;
+        declineBtn.disabled = false;
+        acceptBtn.textContent = '이전 받기';
+      }
+    }
+
+    async function declineTransfer() {
+      if (!confirm('이전 요청을 거절할까요?')) return;
+      const declineBtn = document.querySelector('.btn-decline');
+      const acceptBtn  = document.querySelector('.btn-accept');
+      declineBtn.disabled = true;
+      acceptBtn.disabled  = true;
+      declineBtn.textContent = '처리 중...';
+
+      try {
+        const { data, error } = await sb.rpc('decline_transfer', { p_char_id: charId });
+
+        if (error) throw error;
+        if (data && !data.ok) throw new Error(data.error || '이전 거절에 실패했어요.');
+      } catch (e) {
+        console.error('[declineTransfer 오류]', e);
+      }
+
+      window.location.href = 'index.html';
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>내 분양 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .filter-row  { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .filter-btn {
+      padding: 7px 14px; border: 1.5px solid var(--border); border-radius: 9px;
+      background: #fff; font-size: 13px; font-weight: 600; color: var(--text-sub);
+      cursor: pointer; font-family: inherit; white-space: nowrap; line-height: 1.4;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .filter-btn:hover  { border-color: var(--sky-dark); color: var(--sky-dark); }
+    .filter-btn.active { background: var(--sky-dark); border-color: var(--sky-dark); color: #fff; font-weight: 700; }
+    .adoption-card { border:1px solid var(--border); border-radius:var(--radius); background:#fff; margin-bottom:10px; }
+    .adoption-card-link {
+      display:flex; align-items:center; gap:14px; padding:14px 16px;
+      text-decoration:none; color:inherit;
+    }
+    .bump-row {
+      display:flex; align-items:center; gap:8px; padding:0 16px 14px;
+    }
+    .bump-btn {
+      flex-shrink:0; padding:6px 16px; border:1.5px solid var(--sky-dark); border-radius:999px;
+      background:#fff; color:var(--sky-dark); font-size:12px; font-weight:700;
+      cursor:pointer; font-family:inherit; white-space:nowrap;
+    }
+    .bump-btn:disabled { border-color:var(--border); color:var(--text-mute); opacity:0.55; cursor:not-allowed; }
+    .bump-qty { font-size:12px; color:var(--text-mute); font-weight:600; }
+    .bump-notice {
+      font-size:12px; color:var(--text-mute); line-height:1.5;
+      background:var(--sky-pale); border-radius:8px; padding:10px 14px; margin-bottom:14px;
+    }
+    .use-log-row {
+      display:flex; align-items:center; gap:14px; padding:14px 16px;
+      border:1px solid var(--border); border-radius:var(--radius); background:#fff; margin-bottom:10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="list-page-header">
+          <div>
+            <h1 class="list-page-title">내 분양</h1>
+            <p class="list-page-count"><span id="adoptionCount">0</span>개의 분양 내역</p>
+          </div>
+          <a href="adoption-write.html" class="btn-secondary" id="writeBtn" style="display:none;">글 작성</a>
+        </div>
+
+        <div class="filter-row" id="adoptionTabRow">
+          <button class="filter-btn active" data-tab="ongoing">진행중</button>
+          <button class="filter-btn" data-tab="done">완료</button>
+          <button class="filter-btn" data-tab="log">아이템 사용 내역</button>
+        </div>
+
+        <p class="bump-notice" id="bumpNotice">분양 끌올 티켓은 내 분양글보다 최신 분양글이 20개 이상 등록되었을 때 사용할 수 있습니다. 사용 시 해당 분양글이 목록 상단으로 이동합니다.</p>
+
+        <div id="adoptionList"></div>
+        <div id="paginationWrap"></div>
+
+        <div id="emptyState" class="empty-state-wrap" style="display:none;">
+          <div class="empty-state-icon">🐾</div>
+          <p class="empty-state-title">분양 내역이 없어요</p>
+          <p class="empty-state-desc">아직 등록한 분양 글이 없어요.</p>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 범프 티켓 사용 확인 모달 -->
+  <div class="modal-overlay" id="bumpModal" style="display:none;" onclick="if(event.target===this)closeBumpModal()">
+    <div class="modal-card">
+      <p class="modal-title">분양 끌올 티켓 사용</p>
+      <p style="font-size:14px; color:var(--text-sub); line-height:1.6; margin:0 0 8px;">
+        분양 끌올 티켓을 사용하시겠습니까?
+      </p>
+      <p class="shop-detail-condition" style="margin:0 0 16px;">
+        <strong>※ 사용 조건</strong><br>
+        내 분양글보다 최신 분양글이 20개 이상 등록되어 있을 때 사용할 수 있습니다.
+      </p>
+      <p style="font-size:14px; color:var(--text-sub); line-height:1.6; margin:0 0 20px;">
+        사용 시 분양 끌올 티켓 1장이 차감되며,<br>
+        해당 분양글이 분양 목록 최상단으로 이동합니다.
+      </p>
+      <div class="modal-actions">
+        <button class="btn-ghost wallet-confirm-cancel" onclick="closeBumpModal()">취소</button>
+        <button class="btn-submit wallet-confirm-submit" id="bumpModalBtn" onclick="doBumpUse()">사용</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const TYPE_LABEL  = { free: '무료', paid: '유료', currency: '재화거래', auction: '경매', etc: '기타' };
+    const TYPE_CLASS  = { free: 'adoption-type--free', paid: 'adoption-type--paid', currency: 'adoption-type--currency', auction: 'adoption-type--auction', etc: 'adoption-type--paid' };
+    const FREE_SUB    = { random: '랜덤 추첨', first_come: '선착순' };
+
+    const BUMP_ERROR_MSG = {
+      NOT_AUTHENTICATED: '로그인이 필요합니다.',
+      NOT_FOUND:         '존재하지 않는 분양글입니다.',
+      NOT_OWNER:         '본인 분양글에만 사용할 수 있습니다.',
+      ADOPTION_CLOSED:   '진행중인 분양글에만 사용할 수 있습니다.',
+      NO_TICKET:         '보유한 분양 끌올 티켓이 없습니다.',
+      NOT_ENOUGH_AHEAD:  '아직 분양 끌올 티켓을 사용할 수 없습니다.\n내 분양글 앞에 최신 분양글이 20개 이상 있을 때 사용할 수 있습니다.',
+    };
+
+    let _activeTab      = 'ongoing'; // 'ongoing' | 'done' | 'log'
+    let _ongoingList     = [];
+    let _doneList        = [];
+    let _logList         = [];
+    let _ticketQty       = 0;
+    let _pendingAdoptionId = null;
+    let _allCreatedAts   = []; // 전체 adoptions.created_at (ms) — 끌올 조건(내 글보다 최신 20개 이상) 계산용
+    let idToNick         = {}; // winner_user_id(uuid) → 현재 닉네임 (resolveUsersByIds, js/utils.js)
+
+    // 분양 목록 페이지와 동일하게 상태/타입 무관 전체 기준으로 계산 (use_bump_ticket RPC와 동일 기준)
+    function getAheadCount(adoption) {
+      const t = new Date(adoption.created_at).getTime();
+      return _allCreatedAts.filter(x => x > t).length;
+    }
+
+    async function loadAllCreatedAts() {
+      const { data } = await sb.from('adoptions').select('created_at');
+      _allCreatedAts = (data || []).map(r => new Date(r.created_at).getTime());
+    }
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      const role = user.user_metadata?.role;
+
+      if (role === 'species_owner' || isAdminOrStaff(role)) {
+        document.getElementById('writeBtn').style.display = 'inline-flex';
+      }
+
+      const [adoptionsRes, ticketRes, logRes] = await Promise.all([
+        sb.from('adoptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        sb.from('user_items')
+          .select('quantity')
+          .eq('user_id', user.id)
+          .eq('item_key', 'ticket-bump')
+          .maybeSingle(),
+        sb.from('item_use_logs')
+          .select('*, adoptions!target_id(character_name, species_name)')
+          .eq('user_id', user.id)
+          .eq('item_key', 'ticket-bump')
+          .order('created_at', { ascending: false }),
+        loadAllCreatedAts(),
+      ]);
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+
+      const data = adoptionsRes.data;
+      _ticketQty = ticketRes.data?.quantity ?? 0;
+      _logList   = logRes.data || [];
+
+      if (adoptionsRes.error || !data || data.length === 0) {
+        document.getElementById('emptyState').style.display = 'flex';
+        return;
+      }
+
+      _ongoingList = data.filter(a => a.status !== '완료');
+      _doneList    = data.filter(a => a.status === '완료');
+
+      document.getElementById('adoptionCount').textContent = data.length;
+
+      // 당첨자 winner_user_id → 현재 닉네임 매핑 (닉네임 변경 후에도 최신값 표시용)
+      const winnerIds = data.map(a => a.winner_user_id).filter(Boolean);
+      if (winnerIds.length) {
+        resolveUsersByIds(winnerIds).then(rows => {
+          rows.forEach(u => { if (u.id && u.nickname) idToNick[u.id] = u.nickname; });
+          loadActiveTab();
+        });
+      }
+
+      document.getElementById('adoptionTabRow').addEventListener('click', e => {
+        const btn = e.target.closest('[data-tab]');
+        if (!btn) return;
+        document.querySelectorAll('#adoptionTabRow .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _activeTab = btn.dataset.tab;
+        loadActiveTab();
+      });
+
+      loadActiveTab();
+    }
+
+    function loadActiveTab() {
+      const map = { ongoing: _ongoingList, done: _doneList, log: _logList };
+      document.getElementById('bumpNotice').style.display = _activeTab === 'ongoing' ? '' : 'none';
+      pager.load(map[_activeTab] || []);
+    }
+
+    function renderAdoptionCard(a) {
+      const isClosed   = a.status === '완료';
+      const typeLabel  = TYPE_LABEL[a.adoption_type] || '';
+      const typeClass  = TYPE_CLASS[a.adoption_type] || '';
+      const freeSub    = a.free_type ? FREE_SUB[a.free_type] : '';
+      const imgStyle   = a.image_url
+        ? `background-image:url('${a.image_url}');background-size:cover;background-position:center;`
+        : '';
+
+      const date = new Date(a.created_at).toLocaleDateString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).replace(/\. /g, '.').replace(/\.$/, '');
+
+      const winnerDisplayName = (a.winner_user_id && idToNick[a.winner_user_id]) || a.winner_name;
+      const winnerInfo = (a.winner_name && (a.status === '완료' || a.status === '확인 대기중'))
+        ? `<span style="font-size:12px; color:var(--sky-deep); font-weight:600;">
+             ${a.status === '완료' ? '분양 완료 → ' : '확인 대기 → '}${winnerDisplayName}
+           </span>`
+        : '';
+
+      let bumpRow = '';
+      if (a.status === '분양중') {
+        const hasTicket    = _ticketQty > 0;
+        const conditionMet = getAheadCount(a) >= 20;
+        const canBump      = hasTicket && conditionMet;
+        const bumpLabel    = !conditionMet ? '아직 끌올 불가' : !hasTicket ? '티켓 없음' : '분양 끌올 티켓 사용';
+
+        bumpRow = `
+           <div class="bump-row">
+             <button class="bump-btn" ${canBump ? '' : 'disabled'} onclick="openBumpModal(${a.id})">${bumpLabel}</button>
+             <span class="bump-qty">보유 ${_ticketQty}장</span>
+           </div>`;
+      }
+
+      return `
+        <div class="adoption-card" style="${isClosed ? 'opacity:0.6;' : ''}">
+          <a href="adoption-detail.html?id=${a.id}" class="adoption-card-link">
+            <div style="width:56px; height:56px; border-radius:8px; flex-shrink:0;
+                        background:var(--bg-sub); ${imgStyle}"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
+                <span class="adoption-type-badge ${typeClass}" style="font-size:11px; padding:2px 8px;">${typeLabel}${freeSub ? ' · ' + freeSub : ''}</span>
+                <span class="adoption-status${isClosed ? ' adoption-status--closed' : a.status === '확인 대기중' ? ' adoption-status--pending' : ''}" style="font-size:11px;">${a.status || '분양중'}</span>
+              </div>
+              <p style="font-size:14px; font-weight:600; color:var(--text); margin:0 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${a.character_name || '—'}</p>
+              <p style="font-size:12px; color:var(--text-sub); margin:0 0 2px;">${a.species_name || ''}</p>
+              ${winnerInfo}
+            </div>
+            <div style="font-size:12px; color:var(--text-mute); white-space:nowrap; flex-shrink:0;">${date}</div>
+          </a>
+          ${bumpRow}
+        </div>
+      `;
+    }
+
+    function renderLogRow(l) {
+      const date = new Date(l.created_at).toLocaleDateString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).replace(/\. /g, '.').replace(/\.$/, '');
+      const target = l.adoptions;
+      const label  = target
+        ? `${target.character_name || '—'}${target.species_name ? ' · ' + target.species_name : ''}`
+        : '(삭제된 분양글)';
+      const nameHtml = l.target_id
+        ? `<a href="adoption-detail.html?id=${l.target_id}" style="color:var(--sky-deep); font-weight:600; text-decoration:none;">${label}</a>`
+        : `<span style="color:var(--text-mute);">${label}</span>`;
+
+      return `
+        <div class="use-log-row">
+          <div style="font-size:12px; color:var(--text-mute); white-space:nowrap; flex-shrink:0;">${date}</div>
+          <div style="flex:1; min-width:0;">
+            <p style="font-size:12px; color:var(--text-sub); margin:0 0 2px;">분양 끌올 티켓 사용</p>
+            <p style="font-size:14px; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${nameHtml}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderList(list) {
+      const container = document.getElementById('adoptionList');
+
+      if (!list.length) {
+        const emptyMsg = _activeTab === 'log' ? '아이템 사용 내역이 없어요.' : '해당 분양 내역이 없어요.';
+        container.innerHTML = `<p class="empty-state" style="padding:60px 0; text-align:center;">${emptyMsg}</p>`;
+        return;
+      }
+
+      container.innerHTML = _activeTab === 'log'
+        ? list.map(renderLogRow).join('')
+        : list.map(renderAdoptionCard).join('');
+    }
+
+    const pager = createPager(renderList);
+
+    // ── 범프 티켓 사용 확인 모달 ──────────────────────────
+    function openBumpModal(adoptionId) {
+      if (_ticketQty <= 0) { alert('보유한 분양 끌올 티켓이 없습니다.'); return; }
+      _pendingAdoptionId = adoptionId;
+      const btn = document.getElementById('bumpModalBtn');
+      btn.disabled = false; btn.textContent = '사용';
+      document.getElementById('bumpModal').style.display = 'flex';
+    }
+
+    function closeBumpModal() {
+      document.getElementById('bumpModal').style.display = 'none';
+      _pendingAdoptionId = null;
+    }
+
+    async function doBumpUse() {
+      if (!_pendingAdoptionId) return;
+      const btn = document.getElementById('bumpModalBtn');
+      btn.disabled = true; btn.textContent = '처리 중...';
+
+      const { data, error } = await sb.rpc('use_bump_ticket', { p_adoption_id: _pendingAdoptionId });
+
+      if (error || !data?.success) {
+        btn.disabled = false; btn.textContent = '사용';
+        alert(BUMP_ERROR_MSG[data?.error] ?? `처리 중 오류가 발생했습니다.\n[${data?.error ?? error?.message ?? 'unknown'}]`);
+        return;
+      }
+
+      _ticketQty = data.new_quantity;
+      const target = _ongoingList.find(a => a.id === _pendingAdoptionId);
+      if (target) target.created_at = data.created_at;
+      _ongoingList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      await loadAllCreatedAts();
+
+      closeBumpModal();
+      loadActiveTab();
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

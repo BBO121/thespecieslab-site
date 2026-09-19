@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>메시지 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .conv-item {
+      display:flex; align-items:center; gap:14px;
+      padding:14px 16px; cursor:pointer;
+      border-bottom:1px solid var(--border);
+      transition:background 0.1s;
+      text-decoration:none; color:inherit;
+    }
+    .conv-item:hover { background:var(--sky-pale); }
+    .conv-avatar {
+      width:44px; height:44px; border-radius:50%;
+      background:var(--sky-light); display:flex; align-items:center;
+      justify-content:center; font-size:18px; font-weight:700;
+      color:var(--sky-deep); flex-shrink:0;
+    }
+    .conv-info { flex:1; min-width:0; }
+    .conv-name { font-size:14px; font-weight:600; margin-bottom:3px; }
+    .conv-last { font-size:12px; color:var(--text-sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .conv-time { font-size:11px; color:var(--text-mute); flex-shrink:0; }
+    .new-conv-modal {
+      position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100;
+      display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .new-conv-box {
+      background:#fff; border-radius:var(--radius); padding:24px;
+      width:100%; max-width:360px; max-height:80vh; display:flex; flex-direction:column; gap:0;
+    }
+    .user-pick-item {
+      padding:10px 14px; cursor:pointer; font-size:13px;
+      border-bottom:1px solid var(--border); transition:background 0.1s;
+    }
+    .user-pick-item:hover { background:var(--sky-pale); }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav"><a href="login.html" class="btn-login">로그인</a></nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div style="max-width:620px; margin:0 auto;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+          <h1 style="font-size:20px; font-weight:700;">메시지</h1>
+          <button onclick="openNewConv()" class="btn-secondary" style="padding:8px 18px; font-size:13px;">새 대화</button>
+        </div>
+
+        <div style="border:1px solid var(--border); border-radius:var(--radius); background:#fff; overflow:hidden;">
+          <div id="convList">
+            <p class="page-loading">불러오는 중...</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <!-- 새 대화 모달 -->
+  <div id="newConvModal" class="new-conv-modal" style="display:none;" onclick="if(event.target===this)closeNewConv()">
+    <div class="new-conv-box">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <p style="font-size:15px; font-weight:600;">대화 상대 선택</p>
+        <button onclick="closeNewConv()" style="border:none; background:none; font-size:20px; cursor:pointer; color:var(--text-mute); line-height:1;">✕</button>
+      </div>
+      <input type="text" id="userPickSearch" class="form-input" placeholder="닉네임 검색..." oninput="filterPickUsers(this.value)" style="margin-bottom:12px;">
+      <div style="overflow-y:auto; flex:1; border:1px solid var(--border); border-radius:10px;" id="userPickList">
+        <p style="padding:12px; font-size:13px; color:var(--text-mute);">불러오는 중...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    let myNick   = null;
+    let allUsers = [];
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      myNick = user.user_metadata?.nickname;
+      await Promise.all([loadConversations(), loadAllUsers()]);
+    }
+
+    async function loadConversations() {
+      const { data } = await sb
+        .from('conversations')
+        .select('*')
+        .or(`user1_nickname.eq.${myNick},user2_nickname.eq.${myNick}`)
+        .order('last_message_at', { ascending: false, nullsFirst: false });
+
+      const list = document.getElementById('convList');
+      if (!data || data.length === 0) {
+        list.innerHTML = '<p class="page-loading" style="padding:48px 20px;">아직 대화가 없어요</p>';
+        return;
+      }
+
+      list.innerHTML = data.map(conv => {
+        const other = conv.user1_nickname === myNick ? conv.user2_nickname : conv.user1_nickname;
+        const time  = conv.last_message_at
+          ? new Date(conv.last_message_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' })
+          : '';
+        return `
+          <a href="chat.html?id=${conv.id}" class="conv-item">
+            <div class="conv-avatar">${other.charAt(0).toUpperCase()}</div>
+            <div class="conv-info">
+              <p class="conv-name">${other}</p>
+              <p class="conv-last">${conv.last_message || '대화를 시작해보세요'}</p>
+            </div>
+            <span class="conv-time">${time}</span>
+          </a>
+        `;
+      }).join('');
+    }
+
+    async function loadAllUsers() {
+      const [c, s] = await Promise.all([
+        sb.from('characters').select('owner_nickname').not('owner_nickname', 'is', null),
+        sb.from('species').select('owner_nickname').not('owner_nickname', 'is', null),
+      ]);
+      const nickSet = new Set();
+      (c.data || []).forEach(r => nickSet.add(r.owner_nickname));
+      (s.data || []).forEach(r => nickSet.add(r.owner_nickname));
+      nickSet.delete(myNick);
+      allUsers = [...nickSet].sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+
+    function openNewConv() {
+      document.getElementById('newConvModal').style.display = 'flex';
+      renderPickUsers(allUsers);
+    }
+
+    function closeNewConv() {
+      document.getElementById('newConvModal').style.display = 'none';
+      document.getElementById('userPickSearch').value = '';
+    }
+
+    function renderPickUsers(list) {
+      document.getElementById('userPickList').innerHTML = list.length
+        ? list.map(nick => `<div class="user-pick-item" onclick="startConv('${nick}')">${nick}</div>`).join('')
+        : '<p style="padding:12px; font-size:13px; color:var(--text-mute);">유저가 없어요</p>';
+    }
+
+    function filterPickUsers(q) {
+      renderPickUsers(q ? allUsers.filter(n => n.includes(q)) : allUsers);
+    }
+
+    async function startConv(otherNick) {
+      const { data: existing } = await sb.from('conversations')
+        .select('id')
+        .or(`and(user1_nickname.eq.${myNick},user2_nickname.eq.${otherNick}),and(user1_nickname.eq.${otherNick},user2_nickname.eq.${myNick})`)
+        .maybeSingle();
+
+      if (existing) { window.location.href = `chat.html?id=${existing.id}`; return; }
+
+      const [u1, u2] = [myNick, otherNick].sort();
+      const { data: newConv, error } = await sb.from('conversations')
+        .insert({ user1_nickname: u1, user2_nickname: u2 })
+        .select('id').single();
+
+      if (error) { alert('대화 시작에 실패했어요.'); return; }
+      window.location.href = `chat.html?id=${newConv.id}`;
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

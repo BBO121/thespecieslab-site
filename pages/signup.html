@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>회원가입 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* ── 필수 약관 동의 (signup 전용, 공용 CSS 미수정) ── */
+    .signup-consent {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 14px;
+      background: var(--sky-pale);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .signup-consent-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .signup-consent-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+      padding: 4px 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .signup-consent-check input[type="checkbox"] {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      margin: 1px 0 0;
+      accent-color: var(--sky-dark);
+      cursor: pointer;
+    }
+    .signup-consent-tag {
+      color: var(--sky-dark);
+      font-weight: 700;
+    }
+    .signup-consent-view {
+      flex-shrink: 0;
+      padding: 4px 2px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-mute);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      white-space: nowrap;
+    }
+    .signup-consent-view:hover { color: var(--sky-dark); }
+
+    /* 개인정보 수집·이용 요약 고지 — 항상 펼쳐 두되 작게 */
+    .signup-consent-summary {
+      margin: 2px 0 6px 26px;
+      padding: 10px 12px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-sub);
+    }
+    .signup-consent-summary dl { margin: 0; }
+    .signup-consent-summary dt {
+      font-weight: 700;
+      color: var(--text);
+    }
+    .signup-consent-summary dd {
+      margin: 0 0 6px;
+    }
+    .signup-consent-summary dd:last-of-type { margin-bottom: 0; }
+    .signup-consent-summary-note {
+      margin: 8px 0 0;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+      color: var(--text-mute);
+    }
+    .signup-consent-summary a {
+      color: var(--sky-dark);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .signup-consent input[type="checkbox"]:focus-visible {
+      outline: 2px solid var(--sky-dark);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+    </div>
+  </header>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+
+      <div id="signupFormSection" style="display:flex; flex-direction:column; gap:20px;">
+        <h1 class="auth-title">회원가입</h1>
+        <p class="auth-subtitle">종족연구소의 연구원이 되는걸 환영해요!</p>
+
+        <form class="auth-form" id="signupForm">
+
+          <div class="form-group">
+            <label class="form-label">아이디 <span class="required">*</span></label>
+            <input type="text" id="nickname" class="form-input" placeholder="사용할 아이디를 입력하세요" autocomplete="username" required>
+            <p class="form-hint">영어, 숫자 가능 · 로그인에 사용되며 가입 후 변경할 수 없습니다.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">이메일 <span class="required">*</span></label>
+            <input type="email" id="email" class="form-input" placeholder="example@email.com" autocomplete="email" required>
+            <p class="form-hint">이메일 인증 및 비밀번호 재설정에 사용됩니다.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">비밀번호 <span class="required">*</span></label>
+            <input type="password" id="password" class="form-input" placeholder="6자 이상 입력하세요" autocomplete="new-password" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">비밀번호 확인 <span class="required">*</span></label>
+            <input type="password" id="passwordConfirm" class="form-input" placeholder="비밀번호를 다시 입력하세요" autocomplete="new-password" required>
+          </div>
+
+          <div class="signup-consent" role="group" aria-label="필수 약관 동의">
+            <div class="signup-consent-row">
+              <label class="signup-consent-check" for="agreeTerms">
+                <input type="checkbox" id="agreeTerms">
+                <span><span class="signup-consent-tag">[필수]</span> 이용약관에 동의합니다.</span>
+              </label>
+              <a class="signup-consent-view" href="/pages/terms.html" target="_blank" rel="noopener" aria-label="이용약관 전문 보기 (새 탭)">보기</a>
+            </div>
+
+            <div class="signup-consent-row">
+              <label class="signup-consent-check" for="agreePrivacy">
+                <input type="checkbox" id="agreePrivacy" aria-describedby="privacyConsentSummary">
+                <span><span class="signup-consent-tag">[필수]</span> 개인정보 수집 및 이용에 동의합니다.</span>
+              </label>
+              <a class="signup-consent-view" href="/pages/privacy.html" target="_blank" rel="noopener" aria-label="개인정보처리방침 전문 보기 (새 탭)">보기</a>
+            </div>
+
+            <div class="signup-consent-summary" id="privacyConsentSummary">
+              <dl>
+                <dt>수집 항목</dt>
+                <dd>로그인 아이디, 이메일 주소, 비밀번호</dd>
+                <dt>이용 목적</dt>
+                <dd>회원가입 및 이메일 인증, 회원 식별 및 계정 관리, 비밀번호 재설정 및 계정 복구</dd>
+                <dt>보유 기간</dt>
+                <dd>개인정보의 처리 목적이 달성되거나 계정이 삭제되는 경우 삭제하는 것을 원칙으로 합니다. 다만 서비스 운영 및 기록 유지에 필요한 일부 정보나 관계 법령에 따라 보존이 필요한 정보는 해당 기간 동안 보관될 수 있습니다.</dd>
+              </dl>
+              <p class="signup-consent-summary-note">필수 항목에 동의하지 않으면 회원가입이 제한됩니다. 자세한 내용은 <a href="/pages/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>을 확인해주세요.</p>
+            </div>
+          </div>
+
+          <p class="auth-error" id="signupError"></p>
+
+          <button type="submit" class="btn-submit" id="signupBtn">회원가입</button>
+
+        </form>
+
+        <p class="auth-switch">
+          이미 계정이 있으신가요?
+          <a href="login.html">로그인</a>
+        </p>
+      </div>
+
+      <!-- 가입 성공 → 이메일 인증 대기 상태 (Stage 5/6) -->
+      <div id="signupSuccessSection" style="display:none; flex-direction:column; gap:20px;">
+        <h1 class="auth-title">인증 메일을 확인해주세요!</h1>
+        <p class="auth-subtitle">입력한 이메일로 인증 메일을 보냈어요.<br>이메일 인증을 완료한 뒤 로그인해주세요.</p>
+        <p class="form-hint" style="text-align:center; margin:0;">메일이 보이지 않는다면 스팸함도 확인해주세요.</p>
+        <a href="login.html" class="btn-submit" style="display:block; box-sizing:border-box; text-align:center; text-decoration:none;">로그인으로 이동</a>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script>
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nickname = document.getElementById('nickname').value.trim().normalize('NFC');
+      const email     = document.getElementById('email').value.trim();
+      const password  = document.getElementById('password').value;
+      const confirm   = document.getElementById('passwordConfirm').value;
+      const errorEl   = document.getElementById('signupError');
+      const btn       = document.getElementById('signupBtn');
+
+      errorEl.textContent = '';
+
+      if (!nickname) return errorEl.textContent = '아이디를 입력해주세요';
+      if (!email) return errorEl.textContent = '이메일을 입력해주세요';
+      if (password.length < 6) return errorEl.textContent = '비밀번호는 6자 이상이어야 해요';
+      if (password !== confirm) return errorEl.textContent = '비밀번호가 일치하지 않아요';
+
+      // 필수 약관 동의 — 버튼 상태에 의존하지 않고 submit 시점에 다시 검증한다.
+      // (auth.js signUp()도 policiesAgreed !== true면 가입 요청을 보내지 않는 2차 방어선)
+      const agreeTerms   = document.getElementById('agreeTerms');
+      const agreePrivacy = document.getElementById('agreePrivacy');
+      if (!agreeTerms.checked || !agreePrivacy.checked) {
+        (agreeTerms.checked ? agreePrivacy : agreeTerms).focus();
+        return errorEl.textContent = '이용약관과 개인정보 수집 및 이용에 동의해주세요.';
+      }
+
+      btn.textContent = '가입 중...';
+      btn.disabled = true;
+
+      // 아이디(로그인 ID) 사전 중복 확인 — public.user_login_ids 기준(Stage 5/6).
+      // checkNicknameAvailable()은 표시 닉네임(display_name/nickname) 기준이라
+      // 로그인 ID의 실제 유일성 기준과 달라 false rejection을 일으킬 수 있어
+      // 신규가입에서는 사용하지 않는다(프로필의 표시 닉네임 변경에서는 계속 사용).
+      // 이 체크는 UX 편의용이며, 최종 권위는 user_login_ids의 DB UNIQUE 제약이다.
+      const isLoginIdAvailable = await checkLoginIdAvailable(nickname);
+      if (!isLoginIdAvailable) {
+        errorEl.textContent = '이미 사용 중인 아이디입니다.';
+        btn.textContent = '회원가입';
+        btn.disabled = false;
+        return;
+      }
+
+      // 위 검증 이후 await 구간에서 체크 상태가 바뀔 수 있으므로 호출 시점 값을 다시 읽어 넘긴다.
+      const { data: signUpData, error } = await signUp(
+        nickname, email, password,
+        agreeTerms.checked && agreePrivacy.checked
+      );
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          errorEl.textContent = '이미 사용 중인 이메일이에요';
+        } else {
+          errorEl.textContent = '오류가 발생했어요. 다시 시도해주세요';
+        }
+        btn.textContent = '회원가입';
+        btn.disabled = false;
+        return;
+      }
+
+      // 이메일 인증이 필수이므로 signUp() 성공 시에도 세션이 없는 것이
+      // 정상이다 — 여기서 사이트로 바로 이동시키지 않고 안내 상태로 전환한다.
+      try {
+        await window.awardAchievement?.('first_login', { pending: true });
+      } catch (e) {
+        console.error('[업적/뱃지] 가입 지급 오류:', e);
+      }
+
+      document.getElementById('signupFormSection').style.display = 'none';
+      document.getElementById('signupSuccessSection').style.display = 'flex';
+    });
+  </script>
+</body>
+</html>

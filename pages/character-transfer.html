@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>개체 이전 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .method-btn {
+      flex: 1;
+      padding: 9px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: #fff;
+      color: var(--text-sub);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .method-btn.active {
+      border-color: var(--sky);
+      background: var(--sky);
+      color: #fff;
+      font-weight: 600;
+    }
+    .char-preview-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+    }
+    .char-preview-thumb {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .char-preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom:24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="#" id="breadcrumbChar">개체</a>
+          <span>/</span>
+          <span>개체 이전</span>
+        </div>
+
+        <h1 class="register-title">개체 이전</h1>
+        <p class="register-subtitle">개체의 소유주를 다른 유저로 변경해요</p>
+
+        <!-- 개체 미리보기 -->
+        <div class="char-preview-card" id="charPreviewCard">
+          <div class="char-preview-thumb" id="charThumb"></div>
+          <div>
+            <p id="charNameDisp" style="font-weight:700; font-size:16px;"></p>
+            <p id="charSpeciesDisp" style="font-size:13px; color:var(--text-sub); margin-top:2px;"></p>
+            <p style="font-size:13px; color:var(--text-mute); margin-top:4px;">현재 소유주: <strong id="currentOwnerDisp" style="color:var(--text);"></strong></p>
+          </div>
+        </div>
+
+        <div class="register-form">
+
+          <!-- 받는 사람 -->
+          <div class="form-group">
+            <label class="form-label">받는 사람 <span class="required">*</span></label>
+            <input type="text" id="recipientSearch" class="form-input"
+              placeholder="닉네임 또는 아이디로 검색..."
+              oninput="filterRecipients(this.value)"
+              style="margin-bottom:8px;">
+            <div id="recipientList"
+              style="border:1px solid var(--border); border-radius:10px; max-height:200px; overflow-y:auto; background:#fff;">
+              <p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>
+            </div>
+            <p id="recipientSelectedDisplay"
+              style="margin-top:8px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+          </div>
+
+          <!-- 이전 방법 -->
+          <div class="form-group">
+            <label class="form-label">이전 방법 <span class="required">*</span></label>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="method-btn active" data-value="선물" onclick="selectMethod(this)">선물</button>
+              <button type="button" class="method-btn" data-value="판매" onclick="selectMethod(this)">판매</button>
+              <button type="button" class="method-btn" data-value="교환" onclick="selectMethod(this)">교환</button>
+              <button type="button" class="method-btn" data-value="기타" onclick="selectMethod(this)">기타</button>
+            </div>
+          </div>
+
+          <!-- 메모 -->
+          <div class="form-group">
+            <label class="form-label">
+              메모
+              <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항 — 이전 내역에 기록돼요</span>
+            </label>
+            <textarea id="transferMemo" class="form-textarea" rows="3"
+              placeholder="이전 관련 메모를 남길 수 있어요 (예: 가격, 거래 조건 등)"></textarea>
+          </div>
+
+          <p class="auth-error" id="transferError"></p>
+
+          <div class="register-actions">
+            <a href="#" id="cancelBtn" class="btn-ghost">취소</a>
+            <button type="button" class="btn-secondary" id="submitBtn" onclick="submitTransfer()">이전 요청 보내기</button>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/search.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const charId = new URLSearchParams(window.location.search).get('id');
+
+    let currentUser      = null;
+    let charData         = null;
+    let selectedRecipient = null;
+    let selectedMethod   = '선물';
+
+    document.getElementById('cancelBtn').href = charId ? `character.html?id=${charId}` : 'index.html';
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      currentUser = user;
+
+      if (!charId) { window.location.href = 'index.html'; return; }
+
+      // 연락처 포함 전체 데이터가 필요해 본인/관리자 전용 RPC로 조회한다.
+      const { data: c, error } = await sb.rpc('get_character_for_edit', { p_character_id: charId }).single();
+      if (error || !c) { window.location.href = 'index.html'; return; }
+      charData = c;
+
+      const isCharOwner = !!(user.id && c.owner_user_id && user.id === c.owner_user_id);
+      if (!isCharOwner) {
+        window.location.href = `character.html?id=${charId}`;
+        return;
+      }
+
+      // 개체 정보 표시
+      document.getElementById('breadcrumbChar').textContent = c.name;
+      document.getElementById('breadcrumbChar').href = `character.html?id=${charId}`;
+      document.getElementById('charNameDisp').textContent = c.name;
+      document.getElementById('charSpeciesDisp').textContent = c.species_name || '';
+      document.getElementById('currentOwnerDisp').textContent = c.owner_nickname || '—';
+      document.getElementById('charThumb').innerHTML =
+        `<img src="${resolveCharacterImage(c, { thumb: false })}" alt="${c.name}">`;
+
+    }
+
+    const filterRecipientsDebounced = debounce(async (q) => {
+      const el = document.getElementById('recipientList');
+      const { data } = await searchUsers(q, { limit: 20 });
+      const filtered = (data || []).filter(u => u.id !== charData?.owner_user_id);
+      el.innerHTML = filtered.length
+        ? filtered.map(u => `
+            <div onclick="selectRecipient('${u.nickname.replace(/'/g,"\\'")}','${u.id}')" id="rItem_${u.id}"
+              style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border);"
+              onmouseover="this.style.background='var(--sky-pale)'"
+              onmouseout="this.style.background= selectedRecipient?.id==='${u.id}' ? 'var(--sky-light)' : ''">
+              ${u.nickname}
+            </div>`).join('')
+        : '<p style="padding:12px; color:var(--text-mute); font-size:13px;">검색 결과가 없어요</p>';
+    }, 250);
+
+    function filterRecipients(q) {
+      const el = document.getElementById('recipientList');
+      if (!q.trim()) {
+        el.innerHTML = '<p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>';
+        return;
+      }
+      filterRecipientsDebounced(q);
+    }
+
+    function selectRecipient(nick, id) {
+      selectedRecipient = { nick, id };
+      document.querySelectorAll('#recipientList > div').forEach(el => {
+        const sel = el.id === `rItem_${id}`;
+        el.style.background = sel ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = sel ? '600' : '';
+      });
+      const disp = document.getElementById('recipientSelectedDisplay');
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    function selectMethod(btn) {
+      document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedMethod = btn.dataset.value;
+    }
+
+    async function submitTransfer() {
+      const errorEl = document.getElementById('transferError');
+      const btn     = document.getElementById('submitBtn');
+      errorEl.textContent = '';
+
+      if (!selectedRecipient) { errorEl.textContent = '받는 사람을 선택해주세요.'; return; }
+      if (!confirm(`'${charData.name}'을(를) ${selectedRecipient.nick}님에게 이전 요청을 보낼까요?`)) return;
+
+      btn.disabled = true;
+      btn.textContent = '전송 중...';
+
+      const myNick = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+      const memo   = document.getElementById('transferMemo').value.trim();
+      const method = selectedMethod + (memo ? ` / ${memo}` : '');
+
+      try {
+        const confirmLink = `transfer-confirm.html?char_id=${charId}`
+          + `&from=${encodeURIComponent(myNick)}&from_user_id=${encodeURIComponent(currentUser.id)}`
+          + `&to=${encodeURIComponent(selectedRecipient.nick)}&to_user_id=${encodeURIComponent(selectedRecipient.id || '')}`
+          + `&method=${encodeURIComponent(method)}`;
+
+        const { error: notifError } = await sb.from('notifications').insert({
+          user_nickname: selectedRecipient.nick,
+          type:          'transfer_request',
+          message:       `${myNick}님이 '${charData.name}'을(를) 이전하려 해요. 확인해주세요!`,
+          link:          confirmLink,
+          is_read:       false,
+        });
+        if (notifError) throw notifError;
+
+        // 이전 대기 상태 저장
+        await sb.from('characters').update({
+          pending_transfer: {
+            to:          selectedRecipient.nick,
+            to_user_id:  selectedRecipient.id || null,
+            from:        myNick,
+            from_user_id: currentUser.id,
+            method,
+            link:        confirmLink,
+          }
+        }).eq('id', charId);
+
+        window.location.href = `character.html?id=${charId}`;
+      } catch (e) {
+        console.error(e);
+        errorEl.textContent = '요청 전송에 실패했어요. 다시 시도해주세요.';
+        btn.disabled    = false;
+        btn.textContent = '이전 요청 보내기';
+      }
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

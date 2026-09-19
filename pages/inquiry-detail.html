@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>문의 상세 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .inquiry-thread { border-left:2px solid var(--border); padding-left:16px; display:flex; flex-direction:column; gap:14px; }
+    .thread-item { position:relative; }
+    .thread-item::before { content:''; position:absolute; left:-20px; top:9px; width:12px; height:2px; background:var(--border); }
+    .thread-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:5px; }
+    .thread-author { font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:5px; }
+    .thread-date { font-size:12px; color:var(--text-mute); }
+    .thread-content { font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; color:var(--text); margin:0; }
+    .thread-item--admin { background:var(--sky-pale); border-radius:8px; padding:10px 12px; }
+    .inquiry-input-area { margin-top:16px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
+    .inquiry-textarea { width:100%; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; resize:vertical; outline:none; font-family:inherit; box-sizing:border-box; }
+    .inquiry-textarea:focus { border-color:var(--sky); }
+    .mention { color:var(--sky-deep); font-weight:600; }
+    /* 운영진(admin/staff) 전용 회신 수정/삭제 버튼 */
+    .thread-actions { margin-left:auto; display:flex; gap:2px; flex-shrink:0; }
+    .thread-action-btn { background:none; border:none; font-size:12px; color:var(--text-mute); cursor:pointer; padding:2px 6px; border-radius:4px; line-height:1.6; font-family:inherit; }
+    .thread-action-btn:hover { color:var(--text); background:var(--border); }
+    .thread-action-btn--delete:hover { color:#ef4444; background:#fee2e2; }
+    .thread-edit-area { margin-top:6px; display:flex; flex-direction:column; gap:6px; }
+    .thread-edit-btns { display:flex; justify-content:flex-end; gap:6px; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="notice-detail-nav">
+          <span></span>
+          <a href="inquiry.html" class="notice-nav-list-btn">목록보기</a>
+        </div>
+
+        <article class="notice-detail-article">
+
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <span id="detailStatus" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;"></span>
+            </div>
+            <h1 id="detailTitle" class="notice-detail-title"></h1>
+            <div class="notice-detail-meta">
+              <span id="detailNickname"></span>
+              <span class="notice-detail-sep">·</span>
+              <span id="detailDate"></span>
+            </div>
+          </div>
+
+          <div class="notice-detail-divider"></div>
+
+          <div id="detailContent" class="notice-detail-content"></div>
+
+        </article>
+
+        <!-- 댓글 목록 -->
+        <div id="commentSection" style="margin-top:28px;">
+          <p style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:12px;">댓글</p>
+          <div class="inquiry-thread" id="commentList"></div>
+        </div>
+
+        <!-- 댓글 입력 폼 (작성자 또는 관리자/스태프) -->
+        <div id="commentForm" class="inquiry-input-area" style="display:none;">
+          <div id="adminStatusWrap" style="display:none;">
+            <label class="form-label" style="margin-bottom:6px; display:block;">상태 변경</label>
+            <select id="statusSelect" class="form-input" style="width:160px;">
+              <option value="접수됨">접수됨</option>
+              <option value="처리중">처리중</option>
+              <option value="완료">완료</option>
+            </select>
+          </div>
+          <textarea id="commentInput" class="inquiry-textarea" rows="3" placeholder="댓글을 입력하세요..."></textarea>
+          <p class="auth-error" id="commentError"></p>
+          <div style="display:flex; justify-content:flex-end;">
+            <button class="btn-secondary" onclick="submitComment()">등록</button>
+          </div>
+        </div>
+
+
+        <div class="notice-detail-bottom">
+          <a href="inquiry.html" class="btn-ghost">← 목록으로</a>
+          <button id="deleteBtn" class="btn-ghost" onclick="deleteInquiry()" style="display:none; color:#ef4444;">삭제</button>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js?v=20260607"></script>
+  <script src="../js/sidebar.js?v=20260607"></script>
+  <script src="../js/notifications.js?v=20260607"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js?v=20260607"></script>
+  <script>
+    const STATUS_STYLE = {
+      '접수됨': 'background:#f1f5f9;color:#64748b',
+      '처리중': 'background:#e0f2fe;color:#0284c7',
+      '완료':   'background:#dcfce7;color:#166534',
+    };
+
+    let currentId = null;
+    let reportNickname = null;
+    let currentData = null;
+    let currentUser = null;
+    // 운영진 = app_metadata.role 이 admin 또는 staff. 조회/댓글작성/상태변경/회신 수정·삭제/
+    // 문의 삭제 전부 이 하나의 기준으로 통일. (user_metadata.role 은 본인이 조작 가능하므로 사용 금지)
+    let isOperator = false;
+    let pageAuthorNick = null;
+    let allUserList = [];
+    let allNicknames = [];
+
+    function fmtDate(iso) {
+      if (!iso) return '';
+      return new Date(iso).toLocaleDateString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).replace(/\. /g, '.').replace(/\.$/, '');
+    }
+
+    function escHtml(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function roleBadge(c) {
+      const r = c.role;
+      if (r === 'admin' || (!r && c.is_admin)) return '<span class="badge-admin" style="font-size:11px;border-radius:4px;margin-left:5px;vertical-align:middle;">관리자</span>';
+      if (r === 'staff') return '<span class="badge-staff" style="font-size:11px;border-radius:4px;margin-left:5px;vertical-align:middle;">스태프</span>';
+      return '';
+    }
+
+    function renderComments(data, authorNick) {
+      const allComments = [];
+      const hasComments = Array.isArray(data.comments) && data.comments.length > 0;
+
+      if (!hasComments && data.answer) {
+        allComments.push({
+          author: data.answered_by || '관리자',
+          is_admin: true,
+          content: data.answer,
+          created_at: data.answered_at,
+        });
+      }
+      if (!hasComments && data.user_reply) {
+        allComments.push({
+          author: data.user_replied_by || authorNick,
+          is_admin: false,
+          content: data.user_reply,
+          created_at: data.user_replied_at,
+        });
+      }
+      if (Array.isArray(data.comments)) {
+        data.comments.forEach(c => allComments.push(c));
+      }
+
+      if (allComments.length === 0) {
+        document.getElementById('commentList').innerHTML = '<p style="font-size:14px;color:var(--text-mute);padding:4px 0;">아직 댓글이 없어요.</p>';
+        return;
+      }
+
+      document.getElementById('commentList').innerHTML = allComments.map(c => {
+        // 일반 유저는 append-only 정책 그대로 — 본인 댓글이어도 수정/삭제 불가.
+        // 운영진(admin/staff)만 모든 회신을 수정/삭제할 수 있고, 서버 처리는 전용 RPC로만 한다.
+        // 합성 레거시 항목(answer/user_reply 로 만든 것 — id 없음)은 대상에서 제외.
+        const editedMark = c.updated_at ? ' <span style="font-size:11px;color:var(--text-mute);font-weight:400;">(수정됨)</span>' : '';
+        const canOperate = isOperator && !!c.id;
+        const actionsBtns = canOperate
+          ? `<div class="thread-actions">
+               <button class="thread-action-btn" onclick="editComment('${c.id}')">수정</button>
+               <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment('${c.id}')">삭제</button>
+             </div>`
+          : '';
+        return `
+        <div class="thread-item${c.is_admin ? ' thread-item--admin' : ''}" data-comment-id="${c.id || ''}">
+          <div class="thread-header">
+            <span class="thread-author">${escHtml(c.author)}${roleBadge(c)}</span>
+            <span class="thread-date">${fmtDate(c.created_at)}${editedMark}</span>
+            ${actionsBtns}
+          </div>
+          <p class="thread-content">${escHtml(c.content)}</p>
+        </div>`;
+      }).join('');
+    }
+
+    async function initPage() {
+      const params = new URLSearchParams(window.location.search);
+      currentId = params.get('id');
+      if (!currentId) { window.location.href = 'inquiry.html'; return; }
+
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      currentUser = user;
+      // app_metadata는 서버(관리자 API)만 설정 가능 — RLS/RPC 판정 기준과 동일하게 맞춰서
+      // "버튼은 보이는데 API는 거부되는" 불일치를 없앤다. (user_metadata는 본인이 임의 수정 가능)
+      // admin/staff 모두 동일하게 운영진으로 취급 — RLS("문의 조회"/"문의 삭제")와
+      // RPC(add/update/delete_inquiry_comment)가 전부 app_metadata.role IN (admin,staff) 기준.
+      isOperator = isAdminOrStaff(user.app_metadata?.role);
+
+      const [{ data, error }, { data: userList }] = await Promise.all([
+        sb.from('inquiries').select('*').eq('id', currentId).single(),
+        sb.rpc('get_all_users'),
+      ]);
+      allUserList = userList || [];
+      allNicknames = allUserList.map(u => u.display_name || u.nickname).filter(Boolean);
+      const idToNick = Object.fromEntries(allUserList.filter(u => u.id).map(u => [u.id, u.display_name || u.nickname]).filter(([, n]) => n));
+
+      if (error || !data) { window.location.href = 'inquiry.html'; return; }
+
+      const isOwner = data.user_id != null ? data.user_id === user.id : false;
+      if (!isOperator && !isOwner) { window.location.href = 'inquiry.html'; return; }
+
+      currentData = data;
+      reportNickname = data.nickname;
+      const authorNick = (data.user_id && idToNick[data.user_id]) || data.nickname;
+      pageAuthorNick = authorNick;
+
+      document.title = `${data.title} — 종족연구소`;
+      const statusEl = document.getElementById('detailStatus');
+      statusEl.textContent = data.status || '접수됨';
+      statusEl.style.cssText = STATUS_STYLE[data.status] || STATUS_STYLE['접수됨'];
+
+      document.getElementById('detailTitle').textContent = data.title;
+      document.getElementById('detailNickname').textContent = authorNick;
+      document.getElementById('detailDate').textContent = fmtDate(data.created_at);
+      const detailContentEl = document.getElementById('detailContent');
+      detailContentEl.style.whiteSpace = 'pre-wrap';
+      detailContentEl.textContent = data.content;
+
+      renderComments(data, authorNick);
+
+      // 댓글/회신 작성은 운영진(admin/staff) 또는 글 작성자 본인만.
+      // 서버는 add_inquiry_comment() RPC(운영진=admin|staff, 또는 본인)로만 반영한다.
+      if (isOperator || isOwner) {
+        document.getElementById('commentForm').style.display = 'block';
+        if (isOperator) {
+          // 상태 변경은 admin/staff 모두 가능 (add_inquiry_comment RPC가 app_metadata.role
+          // IN (admin,staff) 일 때 status/answer 를 갱신).
+          document.getElementById('adminStatusWrap').style.display = 'block';
+          document.getElementById('statusSelect').value = data.status || '접수됨';
+          // 글 작성자가 본인이 아닐 때 @닉네임 자동 프리필
+          const myNick = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+          if (pageAuthorNick && pageAuthorNick !== myNick) {
+            const inputEl = document.getElementById('commentInput');
+            if (inputEl && !inputEl.value) inputEl.value = `@${pageAuthorNick} `;
+          }
+        }
+      }
+
+      // 문의 삭제 버튼:
+      //  - 운영진(admin/staff): 답변/댓글/상태와 무관하게 항상 표시 ("문의 삭제" RLS 가 허용).
+      //  - 일반 작성자 본인: 답변/댓글이 하나도 없고 상태가 "접수됨"일 때만 (기존 제한 그대로, 완화 안 함).
+      const hasContent = !!data.answer || !!(data.comments?.length) || (data.status && data.status !== '접수됨');
+      if (isOperator) {
+        document.getElementById('deleteBtn').style.display = 'inline-flex';
+      } else if (isOwner && !hasContent) {
+        document.getElementById('deleteBtn').style.display = 'inline-flex';
+      }
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+    }
+
+    async function submitComment() {
+      const inputEl  = document.getElementById('commentInput');
+      const errorEl  = document.getElementById('commentError');
+      const submitBtn = document.querySelector('#commentForm .btn-secondary');
+      const content  = inputEl.value.trim();
+
+      errorEl.textContent = '';
+      if (!content) { errorEl.textContent = '내용을 입력해주세요.'; return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '등록 중...';
+
+      const nickname = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+      const prevStatus = currentData.status;
+      const newStatus = isOperator ? document.getElementById('statusSelect').value : null;
+
+      // 댓글/답변/상태 변경은 전부 add_inquiry_comment() RPC를 통해서만 이뤄진다.
+      // RPC는 append-only로 comments 배열에 새 항목 1개만 추가하고, 운영진(admin/staff)일 때만
+      // status/answer/answered_by/answered_at을 갱신한다 — 기존 댓글이나 다른 필드는
+      // 클라이언트가 무엇을 보내든 절대 건드릴 수 없다(RLS로는 배열 요소 단위 보호가
+      // 불가능해 RPC/SECURITY DEFINER 방식으로 강제).
+      const { data, error } = await sb.rpc('add_inquiry_comment', {
+        p_inquiry_id: currentId,
+        p_content: content,
+        p_status: newStatus,
+      });
+
+      if (error) {
+        errorEl.textContent = `등록에 실패했어요. (${error.message})`;
+        submitBtn.disabled = false;
+        submitBtn.textContent = '등록';
+        return;
+      }
+
+      // 서버가 반환한 최신 행으로 로컬 상태 동기화
+      currentData = data;
+
+      if (isOperator) {
+        const logDetails = { inquiry_id: currentId, target_author: pageAuthorNick };
+        if (newStatus && newStatus !== prevStatus) {
+          logDetails.status_from = prevStatus;
+          logDetails.status_to   = newStatus;
+        }
+        logAdminAction('inquiry_comment_create', 'inquiry', currentId, pageAuthorNick, logDetails).catch(() => {});
+
+        // 상태 배지 갱신
+        const statusEl = document.getElementById('detailStatus');
+        statusEl.textContent = currentData.status;
+        statusEl.style.cssText = STATUS_STYLE[currentData.status] || STATUS_STYLE['접수됨'];
+      }
+
+      renderComments(currentData, pageAuthorNick);
+      inputEl.value = '';
+      submitBtn.textContent = '등록';
+      submitBtn.disabled = false;
+
+      // 알림 (백그라운드, 실패해도 무관)
+      const link = `inquiry-detail.html?id=${currentId}`;
+
+      const alreadyNotifiedIds = new Set();
+
+      if (isOperator) {
+        // 운영진 → 글 작성자 자동 알림 (본인 글 제외)
+        if (pageAuthorNick && pageAuthorNick !== nickname) {
+          const autoTarget = allUserList.find(u => (u.display_name || u.nickname) === pageAuthorNick);
+          console.log('auto-notify targetUser', autoTarget);
+          if (autoTarget?.id) {
+            alreadyNotifiedIds.add(autoTarget.id);
+            console.log('sending notification', autoTarget.id);
+            sb.rpc('notify_user_by_id', {
+              p_user_id: autoTarget.id,
+              p_type:    'mention',
+              p_message: `💬 내 문의에 ${nickname}님이 댓글을 달았어요.`,
+              p_link:    link,
+            }).then(result => console.log('notification result', result))
+              .catch(e => console.error('[알림 오류] auto-mention:', e));
+          } else {
+            console.warn('auto-notify: pageAuthorNick 에 해당하는 user_id 없음', pageAuthorNick);
+          }
+        }
+      } else {
+        // 일반 유저 → 관리자/스태프 알림 (기존 방식 유지)
+        const targets = allUserList.filter(u =>
+          (u.role === 'admin' || u.role === 'staff') && u.id !== currentUser.id && u.nickname
+        );
+        targets.forEach(u => alreadyNotifiedIds.add(u.id));
+        if (targets.length > 0) {
+          Promise.all(targets.map(u =>
+            sb.rpc('notify_user', { p_user_nickname: u.display_name || u.nickname, p_type: 'inquiry_reply', p_message: `"${nickname}"님이 문의에 새 댓글을 달았어요.`, p_link: link })
+          )).catch(e => console.error('[알림 오류] inquiry_reply:', e));
+        }
+      }
+
+      // 멘션 알림 — 이미 위에서 알림 받은 유저는 skip
+      sendMentionNotifications(content, link, nickname, alreadyNotifiedIds);
+    }
+
+    async function sendMentionNotifications(content, link, senderNick, alreadyNotifiedIds = new Set()) {
+      const matches = [...content.matchAll(/@([^\s@]+)/g)].map(m => m[1]);
+      const unique  = [...new Set(matches)];
+      console.log('mentions', unique);
+
+      const toNotify = unique.filter(nick => nick !== senderNick && allNicknames.includes(nick));
+      if (!toNotify.length) { console.log('mentions: 알림 보낼 대상 없음 (일치 닉네임 없음)'); return; }
+
+      for (const nick of toNotify) {
+        const targetUser = allUserList.find(u => (u.display_name || u.nickname) === nick);
+        console.log('targetUser', targetUser);
+        if (!targetUser?.id) { console.warn('mentions: targetUser 없거나 id 없음', nick); continue; }
+        if (alreadyNotifiedIds.has(targetUser.id)) { console.log('mentions: skip (이미 알림 받음)', nick); continue; }
+
+        console.log('sending notification', targetUser.id);
+        const result = await sb.rpc('notify_user_by_id', {
+          p_user_id: targetUser.id,
+          p_type:    'mention',
+          p_message: `💬 문의 댓글에서 ${senderNick}님이 언급했어요.`,
+          p_link:    link,
+        });
+        console.log('notification result', result);
+      }
+    }
+
+    // ── 회신(댓글) 수정/삭제 ────────────────────────────────────────────────
+    // 일반 유저는 append-only 정책 그대로(수정/삭제 불가). 운영진(admin/staff)만 가능하며,
+    // 서버 처리는 update_inquiry_comment / delete_inquiry_comment RPC(SECURITY DEFINER,
+    // 내부에서 app_metadata.role IN (admin,staff) 재검증)로만 이뤄진다. 클라이언트에서
+    // comments 배열 전체를 UPDATE하는 예전 방식은 쓰지 않는다(그 경로는 RLS로도 막혀 있음).
+
+    function editComment(commentId) {
+      const item = document.querySelector(`.thread-item[data-comment-id="${commentId}"]`);
+      if (!item) return;
+      const comment = (currentData.comments || []).find(c => c.id === commentId);
+      if (!comment) return;
+
+      const contentEl = item.querySelector('.thread-content');
+      const editArea = document.createElement('div');
+      editArea.className = 'thread-edit-area';
+      editArea.innerHTML = `
+        <textarea class="inquiry-textarea" rows="3" id="editTextarea_${commentId}"></textarea>
+        <div class="thread-edit-btns">
+          <button class="btn-ghost" style="font-size:13px;padding:4px 12px;" onclick="cancelEditComment()">취소</button>
+          <button class="btn-secondary" style="font-size:13px;padding:4px 12px;" onclick="saveEditComment('${commentId}')">저장</button>
+        </div>`;
+      contentEl.replaceWith(editArea);
+
+      const ta = document.getElementById(`editTextarea_${commentId}`);
+      ta.value = comment.content || '';           // value로 넣어 HTML 이스케이프 이슈 회피
+      const actionsEl = item.querySelector('.thread-actions');
+      if (actionsEl) actionsEl.style.display = 'none';
+      ta.focus();
+    }
+
+    function cancelEditComment() {
+      renderComments(currentData, pageAuthorNick);
+    }
+
+    async function saveEditComment(commentId) {
+      const ta = document.getElementById(`editTextarea_${commentId}`);
+      if (!ta) return;
+      const newContent = ta.value.trim();
+      if (!newContent) { alert('내용을 입력해주세요.'); return; }
+
+      const saveBtn = ta.parentElement.querySelector('.btn-secondary');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
+
+      const { data, error } = await sb.rpc('update_inquiry_comment', {
+        p_inquiry_id: currentId,
+        p_comment_id: commentId,
+        p_content:    newContent,
+      });
+
+      if (error || !data) {
+        alert(`수정에 실패했어요.${error ? ` (${error.message})` : ''}`);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+        return;
+      }
+
+      currentData = data;
+      logAdminAction('inquiry_comment_edit', 'inquiry', currentId, pageAuthorNick,
+        { inquiry_id: currentId, target_author: pageAuthorNick, comment_id: commentId }).catch(() => {});
+      renderComments(currentData, pageAuthorNick);
+    }
+
+    async function deleteComment(commentId) {
+      if (!confirm('이 회신을 삭제할까요?')) return;
+
+      const { data, error } = await sb.rpc('delete_inquiry_comment', {
+        p_inquiry_id: currentId,
+        p_comment_id: commentId,
+      });
+
+      if (error || !data) {
+        alert(`삭제에 실패했어요.${error ? ` (${error.message})` : ''}`);
+        return;
+      }
+
+      currentData = data;
+      logAdminAction('inquiry_comment_delete', 'inquiry', currentId, pageAuthorNick,
+        { inquiry_id: currentId, target_author: pageAuthorNick, comment_id: commentId }).catch(() => {});
+
+      // 답변 삭제로 상태 배지가 바뀌진 않지만, 서버가 돌려준 최신 행 기준으로 다시 그린다.
+      renderComments(currentData, pageAuthorNick);
+    }
+
+    async function deleteInquiry() {
+      if (!confirm('정말 삭제할까요?')) return;
+      // RLS가 행을 막으면 .delete()는 "0건 매칭"과 구분 없이 error:null을 반환한다
+      // (USING절에 안 걸리는 행은 그냥 안 보이는 것과 동일하게 취급됨) — count로 실제
+      // 삭제 건수를 확인해야 "조용히 실패"를 놓치지 않는다.
+      const { error, count } = await sb.from('inquiries').delete({ count: 'exact' }).eq('id', currentId);
+      if (error || !count) {
+        // 운영진(admin/staff)은 "문의 삭제" RLS가 항상 허용하므로 여기 도달하면 세션 role이
+        // 회수됐거나 네트워크 문제. 일반 작성자는 이미 답변/댓글/처리가 시작된 문의라 거부된 것.
+        const msg = isOperator
+          ? `삭제하지 못했어요. 잠시 후 다시 시도해주세요.${error ? ` (${error.message})` : ''}`
+          : `삭제할 수 없어요. 이미 운영진이 답변/처리를 시작한 문의는 삭제할 수 없습니다.${error ? ` (${error.message})` : ''}`;
+        alert(msg);
+        return;
+      }
+      window.location.href = 'inquiry.html';
+    }
+
+    initPage();
+
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>알림 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div style="padding: 24px 0 0; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <h1 class="list-page-title">알림</h1>
+            <p class="list-page-count" id="unreadCount" style="margin-top:4px;"></p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-ghost" id="readAllBtn" onclick="markAllReadPage()" style="display:none;">모두 읽음</button>
+            <button class="btn-ghost" id="deleteAllBtn" onclick="deleteAllPage()" style="display:none; border-color:#fca5a5; color:#ef4444;">모두 삭제</button>
+          </div>
+        </div>
+
+        <div class="section" style="padding:0;">
+          <div id="notifList" style="border: 1px solid var(--border); border-radius: var(--radius); overflow:hidden;"></div>
+          <div id="paginationWrap"></div>
+          <div id="emptyState" class="empty-state-wrap" style="display:none;">
+            <div class="empty-state-icon">🔔</div>
+            <p class="empty-state-title">알림이 없어요</p>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    let myUserId = null;
+    let myNick   = null;
+
+    // user_id 기준 필터 (기존 데이터는 user_nickname fallback)
+    function notifFilter() {
+      return myNick
+        ? `user_id.eq.${myUserId},user_nickname.eq.${myNick}`
+        : `user_id.eq.${myUserId}`;
+    }
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      myUserId = user.id;
+      myNick   = user.user_metadata?.display_name || user.user_metadata?.nickname;
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+
+      await loadNotifications();
+      markAllReadSilent(myUserId, myNick);
+    }
+
+    async function loadNotifications() {
+      const { data } = await sb.from('notifications')
+        .select('*')
+        .or(notifFilter())
+        .order('created_at', { ascending: false });
+
+      const listEl   = document.getElementById('notifList');
+      const emptyEl  = document.getElementById('emptyState');
+      const countEl  = document.getElementById('unreadCount');
+      const readBtn  = document.getElementById('readAllBtn');
+
+      if (!data || data.length === 0) {
+        listEl.style.display = 'none';
+        emptyEl.style.display = 'flex';
+        return;
+      }
+
+      const unread = data.filter(n => !n.is_read).length;
+      countEl.textContent = unread > 0 ? `읽지 않은 알림 ${unread}개` : '모두 읽었어요';
+      readBtn.style.display = unread > 0 ? 'inline-flex' : 'none';
+      document.getElementById('deleteAllBtn').style.display = 'inline-flex';
+
+      pager.load(data);
+    }
+
+    function renderItems(list) {
+      const listEl = document.getElementById('notifList');
+      listEl.innerHTML = list.map(n => `
+        <a class="notif-item${n.is_read ? '' : ' notif-item--unread'}"
+           id="notif-${n.id}"
+           href="${n.link || '#'}"
+           onclick="handleNotifClick(event, '${n.id}', '${n.link || ''}')">
+          <span class="notif-msg">${escapeNotif(n.message)}</span>
+          <span class="notif-time">${timeAgoNotif(n.created_at)}</span>
+        </a>
+      `).join('');
+    }
+
+    const pager = createPager(renderItems);
+
+    async function handleNotifClick(e, id, link) {
+      e.preventDefault();
+      await sb.from('notifications').update({ is_read: true }).eq('id', id);
+      const el = document.getElementById(`notif-${id}`);
+      if (el) el.classList.remove('notif-item--unread');
+      refreshNotifCount(myUserId, myNick);
+      updateUnreadCount();
+      if (link) window.location.href = link;
+    }
+
+    async function markAllReadPage() {
+      await sb.from('notifications')
+        .update({ is_read: true })
+        .or(notifFilter())
+        .eq('is_read', false);
+      refreshNotifCount(myUserId, myNick);
+      await loadNotifications();
+    }
+
+    async function deleteAllPage() {
+      if (!confirm('알림을 모두 삭제할까요?')) return;
+      await sb.from('notifications').delete().or(notifFilter());
+      refreshNotifCount(myUserId, myNick);
+      await loadNotifications();
+    }
+
+    async function updateUnreadCount() {
+      const { count } = await sb.from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .or(notifFilter())
+        .eq('is_read', false);
+      const n = count || 0;
+      document.getElementById('unreadCount').textContent = n > 0 ? `읽지 않은 알림 ${n}개` : '모두 읽었어요';
+      document.getElementById('readAllBtn').style.display = n > 0 ? 'inline-flex' : 'none';
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

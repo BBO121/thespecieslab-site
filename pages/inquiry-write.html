@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>문의하기 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom: 24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="inquiry.html">문의</a>
+          <span>/</span>
+          <span>작성</span>
+        </div>
+
+        <h1 class="register-title">문의하기</h1>
+        <p style="font-size:13px; color:var(--text-mute); margin-bottom:8px;">작성한 문의는 나와 관리자에게만 보여요.</p>
+
+        <form class="register-form" id="inquiryForm">
+
+          <div class="form-group">
+            <label class="form-label">제목 <span class="required">*</span></label>
+            <input type="text" id="inquiryTitle" class="form-input" placeholder="문의 제목을 입력하세요">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">내용 <span class="required">*</span></label>
+            <textarea id="inquiryContent" class="form-textarea" rows="10" placeholder="문의 내용을 자세히 입력해주세요"></textarea>
+          </div>
+
+          <p class="auth-error" id="formError"></p>
+
+          <div class="register-actions">
+            <a href="inquiry.html" class="btn-ghost">취소</a>
+            <button type="submit" class="btn-secondary" id="submitBtn">제출하기</button>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    async function initPage() {
+      const user = await getUser();
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+    }
+
+    document.getElementById('inquiryForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const title    = document.getElementById('inquiryTitle').value.trim();
+      const content  = document.getElementById('inquiryContent').value.trim();
+      const errorEl  = document.getElementById('formError');
+      const btn      = document.getElementById('submitBtn');
+
+      errorEl.textContent = '';
+
+      if (!title)   { errorEl.textContent = '제목을 입력해주세요.'; return; }
+      if (!content) { errorEl.textContent = '내용을 입력해주세요.'; return; }
+
+      btn.textContent = '제출 중...';
+      btn.disabled = true;
+
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      const nickname = user.user_metadata?.display_name || user.user_metadata?.nickname;
+
+      const { error } = await sb.from('inquiries').insert({
+        title,
+        content,
+        nickname,
+        user_id: user.id,
+        status: '접수됨',
+      });
+
+      if (error) {
+        console.error('[inquiry insert error]', error);
+        errorEl.textContent = `제출에 실패했어요. (${error.message})`;
+        btn.textContent = '제출하기';
+        btn.disabled = false;
+        return;
+      }
+
+      await window.awardAchievement?.('first_inquiry', { pending: true });
+      window.location.href = 'inquiry.html';
+    });
+
+    initPage();
+  </script>
+</body>
+</html>
+

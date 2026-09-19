@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>로그인 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+    </div>
+  </header>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+
+      <h1 class="auth-title">로그인</h1>
+      <p class="auth-subtitle">종족연구소에 오신 걸 환영해요</p>
+
+      <form class="auth-form" id="loginForm">
+
+        <div class="form-group">
+          <label class="form-label">아이디</label>
+          <input type="text" id="nickname" class="form-input" placeholder="아이디를 입력하세요" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" id="password" class="form-input" placeholder="비밀번호를 입력하세요" required>
+        </div>
+
+        <p class="auth-error" id="loginError"></p>
+
+        <button type="submit" class="btn-submit" id="loginBtn">로그인</button>
+
+      </form>
+
+      <p class="auth-switch">
+        <a href="forgot-password.html">비밀번호를 잊으셨나요?</a>
+      </p>
+
+      <div class="auth-divider"><span>또는</span></div>
+
+      <p class="auth-switch">
+        아직 계정이 없으신가요?
+        <a href="signup.html">회원가입</a>
+      </p>
+
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script>
+    // 로그아웃 상태 방문 카운터 — 5회 달성 시 플래그 저장
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        const c = (parseInt(localStorage.getItem('_login_page_visit') || '0')) + 1;
+        localStorage.setItem('_login_page_visit', String(c));
+        if (c >= 5) localStorage.setItem('_login_page_visit_done', '1');
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nickname = document.getElementById('nickname').value.trim();
+      const password = document.getElementById('password').value;
+      const errorEl  = document.getElementById('loginError');
+      const btn      = document.getElementById('loginBtn');
+
+      btn.textContent = '로그인 중...';
+      btn.disabled = true;
+      errorEl.textContent = '';
+
+      const { error } = await signIn(nickname, password);
+
+      if (error) {
+        errorEl.textContent = '아이디 또는 비밀번호가 올바르지 않아요';
+        btn.textContent = '로그인';
+        btn.disabled = false;
+      } else {
+        await window.awardAchievement?.('first_login', { pending: true });
+
+        // 시간대 업적
+        const _h = new Date().getHours();
+        if (_h >= 1 && _h < 3) await window.awardAchievement?.('night_login', { pending: true });
+        if (_h >= 3 && _h < 5) await window.awardAchievement?.('dawn_login',  { pending: true });
+
+        // 문 두드리는 연구원 — 로그아웃 상태로 5번 방문 후 로그인
+        if (localStorage.getItem('_login_page_visit_done') === '1') {
+          await window.awardAchievement?.('login_no_auth_5', { pending: true });
+          localStorage.removeItem('_login_page_visit_done');
+          localStorage.removeItem('_login_page_visit');
+        }
+
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>
+

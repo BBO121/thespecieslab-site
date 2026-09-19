@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업적 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .featured-ach-option { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:border-color 0.12s, background 0.12s; }
+    .featured-ach-option.selected { border-color:var(--sky-dark); background:var(--sky-pale); }
+    .featured-ach-check { width:20px; height:20px; border-radius:4px; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; color:#fff; }
+    .featured-ach-option.selected .featured-ach-check { background:var(--sky-dark); border-color:var(--sky-dark); }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div style="padding: 24px 0 0; display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div class="breadcrumb">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span id="breadcrumbName">업적</span>
+            </div>
+            <h1 class="list-page-title" id="pageTitle" style="margin-top: 8px;">업적</h1>
+          </div>
+          <button class="btn-ghost" id="editFeaturedBtn" onclick="openFeaturedModal()" style="display:none; font-size:13px; margin-bottom:4px;">대표 업적 편집</button>
+        </div>
+
+        <!-- 달성률 -->
+        <div class="achievement-stats" id="achievementStats" style="margin-top: 16px;">
+          <div class="achievement-stats-row">
+            <span class="achievement-stats-count" id="achievementStatsText"></span>
+            <span class="achievement-stats-pct" id="achievementPct"></span>
+          </div>
+          <div class="achievement-progress-bar">
+            <div class="achievement-progress-fill" id="achievementProgressFill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- 업적 목록 -->
+        <div id="achievementCategories" class="achievement-categories"></div>
+        <p id="achievementEmpty" class="empty-state" style="display:none;">업적을 불러오지 못했어요.</p>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 대표 업적 편집 모달 -->
+  <div id="featuredAchModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#fff; border-radius:16px; padding:24px; width:min(100%,480px); max-height:82vh; display:flex; flex-direction:column; gap:14px; box-shadow:0 8px 32px rgba(0,0,0,0.16);">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h3 style="margin:0; font-size:16px; font-weight:700;">대표 업적 선택</h3>
+        <span style="font-size:12px; color:var(--text-mute);" id="featuredSelCount">0 / 4 선택</span>
+      </div>
+      <p style="margin:0; font-size:12px; color:var(--text-mute);">프로필에 표시할 업적을 최대 4개 선택하세요. 선택 순서대로 표시됩니다.</p>
+      <div id="featuredAchList" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:6px; max-height:400px;"></div>
+      <p class="auth-error" id="featuredAchError"></p>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn-ghost" onclick="closeFeaturedModal()">취소</button>
+        <button class="btn-secondary" id="featuredSaveBtn" onclick="saveFeaturedAchievements()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const viewNick = new URLSearchParams(window.location.search).get('user');
+    let currentAchUser = null;
+
+    const CATEGORY_MAP = {
+      first_login:        '연구원 업적',
+      profile_setup:      '연구원 업적',
+      nickname_set:       '연구원 업적',
+      first_guide:        '연구원 업적',
+      open_beta:          '연구원 업적',
+      first_species:      '종족 연구 업적',
+      species_3:          '종족 연구 업적',
+      first_character:    '개체 연구 업적',
+      first_owned_character: '개체 연구 업적',
+      chars_10:           '개체 연구 업적',
+      chars_30:           '개체 연구 업적',
+      chars_50:           '개체 연구 업적',
+      chars_100:          '개체 연구 업적',
+      first_adoption:     '분양 업적',
+      adoption_10:        '분양 업적',
+      adoption_20:        '분양 업적',
+      adoption_30:        '분양 업적',
+      first_inquiry:      '문의 & 버그 업적',
+      first_bug_report:   '문의 & 버그 업적',
+      bug_report_3:       '문의 & 버그 업적',
+      bug_report_10:      '문의 & 버그 업적',
+      first_update_note:  '탐험 업적',
+      first_dev_log:      '탐험 업적',
+      first_notice:       '탐험 업적',
+      notice_5:           '탐험 업적',
+      no_species_search:  '탐험 업적',
+      no_char_search:     '탐험 업적',
+      first_terms:        '탐험 업적',
+      terms_5:            '탐험 업적',
+      terms_20:           '탐험 업적',
+      login_no_auth_5:         '연구원 업적',
+      night_login:             '연구원 업적',
+      dawn_login:              '연구원 업적',
+      work_overtime_fail:      '연구원 업적',
+      visit_404_3:             '탐험 업적',
+      odd_search:              '탐험 업적',
+      species_revisit_10:      '종족 연구 업적',
+      species_view_10:         '종족 연구 업적',
+      species_view_30:         '종족 연구 업적',
+      species_view_50:         '종족 연구 업적',
+      species_search_fail_10:  '종족 연구 업적',
+      char_view_20:            '개체 연구 업적',
+      char_view_50:            '개체 연구 업적',
+      char_view_100:           '개체 연구 업적',
+      own_variety_5:           '개체 연구 업적',
+      own_variety_10:          '개체 연구 업적',
+      own_variety_20:          '개체 연구 업적',
+      char_owner_desc:         '개체 연구 업적',
+      char_owner_relation:     '개체 연구 업적',
+      visit_404:               '탐험 업적',
+      gong_o_visit_1:     '공오 업적',
+      gong_o_visit_5:     '공오 업적',
+      gong_o_visit_20:    '공오 업적',
+      gong_o_visit_100:   '공오 업적',
+    };
+
+    const GONG_O_CODES   = new Set(['gong_o_visit_1','gong_o_visit_5','gong_o_visit_20','gong_o_visit_100']);
+    const CATEGORY_ORDER = ['연구원 업적','종족 연구 업적','개체 연구 업적','분양 업적','문의 & 버그 업적','탐험 업적','공오 업적','??? 업적'];
+
+    function showPage() {
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display  = 'block';
+    }
+
+    // ── 대표 업적 편집 모달 ─────────────────────────────
+    let _featuredSelected = [];
+    let _modalEarned      = [];
+    let _modalDateMap     = {};
+
+    async function openFeaturedModal() {
+      try {
+        const { data: myAch } = await sb
+          .from('user_achievements')
+          .select('achievement_code, unlocked_at')
+          .eq('user_id', currentAchUser.id)
+          .order('unlocked_at', { ascending: false });
+
+        if (!myAch?.length) { alert('아직 획득한 업적이 없어요.'); return; }
+
+        const codes = myAch.map(a => a.achievement_code);
+        _modalDateMap = Object.fromEntries(myAch.map(a => [a.achievement_code, a.unlocked_at]));
+
+        const [{ data: details }, { data: profile }] = await Promise.all([
+          sb.from('achievements').select('code, name, description').in('code', codes),
+          sb.from('user_profiles').select('featured_achievements')
+            .eq('user_id', currentAchUser.id)
+            .maybeSingle(),
+        ]);
+
+        _modalEarned       = details || [];
+        _featuredSelected  = [...(profile?.featured_achievements || [])].filter(c => codes.includes(c));
+
+        _renderFeaturedModal();
+        document.getElementById('featuredAchModal').style.display = 'flex';
+      } catch (e) {
+        console.error('[대표 업적] 모달 오류:', e);
+      }
+    }
+
+    function _renderFeaturedModal() {
+      document.getElementById('featuredSelCount').textContent  = `${_featuredSelected.length} / 4 선택`;
+      document.getElementById('featuredAchError').textContent  = '';
+      document.getElementById('featuredAchList').innerHTML = _modalEarned.map(a => {
+        const isSel = _featuredSelected.includes(a.code);
+        const date  = new Date(_modalDateMap[a.code]).toLocaleDateString('ko-KR', {
+          year: 'numeric', month: '2-digit', day: '2-digit'
+        }).replace(/\. /g, '.').replace(/\.$/, '');
+        return `
+          <div class="featured-ach-option${isSel ? ' selected' : ''}" onclick="toggleFeaturedAch('${a.code}')">
+            <div class="featured-ach-check">${isSel ? '✓' : ''}</div>
+            <div class="achievement-item-body">
+              <p class="achievement-item-name">${a.name}</p>
+              <p class="achievement-item-desc">${a.description || ''}</p>
+            </div>
+            <span class="achievement-item-date">${date}</span>
+          </div>`;
+      }).join('');
+    }
+
+    function toggleFeaturedAch(code) {
+      const errorEl = document.getElementById('featuredAchError');
+      errorEl.textContent = '';
+      if (_featuredSelected.includes(code)) {
+        _featuredSelected = _featuredSelected.filter(c => c !== code);
+      } else {
+        if (_featuredSelected.length >= 4) {
+          errorEl.textContent = '최대 4개까지 선택할 수 있어요.';
+          return;
+        }
+        _featuredSelected.push(code);
+      }
+      _renderFeaturedModal();
+    }
+
+    function closeFeaturedModal() {
+      document.getElementById('featuredAchModal').style.display = 'none';
+    }
+
+    async function saveFeaturedAchievements() {
+      const btn     = document.getElementById('featuredSaveBtn');
+      const errorEl = document.getElementById('featuredAchError');
+      btn.textContent = '저장 중...';
+      btn.disabled    = true;
+
+      const nickname = currentAchUser.user_metadata?.display_name || currentAchUser.user_metadata?.nickname;
+
+      // 저장 측 검증: 실제 획득한 업적만, 선택 순서 유지, 최대 4개
+      const earnedCodes = new Set(_modalEarned.map(a => a.code));
+      const payloadCodes = _featuredSelected.filter(c => earnedCodes.has(c)).slice(0, 4);
+
+      const { error } = await sb.from('user_profiles').upsert(
+        { user_id: currentAchUser.id, nickname, featured_achievements: payloadCodes },
+        { onConflict: 'user_id' }
+      );
+
+      if (error) {
+        console.error('[대표 업적] 저장 실패:', error.code, '|', error.message, '|', error.details, '|', error.hint);
+        errorEl.textContent = '저장에 실패했어요. 다시 시도해주세요.';
+      } else {
+        _featuredSelected = payloadCodes;
+        closeFeaturedModal();
+      }
+      btn.textContent = '저장';
+      btn.disabled    = false;
+    }
+
+    // ── 업적 렌더링 ─────────────────────────────────────
+    function renderCard(a) {
+      const date = a.isEarned
+        ? new Date(a.unlockedAt).toLocaleDateString('ko-KR', {
+            year: 'numeric', month: '2-digit', day: '2-digit'
+          }).replace(/\. /g, '.').replace(/\.$/, '')
+        : null;
+
+      if (a.isEarned) {
+        return `
+          <div class="achievement-item earned">
+            <div class="ach-icon-wrap transparent">
+              <img src="../images/achievement-badge.png" class="ach-icon" alt="업적">
+            </div>
+            <div class="achievement-item-body">
+              <p class="achievement-item-name">${a.name}</p>
+              <p class="achievement-item-desc">${a.description || ''}</p>
+            </div>
+            <div class="achievement-item-right">
+              <span class="achievement-item-reward">
+                <img src="../images/icons/currency-record.png" class="ach-reward-icon" alt="연구기록">
+                +${a.is_hidden ? 10 : 5}
+              </span>
+              <span class="achievement-item-date">${date}</span>
+            </div>
+          </div>`;
+      }
+      if (a.is_hidden) {
+        return `
+          <div class="achievement-item locked" style="opacity:0.35;">
+            <div class="ach-icon-wrap"></div>
+            <div class="achievement-item-body">
+              <p class="achievement-item-name">???</p>
+              <p class="achievement-item-desc">???</p>
+            </div>
+            <span class="achievement-item-status">숨겨진 업적</span>
+          </div>`;
+      }
+      return `
+        <div class="achievement-item locked">
+          <div class="ach-icon-wrap"></div>
+          <div class="achievement-item-body">
+            <p class="achievement-item-name">${a.name}</p>
+            <p class="achievement-item-desc">${a.description || ''}</p>
+          </div>
+          <span class="achievement-item-status">미획득</span>
+        </div>`;
+    }
+
+    async function loadAchievements(userId) {
+      try {
+        const [{ data: allAch, error: achErr }, { data: myAch }] = await Promise.all([
+          sb.from('achievements').select('*').order('id'),
+          sb.from('user_achievements').select('achievement_code, unlocked_at').eq('user_id', userId),
+        ]);
+
+        console.log('[업적] 전체:', allAch?.length, achErr || '');
+
+        if (achErr || !allAch || allAch.length === 0) {
+          document.getElementById('achievementEmpty').style.display = 'block';
+          return;
+        }
+
+        const earned      = new Map((myAch || []).map(a => [a.achievement_code, a.unlocked_at]));
+        const earnedCount = myAch?.length || 0;
+        const totalCount  = allAch.length;
+        const pct         = totalCount > 0 ? Math.floor((earnedCount / totalCount) * 100) : 0;
+
+        document.getElementById('achievementStatsText').textContent = `${earnedCount} / ${totalCount} 달성`;
+        document.getElementById('achievementPct').textContent       = `${pct}%`;
+        const fillEl = document.getElementById('achievementProgressFill');
+        fillEl.style.width = `${pct}%`;
+        if (pct === 100) fillEl.classList.add('complete');
+
+        const hasGongO = [...earned.keys()].some(code => GONG_O_CODES.has(code));
+
+        const groups   = {};
+        const catStats = {};
+        CATEGORY_ORDER.forEach(c => { groups[c] = []; catStats[c] = { earned: 0, total: 0 }; });
+
+        allAch.forEach(a => {
+          const unlockedAt = earned.get(a.code);
+          const isEarned   = !!unlockedAt;
+          let cat;
+          if (GONG_O_CODES.has(a.code)) {
+            cat = hasGongO ? '공오 업적' : '??? 업적';
+          } else {
+            cat = CATEGORY_MAP[a.code] || '탐험 업적';
+          }
+          if (!groups[cat]) { groups[cat] = []; catStats[cat] = { earned: 0, total: 0 }; }
+          groups[cat].push({ ...a, unlockedAt, isEarned });
+          catStats[cat].total++;
+          if (isEarned) catStats[cat].earned++;
+        });
+
+        document.getElementById('achievementCategories').innerHTML = CATEGORY_ORDER
+          .filter(cat => groups[cat]?.length > 0)
+          .map(cat => {
+            const s = catStats[cat];
+            return `
+              <div class="ach-category">
+                <div class="ach-category-header">
+                  <h3 class="ach-category-title">${cat}</h3>
+                  <span class="ach-category-count">${s.earned} / ${s.total}</span>
+                </div>
+                <div class="achievement-list">${groups[cat].map(renderCard).join('')}</div>
+              </div>`;
+          })
+          .join('');
+
+      } catch (e) {
+        console.error('[업적] 로드 오류:', e);
+        document.getElementById('achievementEmpty').style.display = 'block';
+      }
+    }
+
+    async function initPage() {
+      try {
+        const user = await getUser();
+        if (!user) { window.location.href = 'login.html'; return; }
+
+        if (viewNick) {
+          // 본인이 ?user= 파라미터로 접근한 경우 → 클린 URL로 리다이렉트
+          const myNickname = user.user_metadata?.display_name || user.user_metadata?.nickname;
+          if (viewNick === myNickname) {
+            window.location.replace('achievements.html');
+            return;
+          }
+          // 타인 접근 → 상세 차단
+          document.getElementById('achievementStats').style.display = 'none';
+          showPage();
+          const el = document.getElementById('achievementEmpty');
+          el.textContent   = '다른 유저의 업적 상세는 확인할 수 없어요.';
+          el.style.display = 'block';
+        } else {
+          currentAchUser = user;
+          document.getElementById('editFeaturedBtn').style.display = '';
+          showPage();
+          await loadAchievements(user.id);
+
+          // 기존 유저 own_variety 체크 — 세션당 1회만 실행 (중복 Supabase 호출 방지)
+          if (!sessionStorage.getItem('_own_variety_checked')) {
+            sessionStorage.setItem('_own_variety_checked', '1');
+            const _ds = await window.getDistinctOwnedSpeciesCount?.() || 0;
+            if (_ds >= 5)  window.awardAchievement?.('own_variety_5');
+            if (_ds >= 10) window.awardAchievement?.('own_variety_10');
+            if (_ds >= 20) window.awardAchievement?.('own_variety_20');
+          }
+        }
+      } catch (e) {
+        console.error('[업적] initPage 오류:', e);
+        showPage();
+      }
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>유저 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .user-list {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .user-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 80px;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.1s;
+    }
+    .user-row:last-child { border-bottom: none; }
+    .user-row:hover { background: var(--sky-pale); }
+    .user-row-name {
+      font-size: 14px;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-row-badges {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      width: 120px;
+      flex-shrink: 0;
+    }
+    .user-row-badges .badge-admin,
+    .user-row-badges .badge-staff,
+    .user-row-badges .badge-staff-gen1,
+    .user-row-badges .badge-role,
+    .user-row-badges .badge-user {
+      margin: 0;
+    }
+    .user-row-date {
+      font-size: 12px;
+      color: var(--text-mute);
+      text-align: right;
+    }
+    .users-search input {
+      width: 100%;
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
+    .users-search input:focus { border-color: var(--sky); }
+    .users-count {
+      font-size: 13px;
+      color: var(--text-mute);
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div class="breadcrumb" style="margin-bottom:20px;">
+        <a href="index.html">홈</a>
+        <span>/</span>
+        <span>유저</span>
+      </div>
+
+      <h1 class="page-title" style="margin-bottom:20px;">유저</h1>
+
+      <div class="users-search">
+        <input type="text" id="searchInput" placeholder="닉네임으로 검색..." oninput="filterUsers(this.value)">
+      </div>
+
+      <p id="usersCount" class="users-count"></p>
+
+      <p id="loadingMsg" class="page-loading">불러오는 중...</p>
+      <div id="userList" class="user-list" style="display:none;"></div>
+      <div id="paginationWrap"></div>
+      <p id="emptyMsg" style="display:none; color:var(--text-mute); font-size:14px; text-align:center; padding:40px 0;">검색 결과가 없어요.</p>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const TESTERS = ['Moulow', 'moulow', 'Sawol'];
+    const STAFF_GEN1 = ['아요', '사월', '사월巳月'];
+    let allUsers = [];
+    let speciesOwnerIds = new Set();
+    const pager = createPager(renderList);
+
+    function getBadgesHtml(u) {
+      const badges = [];
+      const isSpeciesOwner = u.role === 'species_owner' || speciesOwnerIds.has(u.id);
+
+      const isStaffGen1 = STAFF_GEN1.includes(u.nickname);
+
+      if (u.role === 'admin') badges.push('<span class="badge-admin">관리자</span>');
+      if (u.role === 'staff') badges.push('<span class="badge-staff">스태프</span>');
+      if (isStaffGen1)        badges.push('<span class="badge-staff-gen1">스태프(1기)</span>');
+      if (isSpeciesOwner)     badges.push('<span class="badge-role">종족주</span>');
+      if (!isAdminOrStaff(u.role) && !isSpeciesOwner && !isStaffGen1) badges.push('<span class="badge-user">일반유저</span>');
+      if (TESTERS.includes(u.nickname) && u.role !== 'staff') badges.push('<span style="font-size:10px; padding:3px 8px; background:#dcfce7; color:#166534; border-radius:4px; font-weight:700; display:inline-block;">테스터</span>');
+      return badges.join('');
+    }
+
+    function renderList(list) {
+      const el    = document.getElementById('userList');
+      const empty = document.getElementById('emptyMsg');
+
+      if (!list.length) {
+        el.style.display    = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      el.style.display    = '';
+
+      el.innerHTML = list.map(u => {
+        const displayName = u.nickname || '—';
+
+        const joinDate = new Date(u.created_at).toLocaleDateString('ko-KR', {
+          year: 'numeric', month: '2-digit', day: '2-digit'
+        }).replace(/\. /g, '.').replace(/\.$/, '');
+
+        return `
+          <a href="profile.html?user=${u.id}" class="user-row">
+            <div class="user-row-badges">${getBadgesHtml(u)}</div>
+            <span class="user-row-name">${displayName}</span>
+            <span class="user-row-date">${joinDate}</span>
+          </a>
+        `;
+      }).join('');
+    }
+
+    function badgePriority(u) {
+      if (u.role === 'admin')           return 1;
+      if (u.role === 'staff')           return 2;
+      if (STAFF_GEN1.includes(u.nickname)) return 3;
+      if (TESTERS.includes(u.nickname)) return 4;
+      if (u.role === 'species_owner' || speciesOwnerIds.has(u.id)) return 5;
+      return 6;
+    }
+
+    function sortUsers(list) {
+      return [...list].sort((a, b) => {
+        const diff = badgePriority(a) - badgePriority(b);
+        if (diff !== 0) return diff;
+        return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
+      });
+    }
+
+    function filterUsers(q) {
+      const qLow = q.toLowerCase().trim();
+      const filtered = qLow
+        ? allUsers.filter(u => (u.nickname || '').toLowerCase().includes(qLow))
+        : allUsers;
+
+      const count = document.getElementById('usersCount');
+      const empty = document.getElementById('emptyMsg');
+      if (!filtered.length) {
+        document.getElementById('userList').style.display = 'none';
+        document.getElementById('paginationWrap').innerHTML = '';
+        empty.style.display = 'block';
+        count.textContent = '';
+        return;
+      }
+      empty.style.display = 'none';
+      count.textContent = `총 ${filtered.length}명`;
+      pager.load(filtered);
+    }
+
+    async function loadUsers() {
+      const [{ data, error }, { data: spData }] = await Promise.all([
+        sb.rpc('get_visible_users_full'),
+        sb.from('species').select('owner_user_id'),
+      ]);
+      document.getElementById('loadingMsg').style.display = 'none';
+
+      if (error || !data) {
+        document.getElementById('emptyMsg').style.display = 'block';
+        return;
+      }
+
+      (spData || []).forEach(s => { if (s.owner_user_id) speciesOwnerIds.add(s.owner_user_id); });
+
+      allUsers = sortUsers(data);
+      document.getElementById('usersCount').textContent = `총 ${allUsers.length}명`;
+
+      // 헤더 통합검색 "더보기"에서 넘어온 경우 검색어 유지
+      const q = new URLSearchParams(location.search).get('q');
+      if (q) {
+        document.getElementById('searchInput').value = q;
+        filterUsers(q);
+      } else {
+        pager.load(allUsers);
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>
+

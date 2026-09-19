@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>융용 아기융 추가 등록 신청 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .yr-section {
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .yr-section.is-disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    .yr-section-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .yr-section-desc {
+      font-size: 12px;
+      color: var(--text-mute);
+      line-height: 1.6;
+      margin-top: -8px;
+    }
+    .yr-radio-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .yr-radio-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .yr-radio-label input[type="radio"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--sky);
+      flex-shrink: 0;
+    }
+    .yr-step-block {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .yr-step-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .yr-step-header input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      cursor: pointer;
+      accent-color: var(--sky);
+      flex-shrink: 0;
+    }
+    .yr-step-header span {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .yr-step-body {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      padding-left: 25px;
+    }
+    .yr-step-body.open {
+      display: flex;
+    }
+    .yr-upload-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .yr-notice-box {
+      font-size: 12px;
+      color: var(--text-mute);
+      background: var(--sky-pale);
+      border: 1px solid var(--sky-light);
+      border-radius: 8px;
+      padding: 10px 12px;
+      line-height: 1.6;
+    }
+    .yr-login-required {
+      text-align: center;
+      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .yr-login-required p {
+      font-size: 14px;
+      color: var(--text-mute);
+    }
+    .yr-done {
+      text-align: center;
+      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .yr-done h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .yr-done p {
+      font-size: 13px;
+      color: var(--text-mute);
+      line-height: 1.7;
+    }
+    .yr-done-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom:24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="species.html?id=172">융용</a>
+          <span>/</span>
+          <span>아기융 추가 등록 신청</span>
+        </div>
+
+        <h1 class="register-title">융용 아기융 추가 등록 신청</h1>
+        <p class="register-subtitle" style="margin-bottom:16px;">
+          종족연구소에 등록되지 않은 아기융을 추가로 등록 신청할 수 있어요. 신청 내용은 관리자 확인 후 등록됩니다.<br>
+          ※ 신청 즉시 개체가 등록되는 것은 아니에요.<br>
+          ※ 반드시 본인이 등록 권한을 가진 이미지만 제출해주세요.
+        </p>
+
+        <!-- 비로그인 -->
+        <div class="yr-login-required" id="loginRequiredBlock" style="display:none;">
+          <p>로그인한 유저만 신청서를 작성할 수 있어요.</p>
+          <a href="login.html" class="btn-secondary">로그인하러 가기</a>
+        </div>
+
+        <!-- 제출 완료 -->
+        <div class="yr-done" id="doneBlock" style="display:none;">
+          <h2>아기융 추가 등록 신청이 완료되었습니다!</h2>
+          <p>관리자 확인 후 종족연구소에 등록됩니다.<br>신청 처리 현황은 별도로 안내드릴 예정이에요.</p>
+          <div class="yr-done-actions">
+            <a href="species.html?id=172" class="btn-ghost">융용 페이지로</a>
+            <a href="index.html" class="btn-secondary">홈으로</a>
+          </div>
+        </div>
+
+        <!-- 신청 폼 -->
+        <form class="register-form" id="requestForm" style="display:none;">
+
+          <!-- 1. 아기융 정보 -->
+          <div class="yr-section">
+            <div class="yr-section-title">1. 아기융 정보</div>
+
+            <div class="form-group">
+              <label class="form-label">아기융 이미지 <span class="required">*</span></label>
+              <input type="file" id="babyImageFile" accept="image/*" style="display:none;" onchange="previewSlot('baby', this)">
+              <div id="babyUploadBox" class="img-upload-box img-upload-box--portrait" onclick="document.getElementById('babyImageFile').click()">
+                <img id="babyPreview" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:var(--radius);">
+                <div id="babyPlaceholder">
+                  <p class="img-upload-text">클릭하여 이미지 업로드</p>
+                </div>
+              </div>
+              <p class="img-upload-meta">PNG · GIF · JPG · WebP &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하</p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">아기융 디자이너 <span class="required">*</span></label>
+              <input type="text" id="babyDesigner" class="form-input" placeholder="예: 유떡">
+            </div>
+          </div>
+
+          <!-- 2. 성장 버전 등록 여부 -->
+          <div class="yr-section">
+            <div class="yr-section-title">2. 성장 버전 정보</div>
+            <label class="form-label">이 아기융의 성장 버전이 현재 종족연구소에 등록되어 있나요?</label>
+            <div class="yr-radio-row">
+              <label class="yr-radio-label"><input type="radio" name="growthRegistered" value="yes" onchange="onGrowthRegisteredChange()"> 예</label>
+              <label class="yr-radio-label"><input type="radio" name="growthRegistered" value="no" onchange="onGrowthRegisteredChange()"> 아니요</label>
+            </div>
+
+            <!-- 2-A: 예 -->
+            <div id="existingCharBlock" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">등록되어 있는 성장 개체 링크 <span class="required">*</span></label>
+                <input type="text" id="existingCharacterName" class="form-input" placeholder="예: https://thespecieslab.com/pages/character.html?id=1234">
+                <p class="form-hint">개체 상세 페이지에 들어가서 주소창의 링크를 그대로 복사해서 붙여넣어주세요. (개체명은 나중에 바뀔 수 있어서 링크로 받아요)</p>
+              </div>
+              <p class="yr-notice-box">제출한 아기융 이미지는 해당 개체의 '아기융' Step으로 추가됩니다.</p>
+            </div>
+
+            <!-- 2-B: 아니요 -->
+            <div id="hasGrowthBlock" style="display:none;">
+              <label class="form-label">이 아기융에게 성장 버전이 존재하나요?</label>
+              <div class="yr-radio-row">
+                <label class="yr-radio-label"><input type="radio" name="hasGrowth" value="yes" onchange="onHasGrowthChange()"> 예</label>
+                <label class="yr-radio-label"><input type="radio" name="hasGrowth" value="no" onchange="onHasGrowthChange()"> 아니요</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 성장 단계 상세 -->
+          <div class="yr-section is-disabled" id="growthStepsSection">
+            <div class="yr-section-title">3. 성장 단계 상세</div>
+            <p class="yr-section-desc">해당하는 단계를 체크하면 이미지·디자이너 입력칸이 펼쳐져요. 아기융은 위에서 이미 입력했어요.</p>
+            <div id="growthStepsList"></div>
+          </div>
+
+          <!-- 4. 후용성 -->
+          <div class="yr-section is-disabled" id="traitSection">
+            <div class="yr-section-title">4. 후용성</div>
+            <div class="form-group">
+              <label class="form-label">후용성</label>
+              <input type="text" id="postGrowthTrait" class="form-input" placeholder="후용성이 있다면 입력해주세요 (없으면 비워두세요)">
+            </div>
+          </div>
+
+          <!-- 5. 신청하기 -->
+          <div class="yr-section">
+            <div class="yr-section-title">5. 신청하기</div>
+            <p class="auth-error" id="formError"></p>
+            <p class="form-hint" id="submitStatus"></p>
+            <div class="register-actions" style="padding-top:0;">
+              <button type="submit" class="btn-secondary" id="submitBtn">신청서 제출하기</button>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/utils.js?v=2"></script>
+  <script>
+    // ── 신청 대상 종족 설정 (현재는 융용 전용, 추후 다른 종족 확장을 고려해 상수로 분리) ──
+    const SPECIES_NAME = '융용';
+    const STORAGE_PREFIX = 'registration-requests/yungyong';
+
+    // character_step_images는 Step 2 이상만 저장하므로(아기융=Step 1은 별도),
+    // growth_steps에는 아기융을 포함하지 않는다.
+    const GROWTH_STEP_DEFS = [
+      { key: 'chosen',   name: '발탁용' },
+      { key: 'trainee',  name: '수련용' },
+      { key: 'ascended', name: '승천용' },
+      { key: 'calamity', name: '재앙용' },
+      { key: 'adult',    name: '성체용' },
+    ];
+
+    // crypto.randomUUID()는 HTTPS/localhost 등 보안 컨텍스트에서만 동작해서
+    // LAN IP(HTTP)로 접속하면 여기서 예외가 나 스크립트 전체가 멈춘다.
+    // getRandomValues()는 보안 컨텍스트 제한이 없어 HTTP에서도 안전하게 동작한다.
+    function generateUuidV4() {
+      if (window.crypto?.randomUUID) return crypto.randomUUID();
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map(b => b.toString(16).padStart(2, '0'));
+      return `${hex.slice(0,4).join('')}-${hex.slice(4,6).join('')}-${hex.slice(6,8).join('')}-${hex.slice(8,10).join('')}-${hex.slice(10,16).join('')}`;
+    }
+
+    let currentUser = null;
+    const requestUuid = generateUuidV4();
+
+    // slot key -> { file, blob }
+    const imageSlots = {};
+    const uploadedPaths = []; // rollback용 — 업로드 성공한 storage 경로 기록
+
+    async function initPage() {
+      currentUser = await getUser();
+      if (!currentUser) {
+        document.getElementById('loginRequiredBlock').style.display = '';
+        return;
+      }
+      document.getElementById('requestForm').style.display = '';
+      renderGrowthStepBlocks();
+    }
+
+    function renderGrowthStepBlocks() {
+      const list = document.getElementById('growthStepsList');
+      list.innerHTML = GROWTH_STEP_DEFS.map(step => `
+        <div class="yr-step-block">
+          <label class="yr-step-header" onclick="event.stopPropagation();">
+            <input type="checkbox" id="chk_${step.key}" onchange="toggleStepBody('${step.key}')">
+            <span>${step.name}</span>
+          </label>
+          <div class="yr-step-body" id="body_${step.key}">
+            <div class="form-group">
+              <label class="form-label">${step.name} 이미지 <span class="required">*</span></label>
+              <input type="file" id="file_${step.key}" accept="image/*" style="display:none;" onchange="previewSlot('${step.key}', this)">
+              <div class="img-upload-box img-upload-box--portrait" onclick="document.getElementById('file_${step.key}').click()">
+                <img id="preview_${step.key}" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:var(--radius);">
+                <div id="placeholder_${step.key}">
+                  <p class="img-upload-text">클릭하여 이미지 업로드</p>
+                </div>
+              </div>
+              <p class="img-upload-meta">PNG · GIF · JPG · WebP &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">${step.name} 디자이너 <span class="required">*</span></label>
+              <input type="text" id="designer_${step.key}" class="form-input" placeholder="${step.name} 디자이너 닉네임">
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleStepBody(key) {
+      const checked = document.getElementById(`chk_${key}`).checked;
+      document.getElementById(`body_${key}`).classList.toggle('open', checked);
+      if (!checked) {
+        // 체크 해제 시 입력값 정리 — 조건상 사용하지 않는 값이 신청 데이터에 섞이지 않도록
+        document.getElementById(`file_${key}`).value = '';
+        document.getElementById(`designer_${key}`).value = '';
+        delete imageSlots[key];
+        document.getElementById(`preview_${key}`).style.display = 'none';
+        document.getElementById(`placeholder_${key}`).style.display = '';
+      }
+    }
+
+    function onGrowthRegisteredChange() {
+      const val = document.querySelector('input[name="growthRegistered"]:checked')?.value;
+      document.getElementById('existingCharBlock').style.display = val === 'yes' ? '' : 'none';
+      document.getElementById('hasGrowthBlock').style.display    = val === 'no'  ? '' : 'none';
+
+      if (val === 'yes') {
+        // 기존 개체 아기융 Step 추가 신청 — 성장단계/후용성 섹션 비활성화 + 값 초기화
+        document.querySelectorAll('input[name="hasGrowth"]').forEach(r => r.checked = false);
+        onHasGrowthChange();
+      } else {
+        document.getElementById('existingCharacterName').value = '';
+      }
+    }
+
+    function onHasGrowthChange() {
+      const growthRegistered = document.querySelector('input[name="growthRegistered"]:checked')?.value;
+      const hasGrowth = document.querySelector('input[name="hasGrowth"]:checked')?.value;
+      const showGrowthDetail = growthRegistered === 'no' && hasGrowth === 'yes';
+
+      document.getElementById('growthStepsSection').classList.toggle('is-disabled', !showGrowthDetail);
+      document.getElementById('traitSection').classList.toggle('is-disabled', !showGrowthDetail);
+
+      if (!showGrowthDetail) {
+        GROWTH_STEP_DEFS.forEach(step => {
+          const chk = document.getElementById(`chk_${step.key}`);
+          if (chk) { chk.checked = false; toggleStepBody(step.key); }
+        });
+        document.getElementById('postGrowthTrait').value = '';
+      }
+    }
+
+    async function previewSlot(key, input) {
+      const file = input.files[0];
+      const errorEl = document.getElementById('formError');
+      if (!file) return;
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        errorEl.textContent = 'PNG, GIF, JPG, WebP 형식의 이미지만 업로드할 수 있어요.';
+        input.value = '';
+        return;
+      }
+      errorEl.textContent = '';
+      imageSlots[key] = { file };
+
+      const previewEl     = document.getElementById(key === 'baby' ? 'babyPreview' : `preview_${key}`);
+      const placeholderEl = document.getElementById(key === 'baby' ? 'babyPlaceholder' : `placeholder_${key}`);
+      const reader = new FileReader();
+      reader.onload = e => {
+        previewEl.src = e.target.result;
+        previewEl.style.display = 'block';
+        placeholderEl.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 링크(또는 순수 숫자)에서 개체 id만 뽑아낸다. 개체명은 나중에 바뀔 수 있어서
+    // 이름 대신 id로 저장해야 관리자가 나중에 정확히 찾을 수 있다.
+    function extractCharacterId(text) {
+      const trimmed = String(text || '').trim();
+      const m = trimmed.match(/[?&]id=(\d+)/);
+      if (m) return m[1];
+      if (/^\d+$/.test(trimmed)) return trimmed;
+      return null;
+    }
+
+    // ── 검증 ──────────────────────────────────────────
+    function validateForm() {
+      const growthRegistered = document.querySelector('input[name="growthRegistered"]:checked')?.value;
+      const hasGrowth = document.querySelector('input[name="hasGrowth"]:checked')?.value;
+
+      if (!imageSlots.baby)                       return '아기융 이미지를 업로드해주세요.';
+      if (!document.getElementById('babyDesigner').value.trim()) return '아기융 디자이너를 입력해주세요.';
+      if (!growthRegistered)                       return '성장 버전이 등록되어 있는지 선택해주세요.';
+
+      if (growthRegistered === 'yes') {
+        const linkVal = document.getElementById('existingCharacterName').value.trim();
+        if (!linkVal)
+          return '등록되어 있는 성장 개체 링크를 입력해주세요.';
+        if (!extractCharacterId(linkVal))
+          return '링크에서 개체를 찾을 수 없어요. character.html?id=숫자 형태의 링크를 붙여넣어주세요.';
+        return null;
+      }
+
+      if (!hasGrowth) return '성장 버전이 존재하는지 선택해주세요.';
+
+      if (hasGrowth === 'no') return null;
+
+      // hasGrowth === 'yes' — 성장 단계 상세 + 후용성 필수
+      const checkedSteps = GROWTH_STEP_DEFS.filter(s => document.getElementById(`chk_${s.key}`).checked);
+      if (!checkedSteps.length) return '성장 단계를 최소 1개 이상 선택해주세요.';
+
+      for (const step of checkedSteps) {
+        if (!imageSlots[step.key])
+          return `${step.name} 이미지를 업로드해주세요.`;
+        if (!document.getElementById(`designer_${step.key}`).value.trim())
+          return `${step.name} 디자이너를 입력해주세요.`;
+      }
+
+      return null;
+    }
+
+    function buildRequestType() {
+      const growthRegistered = document.querySelector('input[name="growthRegistered"]:checked')?.value;
+      const hasGrowth = document.querySelector('input[name="hasGrowth"]:checked')?.value;
+      if (growthRegistered === 'yes') return 'existing_character_baby_step';
+      if (hasGrowth === 'yes')        return 'new_growth_character';
+      return 'baby_only';
+    }
+
+    // ── 이미지 업로드 (실패 시 이미 올린 파일 정리) ──────────────
+    async function uploadSlotImage(key, file) {
+      const isGif = file.type === 'image/gif';
+      const ext   = isGif ? 'gif' : 'jpg';
+      const blob  = isGif ? file : await compressImage(file);
+      const path  = `${STORAGE_PREFIX}/${currentUser.id}/${requestUuid}/${key}.${ext}`;
+
+      const { error } = await sb.storage.from('images').upload(path, blob, {
+        contentType: isGif ? 'image/gif' : 'image/jpeg',
+        upsert: false,
+      });
+      if (error) throw new Error(`이미지 업로드에 실패했어요. (${error.message})`);
+
+      uploadedPaths.push(path);
+      return sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+    }
+
+    async function cleanupUploadedFiles() {
+      if (!uploadedPaths.length) return;
+      try {
+        await sb.storage.from('images').remove(uploadedPaths);
+      } catch (e) {
+        console.warn('[업로드 정리 실패]', e);
+      }
+    }
+
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const errorEl  = document.getElementById('formError');
+      const statusEl = document.getElementById('submitStatus');
+      const btn      = document.getElementById('submitBtn');
+
+      errorEl.textContent = '';
+      statusEl.textContent = '';
+
+      const validationError = validateForm();
+      if (validationError) { errorEl.textContent = validationError; return; }
+
+      btn.disabled = true;
+      btn.textContent = '신청서를 제출하고 있습니다...';
+      statusEl.textContent = '이미지를 업로드하는 중이에요. 창을 닫지 말아주세요.';
+
+      try {
+        const requestType = buildRequestType();
+        const nickname = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname || '';
+
+        const baby_image_url = await uploadSlotImage('baby', imageSlots.baby.file);
+
+        let growth_steps = [];
+        if (requestType === 'new_growth_character') {
+          const checkedSteps = GROWTH_STEP_DEFS.filter(s => document.getElementById(`chk_${s.key}`).checked);
+          for (const step of checkedSteps) {
+            const url = await uploadSlotImage(step.key, imageSlots[step.key].file);
+            growth_steps.push({
+              step_name: step.name,
+              image_url: url,
+              designer_nickname: document.getElementById(`designer_${step.key}`).value.trim(),
+            });
+          }
+        }
+
+        statusEl.textContent = '신청 정보를 저장하는 중이에요...';
+
+        const payload = {
+          id: requestUuid,
+          request_type: requestType,
+          species_name: SPECIES_NAME,
+          applicant_user_id: currentUser.id,
+          applicant_nickname: nickname,
+          // DB 컬럼명은 그대로 existing_character_name이지만, 개체명이 나중에 바뀔 수 있어서
+          // 실제로는 링크에서 뽑은 개체 id(문자열)를 저장한다.
+          existing_character_name: requestType === 'existing_character_baby_step'
+            ? extractCharacterId(document.getElementById('existingCharacterName').value.trim())
+            : null,
+          baby_image_url,
+          baby_designer_nickname: document.getElementById('babyDesigner').value.trim(),
+          growth_steps,
+          post_growth_trait: requestType === 'new_growth_character'
+            ? (document.getElementById('postGrowthTrait').value.trim() || null)
+            : null,
+        };
+
+        const { error: insertError } = await sb.from('character_registration_requests').insert(payload);
+        if (insertError) {
+          await cleanupUploadedFiles();
+          throw new Error(`신청 저장에 실패했어요. (${insertError.message})`);
+        }
+
+        document.getElementById('requestForm').style.display = 'none';
+        document.getElementById('doneBlock').style.display = '';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        statusEl.textContent = '';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '신청서 제출하기';
+      }
+    });
+
+    initPage();
+  </script>
+</body>
+</html>

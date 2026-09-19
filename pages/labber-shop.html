@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LABBER 상점 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="labber-theme labbershop-page">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <!-- ── 상단: breadcrumb + 제목 + LABBER 로고 + 소개 (수상한 연구실과 동일 구조) ── -->
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <a href="shop.html">상점</a>
+              <span>/</span>
+              <span>LABBER 상점</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">LABBER 상점</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+            <!-- 소개 문구: 1문장 임시 확정, 2번째 문장은 미확정이라 비워둠 (JS LABBER_SHOP_INTRO 로 교체 가능) -->
+            <p class="labber-intro" id="labberShopIntro">
+              LABBER의 연구 활동에 필요한 물품을 취급하는 상점.
+            </p>
+          </div>
+        </div>
+
+        <!-- ── NPC 대화 씬: 대화창(왼쪽) + NPC(오른쪽) — 수상한 연구실과 동일 마크업/클래스 ── -->
+        <section class="labber-dialogue-scene">
+          <div class="labber-speech-bubble">
+            <p class="labber-npc-name" id="labberShopNpcName">C</p>
+            <p class="labber-npc-line" id="labberShopNpcLine" aria-live="polite"></p>
+          </div>
+          <div class="labber-npc-image-wrap">
+            <img id="labberShopNpcImage" class="labber-npc-image" src="../images/labber/labber_c.png" alt="C">
+          </div>
+        </section>
+
+        <!-- ── 하단 콘텐츠: 상품 영역 ──────────────────────────────────────
+             연구소 상점(shop.html)과 동일한 구조를 그대로 재사용한다:
+               .shop-tab-panel > #shopCategories(여기선 #labberShopCategories)
+               > .shop-cat-box > .shop-cat-title / .shop-cat-inner
+               > .shop-subcat > .shop-subcat-title / .shop-cat-grid > .shop-thumb
+             색상은 body.labber-theme 가 CSS 변수(--white/--border/--sky-* 등)를 다크·민트로
+             리스킨해 두어 별도 오버라이드 없이 "연구소 상점의 다크 버전"으로 렌더된다.
+             등장(타이핑 완료 후 .show)만 수상한 연구실 교환소 패널과 동일하게 감쌈. -->
+        <section class="labbershop-panel" id="labberShopPanel">
+          <div class="shop-tab-panel">
+            <div id="labberShopCategories"></div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <!-- 상품 상세 모달 — 연구소 상점 #shopDetailModal 과 동일한 .shop-detail-* 구조/클래스 (별도 노드, LABBER 다크 테마).
+       등급 라인만 조건부 추가. 구매 로직은 아직 없음(준비중). -->
+  <div class="modal-overlay" id="labberShopDetailModal" style="display:none;" onclick="if(event.target===this)closeLabberShopDetail()">
+    <div class="shop-detail-card">
+      <button class="shop-detail-close" onclick="closeLabberShopDetail()">×</button>
+      <div class="shop-detail-preview" id="labberShopDetailPreview"></div>
+      <div class="shop-detail-info">
+        <div class="shop-detail-name-row">
+          <p class="shop-detail-name" id="labberShopDetailName"></p>
+          <span class="shop-detail-credit" id="labberShopDetailCredit"></span>
+        </div>
+        <div class="labbershop-detail-grade" id="labberShopDetailGrade" hidden></div>
+        <p class="shop-detail-desc" id="labberShopDetailDesc"></p>
+        <!-- 구매 제한(계정당 N회) 안내 — 보조 문구. JS 가 purchase_limit 있을 때만 노출 -->
+        <p class="labbershop-detail-limit-note" id="labberShopDetailLimitNote" hidden></p>
+        <!-- 이 상품 전용 구매 주의 문구(계정당 1회 + 전송 불가). JS 가 상품에 purchaseNotice 가 있을 때만 노출 -->
+        <p class="labbershop-detail-notice" id="labberShopDetailNotice" hidden></p>
+        <div class="shop-detail-footer">
+          <span class="shop-detail-price" id="labberShopDetailPrice"></span>
+          <div id="labberShopDetailAction"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/labber-shop.js"></script>
+</body>
+</html>

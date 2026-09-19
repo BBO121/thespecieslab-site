@@ -1,0 +1,2850 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>개체 정보 수정 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <style>
+    .quill-wrap .ql-toolbar {
+      border-radius: 9px 9px 0 0;
+      border: 1.5px solid var(--border);
+      border-bottom: none;
+      font-family: inherit;
+    }
+    .quill-wrap .ql-toolbar:focus-within,
+    .quill-wrap:focus-within .ql-toolbar { border-color: var(--sky); }
+    .quill-wrap .ql-container {
+      border-radius: 0 0 9px 9px;
+      border: 1.5px solid var(--border);
+      min-height: 130px;
+      font-size: 14px;
+      font-family: inherit;
+      line-height: 1.7;
+    }
+    .quill-wrap:focus-within .ql-container { border-color: var(--sky); }
+    .quill-wrap .ql-editor { min-height: 130px; }
+    .quill-wrap .ql-editor.ql-blank::before { color: #CBD5E1; font-style: normal; }
+
+
+    /* 글씨 크기 드롭다운 라벨 */
+    .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '보통'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '작게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '조금 작게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '조금 크게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '크게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '더 크게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before { content: '제목 크기'; }
+
+    /* 제작자(디자이너·아티스트) / 소유주 공통 입력유형 탭 */
+    .io-tabs { display:flex; gap:8px; }
+    .io-tab {
+      flex:1; padding:8px; border-radius:8px;
+      border:2px solid var(--border); background:#fff; color:var(--text-sub);
+      font-size:13px; cursor:pointer; font-family:inherit;
+    }
+    .io-tab.is-active { border-color:var(--sky); background:var(--sky); color:#fff; }
+
+    /* LABBER SUBJECT 그림 관리 (현재 선택된 SUBJECT 1개 대상) — CSS 변수만 사용해 LABBER 테마에서도 자연스럽게 */
+    .labber-subject-img-box {
+      margin-top: 10px; padding: 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--sky-pale);
+    }
+    .labber-subject-img-title { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+    .labber-subject-img-row { display: flex; align-items: flex-start; gap: 12px; }
+    .labber-subject-img-preview {
+      flex: 0 0 auto; width: 96px; height: 96px;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+      background: var(--white);
+    }
+    .labber-subject-img-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .labber-subject-img-body { flex: 1; min-width: 0; }
+    .labber-subject-img-status { margin: 0 0 8px; font-size: 12px; color: var(--text-mute); line-height: 1.5; }
+    .labber-subject-img-status.is-pending { color: var(--sky-deep); }
+    .labber-subject-img-status.is-delete  { color: #ef4444; }
+    .labber-subject-img-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .labber-subject-img-actions button { font-size: 12px; padding: 6px 12px; }
+    .labber-subject-img-msg { margin: 8px 0 0; font-size: 12px; color: #ef4444; }
+    .labber-subject-img-note { margin: 8px 0 0; font-size: 11px; color: var(--text-mute); line-height: 1.5; }
+    .labber-subject-name-field { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .labber-subject-name-field .labber-subject-img-title { display: block; }
+    .labber-subject-name-field .form-input { width: 100%; box-sizing: border-box; }
+    @media (max-width: 480px) {
+      .labber-subject-img-preview { width: 80px; height: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="register-wrap">
+
+        <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+        <div id="pageContent" style="display:none;">
+
+        <div class="breadcrumb" style="margin-bottom: 24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="species-list.html">전체 종족</a>
+          <span>/</span>
+          <a href="#" id="breadcrumbSpecies"></a>
+          <span>/</span>
+          <a href="#" id="breadcrumbChar"></a>
+          <span>/</span>
+          <span>정보 수정</span>
+        </div>
+
+        <h1 class="register-title">개체 정보 수정</h1>
+        <p class="register-subtitle" id="editSubtitle">개체 정보를 수정해요</p>
+
+        <form class="register-form" id="editForm">
+
+          <!-- 개체명 (공통) — 종족주가 등록하는 이름. characters.name. 소유주는 확인만 가능(수정 불가). -->
+          <div class="form-group">
+            <label class="form-label">개체명 <span class="required">*</span></label>
+            <input type="text" id="charName" class="form-input" placeholder="개체 이름을 입력하세요">
+            <p class="form-hint">종족주가 등록한 개체명으로, 소유주는 변경할 수 없습니다.</p>
+          </div>
+
+          <!-- 소유주 설정 개체명 — characters.owner_custom_name.
+               현재 소유주 / 종족주 / admin·staff가 수정 가능(characters_name_edit_guard 트리거와 동일 정책,
+               2026-09-12: 종족주도 개체 관리자로서 수정 가능하도록 확장). 제3자는 볼 수 없음(owner 분기는 제외 — 그쪽은 charName 입력란을 재사용). -->
+          <div class="form-group" id="ownerCustomNameGroup" style="display:none;">
+            <label class="form-label">소유주 설정 개체명</label>
+            <input type="text" id="charOwnerCustomName" class="form-input" placeholder="소유주가 개인적으로 설정한 이름 (없으면 비워두세요)">
+            <p class="form-hint">소유주가 개인적으로 설정할 수 있는 개체명입니다.</p>
+          </div>
+
+          <!-- 종족주 영역 구분선 -->
+          <div style="margin:28px 0 20px; display:flex; align-items:center; gap:10px;">
+            <div style="flex:1; height:1px; background:var(--border);"></div>
+            <span style="font-size:12px; font-weight:600; color:var(--text-mute); white-space:nowrap; letter-spacing:0.05em; padding:4px 10px; border:1px solid var(--border); border-radius:20px;">종족주 영역</span>
+            <div style="flex:1; height:1px; background:var(--border);"></div>
+          </div>
+          <div id="speciesOwnerArea" style="display:flex; flex-direction:column; gap:28px;">
+
+            <!-- 메인 이미지 -->
+            <div class="form-group">
+              <label class="form-label">메인 이미지</label>
+              <p class="form-hint">업로드 후 썸네일을 편집할 수 있습니다. 원본 이미지는 상세페이지에 사용됩니다.</p>
+              <input type="file" id="imageFile" accept="image/*" style="display:none;">
+              <div class="img-upload-box img-upload-box--portrait" id="uploadBox" onclick="document.getElementById('imageFile').click()">
+                <img id="imagePreview" style="display:none; width:100%; height:100%; object-fit:cover; border-radius: var(--radius);">
+                <div id="uploadPlaceholder">
+                  <p class="img-upload-text">클릭하여 이미지 업로드</p>
+                </div>
+              </div>
+              <p class="img-upload-ratio">권장 비율 3:4</p>
+              <p class="img-upload-meta">PNG · GIF · JPG · WebP &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하</p>
+              <p class="form-hint" style="margin-top:8px;">업로드된 상세 이미지는 무단 도용 방지를 위해 워터마크가 적용됩니다.<br>개인 워터마크는 <a href="profile.html" style="color:var(--sky-deep);">프로필 설정</a>에서 등록할 수 있으며, 설정하지 않은 경우 연구소 기본 워터마크가 사용됩니다.</p>
+            </div>
+
+            <!-- 기본 이미지 선택 -->
+            <div class="form-group">
+              <label class="form-label">메인 이미지가 없나요? <span class="form-hint-inline">선택사항</span></label>
+              <p class="form-hint">이미지가 없는 개체는 연구소 기본 이미지를 사용할 수 있습니다.<br>기본 이미지를 선택하면 이미 등록된 메인 이미지보다 우선 표시돼요. 선택 해제하면 다시 메인 이미지가 보여요.</p>
+              <div class="default-img-grid" id="defaultImgGrid"></div>
+              <button type="button" class="default-img-clear" id="defaultImgClearBtn" onclick="selectDefaultImage(null)" disabled>선택 해제</button>
+            </div>
+
+            <!-- 대표 이미지 성장 단계 -->
+            <div class="form-group" id="representativeStepSection" style="display:none;">
+              <label class="form-label">대표 이미지 성장 단계</label>
+              <p class="form-hint">위 메인 이미지가 어느 성장 단계인지 선택해주세요.</p>
+              <select class="form-input" id="representativeStepSelect" style="max-width:260px;" onchange="onRepresentativeStepChange()"></select>
+              <p class="form-hint" id="representativeStepBlockedNote" style="display:none; color:#b91c1c; margin-top:6px;"></p>
+            </div>
+
+            <!-- 성장 Step 이미지 -->
+            <div class="form-group" id="stepImageSection" style="display:none;">
+              <label class="form-label">성장 Step 이미지 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항</span></label>
+              <p class="form-hint">이 종족은 성장 단계별 이미지를 등록할 수 있어요. 등록하지 않은 Step은 저장되지 않습니다.</p>
+              <div id="stepImageList" style="display:flex; flex-direction:column; gap:16px;"></div>
+            </div>
+
+            <!-- 추가 이미지 -->
+            <div class="form-group">
+              <label class="form-label">추가 이미지 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항</span></label>
+              <div id="extraImageList" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;"></div>
+              <input type="file" id="extraImageInput" accept="image/*" style="display:none;" multiple onchange="addExtraImages(this)">
+              <button type="button" class="btn-field-add" onclick="document.getElementById('extraImageInput').click()">+ 이미지 추가</button>
+            </div>
+
+            <!-- 제작자 (디자이너 + 아티스트) -->
+            <div class="form-group" id="creatorSection" style="gap:0; border:1px solid var(--border); border-radius:var(--radius); padding:16px;">
+              <label class="form-label" style="font-size:14px; margin:0 0 14px;">제작자</label>
+
+              <!-- 디자이너 -->
+              <div id="designerSection" style="display:flex; flex-direction:column; gap:8px;">
+                <label class="form-label" style="margin:0;">디자이너 <span class="required">*</span></label>
+                <p class="form-hint">여러 명 추가 가능 · 순서대로 표시됩니다</p>
+
+                <div class="io-tabs">
+                  <button type="button" id="designerTabSite" class="io-tab is-active" onclick="setDesignerTab('site')">사이트 유저</button>
+                  <button type="button" id="designerTabExternal" class="io-tab" onclick="setDesignerTab('external')">사이트 밖 유저</button>
+                </div>
+
+                <!-- 사이트 유저 입력 -->
+                <div id="designerSiteInput" style="position:relative;">
+                  <input type="text" id="designerSearch" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterDesigners(this.value)" autocomplete="off">
+                  <div id="designerDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:100; background:#fff; border:1px solid var(--border); border-radius:10px; max-height:180px; overflow-y:auto; margin-top:2px; box-shadow:0 4px 12px rgba(0,0,0,0.08);"></div>
+                </div>
+
+                <!-- 사이트 밖 유저 입력 -->
+                <div id="designerExternalInput" style="display:none;">
+                  <div style="display:flex; gap:8px; margin-bottom:6px;">
+                    <input type="text" id="designerExternalName" class="form-input" placeholder="이름 입력" style="flex:1;">
+                    <button type="button" id="designerAddExternalBtn" onclick="addExternalDesigner()" style="padding:0 14px; height:40px; border-radius:8px; border:1.5px solid var(--border); background:#fff; color:var(--text); font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; flex-shrink:0;">추가</button>
+                  </div>
+                  <input type="text" id="designerExternalContact" class="form-input" placeholder="연락처 (트위터, 디스코드 등) — 선택사항">
+                </div>
+
+                <!-- 현재 등록된 디자이너 목록 -->
+                <div id="designerList" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+              </div>
+
+              <!-- 디자이너 / 아티스트 구분선 -->
+              <div style="height:1px; background:var(--border); margin:18px 0;"></div>
+
+              <!-- 아티스트 (선택) -->
+              <div id="artistSection" style="display:flex; flex-direction:column; gap:8px;">
+                <label class="form-label" style="margin:0;">아티스트 <span class="form-hint" style="display:inline; font-weight:400; margin:0 0 0 6px;">선택사항</span></label>
+                <p class="form-hint">개체 일러스트를 그린 사람 크레딧 · 여러 명 추가 가능</p>
+
+                <div class="io-tabs">
+                  <button type="button" id="artistTabSite" class="io-tab is-active" onclick="setArtistTab('site')">사이트 유저</button>
+                  <button type="button" id="artistTabExternal" class="io-tab" onclick="setArtistTab('external')">사이트 밖 유저</button>
+                </div>
+
+                <!-- 사이트 유저 입력 -->
+                <div id="artistSiteInput" style="position:relative;">
+                  <input type="text" id="artistSearch" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterArtists(this.value)" autocomplete="off">
+                  <div id="artistDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:100; background:#fff; border:1px solid var(--border); border-radius:10px; max-height:180px; overflow-y:auto; margin-top:2px; box-shadow:0 4px 12px rgba(0,0,0,0.08);"></div>
+                </div>
+
+                <!-- 사이트 밖 유저 입력 (연락처 없음) -->
+                <div id="artistExternalInput" style="display:none;">
+                  <div style="display:flex; gap:8px;">
+                    <input type="text" id="artistExternalName" class="form-input" placeholder="이름 입력" style="flex:1;">
+                    <button type="button" id="artistAddExternalBtn" onclick="addExternalArtist()" style="padding:0 14px; height:40px; border-radius:8px; border:1.5px solid var(--border); background:#fff; color:var(--text); font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; flex-shrink:0;">추가</button>
+                  </div>
+                </div>
+
+                <!-- 현재 등록된 아티스트 목록 -->
+                <div id="artistList" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+              </div>
+            </div>
+
+            <!-- 소유주 -->
+            <div class="form-group">
+              <label class="form-label">소유주</label>
+
+              <div class="io-tabs" style="margin-bottom:12px;">
+                <button type="button" id="btnSiteUser" class="io-tab is-active" onclick="setOwnerType('site')">사이트 유저</button>
+                <button type="button" id="btnExternal" class="io-tab" onclick="setOwnerType('external')">사이트 밖 유저</button>
+              </div>
+
+              <div id="ownerSiteSection">
+                <input type="text" id="ownerSearch" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterUsers(this.value)" style="margin-bottom:8px;">
+                <div id="ownerUserList" style="border:1px solid var(--border); border-radius:10px; max-height:200px; overflow-y:auto; background:#fff;">
+                  <p style="padding:12px; color:var(--text-mute); font-size:13px;">불러오는 중...</p>
+                </div>
+                <p id="ownerSelectedDisplay" style="margin-top:8px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+              </div>
+
+              <div id="ownerExternalSection" style="display:none;">
+                <input type="text" id="ownerExternalName" class="form-input" placeholder="이름 입력" style="margin-bottom:8px;">
+                <input type="text" id="ownerExternalContact" class="form-input" placeholder="연락처 (트위터, 디스코드 등) — 선택사항">
+              </div>
+            </div>
+
+            <!-- 개체번호 -->
+            <div class="form-group">
+              <label class="form-label">개체번호 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항</span></label>
+              <input type="text" id="charNumber" class="form-input" placeholder="예) NO.001">
+            </div>
+
+            <!-- 종족주 설명 -->
+            <div class="form-group">
+              <label class="form-label">종족주 설명</label>
+              <textarea id="charDesc" class="form-textarea" placeholder="종족주가 작성하는 개체 설명을 입력하세요" rows="4"></textarea>
+            </div>
+
+            <!-- 개체 설정 소구분선 -->
+            <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+              <span style="font-size:11px; font-weight:700; color:var(--text-mute); letter-spacing:0.08em; white-space:nowrap;">개체 설정</span>
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+            </div>
+
+            <!-- 종족 커스텀 필드 -->
+            <div id="customFieldsSection" style="display:none;">
+              <div class="char-info-divider" style="margin:8px 0 20px;"></div>
+              <p class="form-label" style="margin-bottom:14px;">개체 항목</p>
+              <div id="customFieldInputs"></div>
+            </div>
+
+            <!-- 분류 -->
+            <div class="form-group">
+              <label class="form-label">분류 <span class="form-hint-inline">선택사항 · 여러 개 추가 가능</span></label>
+              <div id="addedCategories" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+              <div id="categoryInputArea" style="display:none; padding:12px; border:1px solid var(--border); border-radius:10px; margin-bottom:10px;">
+                <div id="colorSwatches" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                <input type="hidden" id="categoryColor" value="">
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                  <input type="text" id="categoryLabel" class="form-input" placeholder="분류 이름 (예: 희귀종, NPC)" style="flex:1;">
+                  <button type="button" onclick="confirmAddCategory()"
+                    style="flex-shrink:0; padding:0 14px; height:38px; border:none; border-radius:8px; background:var(--sky); color:#fff; cursor:pointer; font-size:13px;">추가</button>
+                  <button type="button" onclick="cancelAddCategory()"
+                    style="flex-shrink:0; padding:0 12px; height:38px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text-mute); cursor:pointer; font-size:12px;">취소</button>
+                </div>
+                <div id="existingCategoryChips" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+              </div>
+              <button type="button" class="btn-field-add" onclick="showCategoryInput()">+ 분류 추가</button>
+            </div>
+
+            <!-- 민감한 요소 -->
+            <div class="form-group">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap; font-size:14px; font-weight:500; color:var(--text);">
+                  <input type="checkbox" id="isSensitive" style="width:16px; height:16px; cursor:pointer; accent-color:var(--sky); flex-shrink:0;">
+                  민감한 요소 포함
+                </label>
+                <input type="text" id="sensitiveNote" class="form-input" placeholder="시선공포, 쨍한색 등" style="flex:1; min-width:160px;">
+              </div>
+            </div>
+
+            <!-- 분양 규칙 개별 설정 -->
+            <div class="form-group">
+              <label class="form-label">분양 규칙 개별 설정</label>
+              <p class="form-hint" style="margin-bottom:10px;">종족 따름이면 해당 종족의 기본 설정을 따릅니다.</p>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                  <span style="font-size:13px; color:var(--text); width:60px; flex-shrink:0;">재분양</span>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowResale" value="null" checked style="accent-color:var(--sky);"> 종족 따름</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowResale" value="true" style="accent-color:var(--sky);"> 허용</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowResale" value="false" style="accent-color:var(--sky);"> 불가</label>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                  <span style="font-size:13px; color:var(--text); width:60px; flex-shrink:0;">무료분양</span>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowFreeAdoption" value="null" checked style="accent-color:var(--sky);"> 종족 따름</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowFreeAdoption" value="true" style="accent-color:var(--sky);"> 허용</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowFreeAdoption" value="false" style="accent-color:var(--sky);"> 불가</label>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                  <span style="font-size:13px; color:var(--text); width:60px; flex-shrink:0;">유료/경매</span>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowPaidAdoption" value="null" checked style="accent-color:var(--sky);"> 종족 따름</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowPaidAdoption" value="true" style="accent-color:var(--sky);"> 허용</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowPaidAdoption" value="false" style="accent-color:var(--sky);"> 불가</label>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                  <span style="font-size:13px; color:var(--text); width:60px; flex-shrink:0;">기타분양</span>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowOtherAdoption" value="null" checked style="accent-color:var(--sky);"> 종족 따름</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowOtherAdoption" value="true" style="accent-color:var(--sky);"> 허용</label>
+                  <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; color:var(--text);"><input type="radio" name="allowOtherAdoption" value="false" style="accent-color:var(--sky);"> 불가</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 추가 섹션 소구분선 -->
+            <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+              <span style="font-size:11px; font-weight:700; color:var(--text-mute); letter-spacing:0.08em; white-space:nowrap;">추가 섹션</span>
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+            </div>
+
+            <!-- 종족주 섹션 -->
+            <div class="form-group">
+              <label class="form-label">종족주 섹션 <span class="form-hint-inline">탭으로 표시돼요 · 드래그로 순서 변경</span></label>
+              <div id="sectionList"></div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                <button type="button" id="btnAddSettings" class="btn-field-add" onclick="addSection('settings','species')">+ 설정</button>
+                <button type="button" id="btnAddRelation" class="btn-field-add" onclick="addSection('relation','species')">+ 관계</button>
+                <button type="button" id="btnAddCustom" class="btn-field-add" onclick="addSection('custom','species')">+ 직접입력</button>
+              </div>
+              <p id="customCountNote" style="font-size:12px; color:var(--text-mute); margin-top:6px; display:none;"></p>
+            </div>
+
+          </div><!-- /speciesOwnerArea -->
+
+          <!-- 소유주 영역 구분선 -->
+          <div style="margin:28px 0 20px; display:flex; align-items:center; gap:10px;">
+            <div style="flex:1; height:1px; background:var(--border);"></div>
+            <span style="font-size:12px; font-weight:600; color:var(--text-mute); white-space:nowrap; letter-spacing:0.05em; padding:4px 10px; border:1px solid var(--border); border-radius:20px;">소유주 영역</span>
+            <div style="flex:1; height:1px; background:var(--border);"></div>
+          </div>
+          <div id="ownerArea" style="display:flex; flex-direction:column; gap:28px;">
+
+            <!-- 소유주 설명 -->
+            <div class="form-group">
+              <label class="form-label">소유주 설명</label>
+              <textarea id="ownerDesc" class="form-textarea" placeholder="소유주가 작성하는 개체 설명을 입력하세요" rows="4"></textarea>
+            </div>
+
+            <!-- 추가 섹션 소구분선 -->
+            <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+              <span style="font-size:11px; font-weight:700; color:var(--text-mute); letter-spacing:0.08em; white-space:nowrap;">추가 섹션</span>
+              <div style="flex:1; height:1px; background:var(--border);"></div>
+            </div>
+
+            <!-- 소유주 섹션 -->
+            <div class="form-group">
+              <label class="form-label">소유주 섹션 <span class="form-hint-inline">탭으로 표시돼요 · 드래그로 순서 변경</span></label>
+              <div id="ownerSectionList"></div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                <button type="button" id="btnOwnerAddSettings" class="btn-field-add" onclick="addSection('settings','owner')">+ 설정</button>
+                <button type="button" id="btnOwnerAddRelation" class="btn-field-add" onclick="addSection('relation','owner')">+ 관계</button>
+                <button type="button" id="btnOwnerAddCustom" class="btn-field-add" onclick="addSection('custom','owner')">+ 직접입력</button>
+              </div>
+              <p id="ownerCustomCountNote" style="font-size:12px; color:var(--text-mute); margin-top:6px; display:none;"></p>
+            </div>
+
+          </div><!-- /ownerArea -->
+
+          <!-- 에러 -->
+          <p class="auth-error" id="editError"></p>
+
+          <!-- 버튼 -->
+          <div class="register-actions">
+            <a href="#" id="cancelBtn" class="btn-ghost">취소</a>
+            <button type="submit" class="btn-secondary" id="submitBtn">저장하기</button>
+          </div>
+
+        </form>
+
+        </div><!-- /pageContent -->
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/utils.js?v=2"></script>
+  <script src="../js/search.js"></script>
+  <script src="../js/step-priority.js"></script>
+  <script src="../js/labber-traits.js"></script>
+  <script>
+    const charId = new URLSearchParams(window.location.search).get('id');
+
+    let currentUser          = null;
+    let editRole             = null; // 'admin' | 'owner' | 'species_owner'
+    let isCharOwner          = false; // 현재 유저가 이 개체의 소유주인지
+    let originalCharData     = null;
+    let ownerType            = 'site';
+    let selectedNick         = null;
+    let designers            = []; // { type:'site', userId, nickname } | { type:'external', name, contact }
+    let artists              = []; // { type:'site', userId, nickname } | { type:'external', name } — 선택사항, 여러 명(연락처 없음)
+    let artistEditable       = true; // 소유주(owner) 권한 수정 시 false
+    let selectedNickId       = null;
+    let userWatermarkUrl     = null;
+    let originalOwnerUserId  = null;
+    let currentImageUrl      = null;
+    let addedCategories      = [];
+    let existingExtraImages         = [];
+    let existingOriginalExtraImages = [];
+    let removedExtraImages          = [];
+    let newExtraFiles               = [];
+    let allSpecies           = [];
+    let sectionDragSrc       = null;
+    let currentThumbnailUrl  = null;
+    let selectedMainFile     = null;
+    let selectedDefaultImageIndex = null;
+    let pendingThumbnailBlob = null;
+    let cropperInstance      = null;
+    let cropTargetStep       = null; // null = 대표 이미지, 아니면 크롭 중인 Step의 step_order (우선순위 종족 전용)
+    const stepThumbnailBlobs = {};   // step_order -> 크롭된 3:4 썸네일 blob (우선순위 종족 전용)
+    const quillInstances     = new Map();
+    let speciesSteps         = [];   // [{id, step_order, name}] — 대표 이미지 Step 포함 전체
+    let mainImageStepId      = null; // 종족 기본 대표 이미지 Step (species.main_image_step_id)
+    let representativeStepId = null; // 이 개체가 실제로 지금 대표로 쓰는 Step (없으면 mainImageStepId와 동일)
+    let currentSpeciesId     = null; // 이 개체가 속한 species.id
+    let existingStepImages   = {};   // step_order -> {species_step_id, image_url, original_image_url, thumbnail_url}
+    let removedStepOrders    = [];   // 사용자가 ✕로 제거한 기존 Step 이미지의 step_order
+    const stepFiles          = {};   // step_order -> File (대표 이미지 Step 제외)
+
+    // 글씨 크기 등록
+    const SizeStyle = Quill.import('attributors/style/size');
+    SizeStyle.whitelist = ['12px', '14px', '16px', '18px', '20px', '24px', '28px'];
+    Quill.register(SizeStyle, true);
+
+    const QUILL_TOOLBAR = [
+      [{ size: ['12px', '14px', false, '18px', '20px', '24px', '28px'] }],
+      ['bold', 'italic', 'underline'],
+      [{ color: [] }],
+      [{ align: [] }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link', 'image', 'clean'],
+    ];
+    // 관계 설명(relDescQ)용: 이미지 첨부 기능 제외 — 설정/커스텀 섹션에만 이미지 첨부를 제공
+    const QUILL_TOOLBAR_NO_IMAGE = [
+      [{ size: ['12px', '14px', false, '18px', '20px', '24px', '28px'] }],
+      ['bold', 'italic', 'underline'],
+      [{ color: [] }],
+      [{ align: [] }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link', 'clean'],
+    ];
+    const QuillDelta = Quill.import('delta');
+
+    // ── char_sections 이미지 첨부 (Storage 업로드, base64/blob 저장 금지) ──
+    function renderDefaultImgGrid() {
+      const grid = document.getElementById('defaultImgGrid');
+      grid.innerHTML = [1, 2, 3, 4, 5].map(n => `
+        <div class="default-img-item default-img-item--portrait ${selectedDefaultImageIndex === n ? 'selected' : ''}" onclick="selectDefaultImage(${n})">
+          <img src="${characterDefaultImageUrl(n)}" alt="기본 이미지 ${n}">
+          <span class="default-img-check">✓</span>
+        </div>
+      `).join('');
+      document.getElementById('defaultImgClearBtn').disabled = selectedDefaultImageIndex === null;
+    }
+
+    function selectDefaultImage(n) {
+      selectedDefaultImageIndex = n;
+      renderDefaultImgGrid();
+    }
+
+    async function uploadSectionImage(file) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        throw new Error('PNG, GIF, JPG, WebP 형식의 이미지만 첨부할 수 있어요.');
+      }
+      const blob   = await compressImage(file);
+      const ext    = blob.type === 'image/gif' ? 'gif' : 'jpg';
+      const idPart = charId || 'tmp';
+      const path   = `section_${idPart}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const { error } = await sb.storage.from('images').upload(path, blob, { contentType: blob.type });
+      if (error) throw new Error('이미지 업로드 실패: ' + error.message);
+      return sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+    }
+
+    function setSectionQuillBusy(quill, busy) {
+      quill.enable(!busy);
+      quill.container.style.opacity = busy ? '0.6' : '';
+    }
+
+    async function insertSectionImageFile(quill, file) {
+      if (!file || !file.type || !file.type.startsWith('image/')) return;
+      if (quill.__sectionImgBusy) return;
+      quill.__sectionImgBusy = true;
+      setSectionQuillBusy(quill, true);
+      try {
+        const url   = await uploadSectionImage(file);
+        const range = quill.getSelection(true) || { index: quill.getLength() };
+        quill.insertEmbed(range.index, 'image', url, 'user');
+        quill.setSelection(range.index + 1, 0, 'silent');
+      } catch (err) {
+        alert(err.message || '이미지 업로드에 실패했어요.');
+      } finally {
+        quill.__sectionImgBusy = false;
+        setSectionQuillBusy(quill, false);
+      }
+    }
+
+    // 파일선택 / Ctrl+V / drag&drop 세 경로 모두 uploadSectionImage() 하나로 수렴
+    // allowUpload=false: 이미지 첨부 기능 없이 data:/blob: 방어(clipboard matcher)만 적용 (관계 설명용)
+    function attachSectionImageSupport(quill, { allowUpload = true } = {}) {
+      if (allowUpload) {
+        quill.getModule('toolbar').addHandler('image', () => {
+          const input = document.createElement('input');
+          input.type   = 'file';
+          input.accept = 'image/png,image/jpeg,image/webp,image/gif';
+          input.addEventListener('change', () => insertSectionImageFile(quill, input.files[0]));
+          input.click();
+        });
+
+        // 이미지 자체를 붙여넣는 경우: Quill 기본 base64 변환 전에 가로채서 업로드로 대체
+        quill.root.addEventListener('paste', (e) => {
+          const items = e.clipboardData?.items || [];
+          for (const item of items) {
+            if (item.type && item.type.startsWith('image/')) {
+              e.preventDefault();
+              e.stopPropagation();
+              insertSectionImageFile(quill, item.getAsFile());
+              return;
+            }
+          }
+          // 텍스트/HTML 붙여넣기는 Quill 기본 처리 + 아래 clipboard matcher에 맡김
+        }, true);
+
+        // 이미지 파일 드래그앤드롭
+        quill.root.addEventListener('drop', (e) => {
+          const file = e.dataTransfer?.files?.[0];
+          if (file && file.type && file.type.startsWith('image/')) {
+            e.preventDefault();
+            e.stopPropagation();
+            insertSectionImageFile(quill, file);
+          }
+        });
+      }
+
+      // 다른 사이트/문서에서 복사한 HTML 안에 data:/blob: 이미지가 섞여 들어오는 경우 삽입 자체를 차단 (항상 적용)
+      quill.clipboard.addMatcher('IMG', (node, delta) => {
+        const src = node.getAttribute('src') || '';
+        if (src.startsWith('data:') || src.startsWith('blob:')) return new QuillDelta();
+        return delta;
+      });
+    }
+
+    // char_sections 저장 직전 방어 필터: data:/blob: 이미지만 확실히 제거 (외부 https 이미지는 허용)
+    function stripUnsafeImages(html) {
+      if (!html) return html;
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      div.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src') || '';
+        if (src.startsWith('data:') || src.startsWith('blob:')) img.remove();
+      });
+      return div.innerHTML;
+    }
+
+    // ── 섹션 관리 ──────────────────────────────
+    function updateSectionAddButtons() {
+      const cards = [...document.querySelectorAll('#sectionList .section-card')];
+      const hasSettings = cards.some(c => c.dataset.type === 'settings');
+      const hasRelation = cards.some(c => c.dataset.type === 'relation');
+      const customCount = cards.filter(c => c.dataset.type === 'custom').length;
+
+      document.getElementById('btnAddSettings').style.display = hasSettings ? 'none' : '';
+      document.getElementById('btnAddRelation').style.display = hasRelation ? 'none' : '';
+      document.getElementById('btnAddCustom').style.display   = customCount >= 6 ? 'none' : '';
+
+      const note = document.getElementById('customCountNote');
+      note.style.display  = customCount > 0 ? '' : 'none';
+      note.textContent    = `직접입력 ${customCount}/6`;
+    }
+
+    function updateOwnerSectionAddButtons() {
+      const cards = [...document.querySelectorAll('#ownerSectionList .section-card')];
+      const hasSettings = cards.some(c => c.dataset.type === 'settings');
+      const hasRelation = cards.some(c => c.dataset.type === 'relation');
+      const customCount = cards.filter(c => c.dataset.type === 'custom').length;
+
+      document.getElementById('btnOwnerAddSettings').style.display = hasSettings ? 'none' : '';
+      document.getElementById('btnOwnerAddRelation').style.display = hasRelation ? 'none' : '';
+      document.getElementById('btnOwnerAddCustom').style.display   = customCount >= 6 ? 'none' : '';
+
+      const note = document.getElementById('ownerCustomCountNote');
+      note.style.display  = customCount > 0 ? '' : 'none';
+      note.textContent    = `직접입력 ${customCount}/6`;
+    }
+
+    function addDragEvents(card) {
+      const header = card.querySelector('.section-card-header');
+      header.addEventListener('mousedown', () => { card.draggable = true; });
+      card.addEventListener('dragstart', e => {
+        sectionDragSrc = card;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => card.classList.add('dragging'), 0);
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        document.querySelectorAll('.section-card').forEach(c => c.classList.remove('drag-over'));
+        card.draggable = false;
+      });
+      card.addEventListener('dragover', e => { e.preventDefault(); if (sectionDragSrc !== card) card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', e => {
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        if (sectionDragSrc && sectionDragSrc !== card) {
+          const list = document.getElementById('sectionList');
+          const all  = [...list.children];
+          list.insertBefore(sectionDragSrc, all.indexOf(sectionDragSrc) < all.indexOf(card) ? card.nextSibling : card);
+        }
+      });
+    }
+
+    function makeSettingsCard(data = null) {
+      const div = document.createElement('div');
+      div.className = 'section-card';
+      div.dataset.type = 'settings';
+      div.dataset.id   = 'settings';
+      div.innerHTML = `
+        <div class="section-card-header">
+          <span class="section-drag-handle">⠿⠿</span>
+          <span class="section-card-label">설정</span>
+          <button type="button" onclick="removeSection(this)" style="background:none;border:none;color:var(--text-mute);cursor:pointer;font-size:16px;padding:0 2px;">✕</button>
+        </div>
+        <div class="section-card-body">
+          <div class="quill-wrap"><div class="quill-editor-target"></div></div>
+        </div>`;
+      addDragEvents(div);
+      return div;
+    }
+
+    function makeRelationCard(data = null) {
+      const div = document.createElement('div');
+      div.className = 'section-card';
+      div.dataset.type = 'relation';
+      div.dataset.id   = 'relation';
+      div.innerHTML = `
+        <div class="section-card-header">
+          <span class="section-drag-handle">⠿⠿</span>
+          <span class="section-card-label">관계</span>
+          <button type="button" onclick="removeSection(this)" style="background:none;border:none;color:var(--text-mute);cursor:pointer;font-size:16px;padding:0 2px;">✕</button>
+        </div>
+        <div class="section-card-body">
+          <div class="relation-list"></div>
+          <button type="button" class="btn-field-add" onclick="addRelationItem(this.previousElementSibling)">+ 관계 추가</button>
+        </div>`;
+      addDragEvents(div);
+      if (data?.relations?.length) {
+        const list = div.querySelector('.relation-list');
+        data.relations.forEach(r => addRelationItem(list, r));
+      }
+      return div;
+    }
+
+    function makeCustomCard(data = null) {
+      const id = data?.id || 'custom_' + Date.now();
+      const div = document.createElement('div');
+      div.className = 'section-card';
+      div.dataset.type = 'custom';
+      div.dataset.id   = id;
+      div.innerHTML = `
+        <div class="section-card-header">
+          <span class="section-drag-handle">⠿⠿</span>
+          <span class="section-card-label">직접입력</span>
+          <button type="button" onclick="removeSection(this)" style="background:none;border:none;color:var(--text-mute);cursor:pointer;font-size:16px;padding:0 2px;">✕</button>
+        </div>
+        <div class="section-card-body">
+          <input type="text" class="form-input section-title-input" placeholder="제목을 입력하세요" value="${data?.title || ''}">
+          <div class="quill-wrap"><div class="quill-editor-target"></div></div>
+        </div>`;
+      addDragEvents(div);
+      return div;
+    }
+
+    function initCardQuill(card, content = '') {
+      const target = card.querySelector('.quill-editor-target');
+      if (!target) return;
+      const id = card.dataset.id;
+      const quill = new Quill(target, {
+        theme: 'snow',
+        placeholder: '내용을 작성하세요...',
+        modules: { toolbar: QUILL_TOOLBAR },
+      });
+      attachSectionImageSupport(quill);
+      // quill.root.innerHTML을 직접 대입하면 Quill 내부 상태(Delta/빈 상태 판정)가 갱신되지 않아
+      // ql-blank 클래스가 그대로 남는다 — placeholder(::before, position:absolute)가 실제 내용 위에
+      // 겹쳐 보이는 원인이었다. dangerouslyPasteHTML도 내부 상태는 정상 갱신하지만 부작용으로
+      // 에디터에 focus를 줘서 페이지가 그 위치로 스크롤되는 문제가 있어(실측 확인),
+      // 동일하게 Delta 기반이면서 focus를 유발하지 않는 setContents(..., 'silent')로 대체한다.
+      if (content) quill.setContents(quill.clipboard.convert(content), 'silent');
+      quillInstances.set(id, quill);
+    }
+
+    function addSection(type, zone = 'species') {
+      const listId     = zone === 'owner' ? 'ownerSectionList' : 'sectionList';
+      const authorRole = zone === 'owner' ? 'owner' : 'species_owner';
+      const cards = [...document.querySelectorAll(`#${listId} .section-card`)];
+      if (type === 'settings' && cards.some(c => c.dataset.type === 'settings')) return;
+      if (type === 'relation' && cards.some(c => c.dataset.type === 'relation')) return;
+      if (type === 'custom' && cards.filter(c => c.dataset.type === 'custom').length >= 6) return;
+
+      const card = type === 'settings' ? makeSettingsCard()
+                 : type === 'relation' ? makeRelationCard()
+                 : makeCustomCard();
+      card.dataset.authorRole = authorRole;
+      // settings/relation 카드는 makeSettingsCard/makeRelationCard가 dataset.id를 'settings'/'relation'로
+      // 고정 부여한다 — 종족주 섹션과 소유주 섹션에 같은 타입이 동시에 있으면 id가 충돌해 quillInstances
+      // Map에서 서로 덮어써진다(권한 잠금이 엉뚱한 에디터에 걸리고, 저장 시 내용도 뒤섞일 수 있음).
+      // zone을 id에 포함시켜 종족주/소유주 섹션이 항상 구분되도록 한다.
+      if (type === 'settings' || type === 'relation') card.dataset.id = `${zone}_${type}`;
+      document.getElementById(listId).appendChild(card);
+      initCardQuill(card);
+      if (zone === 'owner') updateOwnerSectionAddButtons();
+      else updateSectionAddButtons();
+    }
+
+    function removeSection(btn) {
+      const card = btn.closest('.section-card');
+      const isOwnerSection = !!card.closest('#ownerSectionList');
+      quillInstances.delete(card.dataset.id);
+      card.remove();
+      if (isOwnerSection) updateOwnerSectionAddButtons();
+      else updateSectionAddButtons();
+    }
+
+    function addRelationItem(listEl, data = null) {
+      const itemId = 'rel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5);
+      const div = document.createElement('div');
+      div.className = 'relation-item';
+      if (data) {
+        div.dataset.charId      = data.char_id      || '';
+        div.dataset.charName    = data.char_name    || '';
+        div.dataset.speciesName = data.species_name || '';
+      }
+      div.innerHTML = `
+        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+          <select class="form-input rel-species-select" style="flex:1; min-width:120px; padding:8px 10px;" onchange="loadRelChars(this, '${itemId}_chars')">
+            <option value="">종족 선택</option>
+            ${allSpecies.map(s => `<option value="${s.id}" data-name="${s.name}" ${data?.species_name === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}
+          </select>
+          <select class="form-input rel-char-select" id="${itemId}_chars" style="flex:1; min-width:120px; padding:8px 10px;" data-saved-id="${data?.char_id || ''}">
+            <option value="">개체 선택</option>
+          </select>
+        </div>
+        <input type="text" class="form-input rel-label" placeholder="관계 유형 (예: 친구, 라이벌)" value="${data?.relation_label || ''}">
+        <div class="quill-wrap"><div class="rel-desc-quill-target"></div></div>
+        <button type="button" onclick="this.closest('.relation-item').remove()" style="padding:4px 10px; border:1px solid #fca5a5; border-radius:6px; background:#fff; color:#ef4444; font-size:12px; cursor:pointer; font-family:inherit;">관계 삭제</button>`;
+      listEl.appendChild(div);
+      if (data?.species_name) loadRelChars(div.querySelector('.rel-species-select'), `${itemId}_chars`);
+
+      // rel-desc Quill 초기화
+      const relDescQ = new Quill(div.querySelector('.rel-desc-quill-target'), {
+        theme: 'snow',
+        placeholder: '설명 (선택사항)',
+        modules: { toolbar: QUILL_TOOLBAR_NO_IMAGE },
+      });
+      attachSectionImageSupport(relDescQ, { allowUpload: false });
+      // initCardQuill과 동일한 이유로 setContents(..., 'silent') 사용 — ql-blank 겹침 방지 + focus/스크롤 부작용 없음
+      if (data?.description) relDescQ.setContents(relDescQ.clipboard.convert(data.description), 'silent');
+    }
+
+    async function loadRelChars(speciesSelect, charSelectId) {
+      const charSelect  = document.getElementById(charSelectId)
+                       || speciesSelect.closest('.relation-item')?.querySelector('.rel-char-select');
+      if (!charSelect) return;
+      const speciesName = speciesSelect.options[speciesSelect.selectedIndex]?.dataset?.name;
+      const savedId     = charSelect.dataset.savedId;
+
+      if (!speciesName) { charSelect.innerHTML = '<option value="">개체 선택</option>'; return; }
+
+      charSelect.innerHTML = '<option value="">불러오는 중...</option>';
+
+      const pageSize = 1000;
+      let from = 0;
+      let allChars = [];
+      while (true) {
+        const { data, error } = await sb.from('characters').select('id, name')
+          .eq('species_name', speciesName).order('name')
+          .range(from, from + pageSize - 1);
+        if (error) { console.error('관계 설정 개체 목록 로드 실패:', error); break; }
+        if (!data || data.length === 0) break;
+        allChars.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      charSelect.innerHTML = '<option value="">개체 선택</option>' +
+        allChars.map(c => `<option value="${c.id}" data-name="${c.name}" ${String(c.id) === savedId ? 'selected' : ''}>${c.name}</option>`).join('');
+    }
+
+    function collectSections() {
+      const sections = [];
+      const allCards = [
+        ...document.querySelectorAll('#sectionList .section-card'),
+        ...document.querySelectorAll('#ownerSectionList .section-card'),
+      ];
+      allCards.forEach(card => {
+        const type       = card.dataset.type;
+        const id         = card.dataset.id;
+        const authorRole = card.dataset.authorRole || 'species_owner';
+        if (type === 'settings') {
+          const quill = quillInstances.get(id);
+          const content = quill ? stripUnsafeImages(quill.root.innerHTML) : '';
+          const hasContent = quill && quill.getLength() > 1;
+          if (hasContent) sections.push({ id, type, content, author_role: authorRole });
+        } else if (type === 'relation') {
+          const relations = [];
+          card.querySelectorAll('.relation-item').forEach(item => {
+            const speciesOpt = item.querySelector('.rel-species-select option:checked');
+            const charOpt    = item.querySelector('.rel-char-select option:checked');
+            // loadRelChars 비동기 미완료 시 data 속성 fallback 사용
+            const charId   = charOpt?.value || item.dataset.charId   || '';
+            const charName = charOpt?.dataset.name || charOpt?.textContent.trim() || item.dataset.charName || '';
+            if (!charId) return;
+            relations.push({
+              char_id:        charId,
+              char_name:      charName,
+              species_name:   speciesOpt?.dataset?.name || item.dataset.speciesName || '',
+              relation_label: item.querySelector('.rel-label').value.trim(),
+              description: (() => { const c = item.querySelector('.ql-container'); const q = c && Quill.find(c); return q && q.getLength() > 1 ? stripUnsafeImages(q.root.innerHTML) : ''; })(),
+            });
+          });
+          if (relations.length) sections.push({ id, type, relations, author_role: authorRole });
+        } else if (type === 'custom') {
+          const title = card.querySelector('.section-title-input').value.trim();
+          const quill = quillInstances.get(id);
+          const content = quill ? stripUnsafeImages(quill.root.innerHTML) : '';
+          const hasContent = quill && quill.getLength() > 1;
+          if (title || hasContent) sections.push({ id, type, title, content, author_role: authorRole });
+        }
+      });
+      return sections;
+    }
+
+    // 이름 영역(개체명 / 소유주 설정 개체명)만 담당하는 가벼운 권한 적용 — 값 세팅 직후 바로 호출된다.
+    // 여기 조건은 applyFieldPermissions()의 admin/species_owner/owner 분기와 항상 동일하게 유지해야 한다.
+    function applyNameFieldPermissions(role) {
+      if (role === 'owner') {
+        const nameInput = document.getElementById('charName');
+        if (nameInput) {
+          nameInput.disabled = true;
+          nameInput.readOnly = true;
+          nameInput.style.background = '#f8fafc';
+          nameInput.style.color      = 'var(--text-mute)';
+        }
+      }
+      if (role === 'owner' || role === 'species_owner' || role === 'admin') {
+        const group = document.getElementById('ownerCustomNameGroup');
+        // .form-group는 display:flex(세로 스택) 클래스라 'block'으로 덮어쓰면 레이아웃이 깨진다 — 반드시 'flex'로 복원
+        if (group) group.style.display = 'flex';
+      }
+    }
+
+    function applyFieldPermissions(role) {
+      if (role === 'admin') {
+        // admin(진짜 admin/staff, 또는 종족주=소유주 본인 겸직)은 등록명(characters.name)에 더해
+        // 소유주 설정 이름(owner_custom_name)도 직접 수정할 수 있어야 한다.
+        const group = document.getElementById('ownerCustomNameGroup');
+        // .form-group는 display:flex(세로 스택) 클래스라 'block'으로 덮어쓰면 레이아웃이 깨진다 — 반드시 'flex'로 복원
+        if (group) group.style.display = 'flex';
+        return;
+      }
+
+      const mute = el => {
+        if (!el) return;
+        el.disabled  = true;
+        el.readOnly  = true;
+        el.style.background = '#f8fafc';
+        el.style.color      = 'var(--text-mute)';
+      };
+      const muteById  = id => mute(document.getElementById(id));
+      const muteRadio = name => document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.disabled = true);
+
+      const isOffsite = originalCharData?.owner_is_offsite === true;
+
+      // 역할 안내 배너
+      const notice = document.createElement('p');
+      // margin-bottom: 안내 박스 하단 ↔ 첫 폼 라벨(개체명) 간격을 여기 한 곳에서 관리.
+      // <p> 기본 margin-block-end가 0으로 리셋돼 있고 .register-form 자체엔 위쪽 여백이 없어,
+      // 이 값이 곧 실제 간격이 된다(폼 내부 form-group간 gap:32px보다 살짝 좁게 맞춤).
+      notice.style.cssText = 'font-size:13px; color:var(--sky-deep); background:var(--sky-pale); border:1px solid #BAE6FD; border-radius:8px; padding:10px 14px; margin-top:8px; margin-bottom:24px; line-height:1.5;';
+      document.getElementById('editSubtitle').insertAdjacentElement('afterend', notice);
+
+      if (role === 'species_owner') {
+        // 종족주도 개체 관리자로서 소유주 설정 이름(owner_custom_name)을 수정할 수 있다
+        // (characters_name_edit_guard 트리거가 종족주까지 허용하도록 확장됨, 2026-09-12).
+        // 소유주 영역(owner_description 등)과 달리 owner_custom_name은 오프사이트 여부와 무관하게 항상 노출.
+        const ownerCustomNameGroupSO = document.getElementById('ownerCustomNameGroup');
+        if (ownerCustomNameGroupSO) ownerCustomNameGroupSO.style.display = 'flex';
+
+        if (isOffsite) {
+          notice.textContent = '종족주 권한으로 수정 중입니다. 오프사이트 개체로, 소유주 영역도 수정할 수 있어요.';
+          // 오프사이트: 모든 제한 없음
+        } else {
+          notice.textContent = '종족주 권한으로 수정 중입니다. 소유주 영역은 소유주만 수정할 수 있어요.';
+          // 소유주 영역 잠금
+          muteById('ownerDesc');
+          document.querySelectorAll('#ownerSectionList .section-card').forEach(card => {
+            const removeBtn = card.querySelector('button[onclick*="removeSection"]');
+            if (removeBtn) { removeBtn.disabled = true; removeBtn.style.opacity = '0.4'; }
+            card.querySelectorAll('input, select').forEach(mute);
+            const quill = quillInstances.get(card.dataset.id);
+            if (quill) quill.disable();
+            card.querySelectorAll('.ql-container').forEach(container => {
+              const q = Quill.find(container);
+              if (q) q.disable();
+            });
+          });
+          ['btnOwnerAddSettings','btnOwnerAddRelation','btnOwnerAddCustom'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.setAttribute('disabled','disabled'); el.style.opacity = '0.4'; }
+          });
+        }
+
+      } else if (role === 'owner') {
+        notice.textContent = '소유주 권한으로 수정 중입니다. 소유주 설정 개체명과 소유주 영역만 수정할 수 있어요.';
+
+        // 개체명(characters.name)은 종족주 전용 — 소유주는 확인만 가능하도록 잠그고,
+        // 대신 소유주 설정 개체명(owner_custom_name) 입력란을 노출한다.
+        muteById('charName');
+        const ownerCustomNameGroup = document.getElementById('ownerCustomNameGroup');
+        // .form-group는 display:flex(세로 스택) 클래스라 'block'으로 덮어쓰면 레이아웃이 깨진다 — 반드시 'flex'로 복원
+        if (ownerCustomNameGroup) ownerCustomNameGroup.style.display = 'flex';
+
+        // 종족주 영역 전체 잠금
+        muteById('charDesc');
+        const uploadBox = document.getElementById('uploadBox');
+        if (uploadBox) { uploadBox.onclick = null; uploadBox.style.cursor = 'default'; uploadBox.style.opacity = '0.6'; }
+        const extraBtn = document.querySelector('[onclick*="extraImageInput"]');
+        if (extraBtn) { extraBtn.setAttribute('disabled','disabled'); extraBtn.style.opacity = '0.4'; }
+        ['designerSearch','designerExternalName','designerExternalContact','designerAddExternalBtn','designerTabSite','designerTabExternal'].forEach(muteById);
+        ['designerAddExternalBtn','designerTabSite','designerTabExternal'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.style.cursor = 'not-allowed'; el.style.pointerEvents = 'none'; el.style.opacity = '0.5'; }
+        });
+        document.querySelectorAll('#designerList button').forEach(btn => { btn.disabled = true; btn.style.opacity = '0.4'; });
+        // 아티스트도 디자이너와 동일하게 크레딧 정보라 소유주 권한에서는 잠금
+        artistEditable = false;
+        ['artistSearch','artistExternalName','artistAddExternalBtn','artistTabSite','artistTabExternal'].forEach(muteById);
+        ['artistAddExternalBtn','artistTabSite','artistTabExternal'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.style.cursor = 'not-allowed'; el.style.pointerEvents = 'none'; el.style.opacity = '0.5'; }
+        });
+        document.querySelectorAll('#artistList button').forEach(btn => { btn.disabled = true; btn.style.opacity = '0.4'; });
+        renderArtistItems();
+        ['btnSiteUser','btnExternal','ownerSearch','ownerExternalName','ownerExternalContact'].forEach(muteById);
+        ['btnSiteUser','btnExternal'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.style.cursor = 'not-allowed'; el.style.pointerEvents = 'none'; }
+        });
+        muteById('charNumber');
+        const cfSection = document.getElementById('customFieldsSection');
+        if (cfSection) {
+          cfSection.querySelectorAll('.custom-field-input').forEach(mute);
+          new MutationObserver(() => {
+            cfSection.querySelectorAll('.custom-field-input').forEach(mute);
+          }).observe(cfSection, { childList: true, subtree: true });
+        }
+        muteById('isSensitive');
+        muteById('sensitiveNote');
+        ['allowResale','allowFreeAdoption','allowPaidAdoption','allowOtherAdoption'].forEach(muteRadio);
+        const addCategoryBtn = document.querySelector('[onclick="showCategoryInput()"]');
+        if (addCategoryBtn) { addCategoryBtn.setAttribute('disabled','disabled'); addCategoryBtn.style.opacity = '0.4'; }
+        document.querySelectorAll('#addedCategories button').forEach(btn => { btn.disabled = true; btn.style.display = 'none'; });
+        ['btnAddSettings','btnAddRelation','btnAddCustom'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.setAttribute('disabled','disabled'); el.style.opacity = '0.4'; }
+        });
+        document.querySelectorAll('#sectionList .section-card').forEach(card => {
+          const removeBtn = card.querySelector('button[onclick*="removeSection"]');
+          if (removeBtn) { removeBtn.disabled = true; removeBtn.style.opacity = '0.4'; }
+          card.querySelectorAll('input, select').forEach(mute);
+          const quill = quillInstances.get(card.dataset.id);
+          if (quill) quill.disable();
+          card.querySelectorAll('.ql-container').forEach(container => {
+            const q = Quill.find(container);
+            if (q) q.disable();
+          });
+        });
+      }
+    }
+
+    function renderExistingSections(sectionsData) {
+      const speciesList = document.getElementById('sectionList');
+      const ownerList   = document.getElementById('ownerSectionList');
+      sectionsData.forEach(s => {
+        const authorRole = s.author_role || 'species_owner';
+        const target     = authorRole === 'owner' ? ownerList : speciesList;
+        const zone       = authorRole === 'owner' ? 'owner' : 'species';
+        const card = s.type === 'settings' ? makeSettingsCard(s)
+                   : s.type === 'relation' ? makeRelationCard(s)
+                   : makeCustomCard(s);
+        card.dataset.authorRole = authorRole;
+        // addSection()과 동일한 이유로 settings/relation은 zone을 id에 포함시켜 충돌을 막는다.
+        // 저장된 JSON의 s.id 값(과거 'settings'/'relation' 고정값)은 무시하고 항상 새로 계산 — 하위 호환 안전.
+        if (s.type === 'settings' || s.type === 'relation') card.dataset.id = `${zone}_${s.type}`;
+        target.appendChild(card);
+        initCardQuill(card, s.content || '');
+      });
+      updateSectionAddButtons();
+      updateOwnerSectionAddButtons();
+    }
+    // ────────────────────────────────────────
+
+    if (!charId) { window.location.href = 'character-list.html'; }
+
+    document.getElementById('cancelBtn').href = `character.html?id=${charId}`;
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      // 연락처(owner_contact/designer_contact/designer_external.contact) 포함 전체 데이터가
+      // 필요한 편집 화면이라 공개 뷰 대신 본인/관리자 전용 RPC를 사용한다 —
+      // 본인/관리자가 아니면 RPC가 예외를 던지고 아래에서 목록으로 리다이렉트된다.
+      const { data: c, error } = await sb.rpc('get_character_for_edit', { p_character_id: charId }).single();
+      if (error || !c) { window.location.href = 'character-list.html'; return; }
+
+      const isAdminEd = isAdminOrStaff(user.user_metadata?.role);
+      const isOwner   = !!(user.id && c.owner_user_id && user.id === c.owner_user_id);
+
+      let isSpeciesOwner = false;
+      let spData = null;
+      if (c.species_name) {
+        const { data: sp } = await sb.from('species').select('id, owner_user_id').eq('name', c.species_name).single();
+        spData = sp;
+        isSpeciesOwner = !!(user.id && sp?.owner_user_id && user.id === sp.owner_user_id);
+      }
+
+      if (!isOwner && !isAdminEd && !isSpeciesOwner) {
+        window.location.href = `character.html?id=${charId}`; return;
+      }
+
+      editRole         = (isAdminEd || (isOwner && isSpeciesOwner)) ? 'admin'
+                       : isSpeciesOwner ? 'species_owner'
+                       : isOwner ? 'owner'
+                       : 'species_owner';
+      isCharOwner      = isOwner;
+      originalCharData = c;
+      currentUser      = user;
+
+      // 브레드크럼
+      document.getElementById('breadcrumbChar').textContent = c.name;
+      document.getElementById('breadcrumbChar').href = `character.html?id=${charId}`;
+      if (c.species_name && spData) {
+        const sp = spData;
+        const spHref = sp ? `species.html?id=${sp.id}` : 'species-list.html';
+        document.getElementById('breadcrumbSpecies').textContent = c.species_name;
+        document.getElementById('breadcrumbSpecies').href = spHref;
+      }
+
+      // 기존 데이터 채우기
+      // 개체명(charName)은 역할과 무관하게 항상 등록명(characters.name)을 보여준다 — 편집 가부만 역할별로 갈린다(applyFieldPermissions)
+      document.getElementById('charName').value = c.name;
+      // 소유주 설정 개체명 입력란 — 숨겨져 있어도 값은 채워둔다(applyFieldPermissions가 노출 여부만 결정)
+      document.getElementById('charOwnerCustomName').value = c.owner_custom_name || '';
+      document.getElementById('charNumber').value = c.char_number || '';
+      document.getElementById('charDesc').value   = c.description || '';
+      document.getElementById('ownerDesc').value  = c.owner_description || '';
+
+      // 이름 영역(개체명/소유주 설정 개체명)만 값 세팅 직후 곧바로 노출·잠금 상태를 확정한다.
+      // applyFieldPermissions()는 디자이너/아티스트 목록(loadUsers) 등 아직 도착하지 않은 데이터에
+      // 의존하는 로직까지 함께 처리해서 뒤에서(Promise.all 이후) 호출할 수밖에 없는데, 그때까지
+      // ownerCustomNameGroup이 display:none으로 남아있어 "소유주 설정 개체명"만 뒤늦게 나타나 보이는
+      // 원인이었다. 여기서 먼저 확정해두면 나머지는 applyFieldPermissions()가 그대로(멱등하게) 이어받는다.
+      applyNameFieldPermissions(editRole);
+
+
+      selectedDefaultImageIndex = c.default_image_index || null;
+      renderDefaultImgGrid();
+
+      if (c.image_url || c.thumbnail_url) {
+        currentImageUrl     = c.image_url;
+        currentThumbnailUrl = c.thumbnail_url || null;
+        const previewUrl    = c.thumbnail_url || c.image_url;
+        document.getElementById('imagePreview').src           = previewUrl;
+        document.getElementById('imagePreview').style.display = 'block';
+        document.getElementById('uploadPlaceholder').style.display = 'none';
+      }
+
+      // 기존 추가 이미지 (워터마크본 + 원본 배열 — 인덱스 동기화)
+      existingExtraImages         = c.additional_images || [];
+      existingOriginalExtraImages = c.original_additional_images || [];
+      existingExtraImages.forEach((url, idx) => {
+        const box = document.createElement('div');
+        box.style.cssText = 'position:relative; width:90px; height:90px; border-radius:8px; overflow:hidden; border:1px solid var(--border);';
+        box.dataset.existingIdx = idx;
+        box.innerHTML = `
+          <img src="${url}" style="width:100%; height:100%; object-fit:cover;">
+          <button type="button" onclick="removeExistingImage(this, '${url}')" style="position:absolute; top:3px; right:3px; background:rgba(0,0,0,0.5); color:#fff; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:12px; line-height:20px; text-align:center; padding:0;">✕</button>
+        `;
+        document.getElementById('extraImageList').appendChild(box);
+      });
+
+      document.getElementById('isSensitive').checked = !!c.is_sensitive;
+      document.getElementById('sensitiveNote').value  = c.sensitive_note || '';
+
+      function setTristate(name, val) {
+        const v = (val === null || val === undefined) ? 'null' : String(val);
+        const el = document.querySelector(`input[name="${name}"][value="${v}"]`);
+        if (el) el.checked = true;
+      }
+      setTristate('allowFreeAdoption',  c.allow_free_adoption);
+      setTristate('allowResale',         c.allow_resale);
+      setTristate('allowPaidAdoption',   c.allow_paid_adoption);
+      setTristate('allowOtherAdoption',  c.allow_other_adoption);
+
+      addedCategories = c.char_categories || [];
+      renderAddedCategories();
+
+      const { data: spList } = await sb.from('species').select('id, name').order('name');
+      allSpecies = spList || [];
+
+      const myNick = user.user_metadata?.display_name || user.user_metadata?.nickname;
+      if (myNick) {
+        const { data: profData } = await sb.from('user_profiles').select('watermark_url').eq('nickname', myNick).single();
+        userWatermarkUrl = profData?.watermark_url || null;
+      }
+
+      originalOwnerUserId = c.owner_user_id || null;
+      await Promise.all([loadUsers(c.owner_nickname, c.owner_contact, c.owner_is_offsite), loadCustomFields(c.species_name, c.custom_field_values), loadExistingCategories(c.species_name), loadSpeciesSteps(spData?.id)]);
+
+      renderExistingSections(c.char_sections || []);
+      applyFieldPermissions(editRole);
+
+      // 데이터/에디터 렌더가 모두 끝난 뒤에야 폼을 보여준다 — 빈 폼이 먼저 보였다가 값이
+      // 채워지는 깜빡임을 없앤다(my-characters.html 등 기존 페이지의 pageLoading/pageContent 패턴 재사용).
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display  = 'block';
+
+      // Quill 에디터 여러 개를 순차 생성하면 브라우저가 마지막 에디터로 focus+스크롤하는 부작용이
+      // 있었다(초기화 로직 자체는 아래에서 원인 제거함) — 혹시 남은 경우를 대비한 최종 안전망.
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      window.scrollTo(0, 0);
+    }
+
+    // species_steps 조회 요청이 겹칠 때 늦게 도착한 응답이 최신 요청 결과를 덮어쓰지 않도록 막는 토큰.
+    let _stepLoadToken = 0;
+
+    // 성장 Step 이미지 업로드 영역 — 대표 이미지 성장 단계로 지정된 Step은 업로드 칸 없이 안내만, 나머지만 업로드 가능.
+    // 성장 Step 이미지는 크롭하지 않으므로 미리보기는 image_url(워터마크 적용본)을 사용한다.
+    // (단, 우선순위가 설정된 종족은 대표 후보이므로 예외적으로 크롭 모달을 사용한다 — handleImageFileSelected 참고)
+    async function loadSpeciesSteps(speciesId) {
+      if (!speciesId) return;
+      const myToken = ++_stepLoadToken;
+      currentSpeciesId = speciesId;
+      const [{ data: sp }, { data }] = await Promise.all([
+        sb.from('species').select('main_image_step_id').eq('id', speciesId).single(),
+        sb.from('species_steps').select('id, step_order, name').eq('species_id', speciesId).order('step_order'),
+      ]);
+      if (myToken !== _stepLoadToken) return; // 이전 요청보다 늦게 도착한 응답 — 무시
+
+      speciesSteps = data || [];
+      if (speciesSteps.length < 2) return; // 이 종족은 Step 기능 미사용(선택지가 1개뿐이면 선택 의미가 없음)
+
+      // 대표 이미지 성장 단계의 기본값 판별은 항상 species.main_image_step_id(=species_steps.id) 기준으로 한다.
+      // 배열의 첫 항목이나 step_order로 판단하지 않는다 — 순서를 바꿔도 종족 기본 대표 Step은 그대로 유지되어야 한다.
+      // 하위 호환: main_image_step_id가 아직 없는 기존 데이터만 step_order가 가장 낮은 Step을 기본값으로 한다.
+      mainImageStepId = sp?.main_image_step_id || speciesSteps[0].id;
+
+      // 이 개체가 실제로 지금 대표로 쓰는 Step. characters.representative_step_id가 있으면 그 값을,
+      // 없으면 종족 기본값(mainImageStepId)을 초기 선택값으로 쓴다.
+      representativeStepId = originalCharData?.representative_step_id || mainImageStepId;
+
+      const { data: existing } = await sb.from('character_step_images')
+        .select('species_step_id, image_url, original_image_url, thumbnail_url').eq('character_id', charId);
+      if (myToken !== _stepLoadToken) return;
+      existingStepImages = {};
+      (existing || []).forEach(row => {
+        const step = speciesSteps.find(s => s.id === row.species_step_id);
+        if (step) existingStepImages[step.step_order] = row;
+      });
+
+      renderRepresentativeStepSelect();
+      renderStepImageUploads();
+    }
+
+    // "대표 이미지 성장 단계" 드롭다운 렌더 — species_steps를 step_order 순으로 그대로 나열한다.
+    // 종족명·Step명을 코드에 직접 넣지 않고 항상 조회된 speciesSteps만 사용한다.
+    function renderRepresentativeStepSelect() {
+      document.getElementById('representativeStepSection').style.display = '';
+      const select = document.getElementById('representativeStepSelect');
+      select.innerHTML = speciesSteps.map(s =>
+        `<option value="${s.id}" ${s.id === representativeStepId ? 'selected' : ''}>${s.name || `Step ${s.step_order}`}</option>`
+      ).join('');
+    }
+
+    // 대표 이미지 성장 단계 변경 시.
+    // 대상 Step에 이미 별도로 등록된 이미지가 있으면(다른 이미지와 충돌하므로) 자동으로 바꾸지 않고
+    // 안내만 표시한 뒤 선택을 되돌린다 — 먼저 해당 Step 이미지를 정리한 뒤 다시 선택해달라는 뜻.
+    // 대상 Step이 비어있으면 단순히 라벨(어느 Step인지)만 바뀌고 현재 메인 이미지는 그대로 유지된다.
+    function onRepresentativeStepChange() {
+      const select = document.getElementById('representativeStepSelect');
+      const newId  = Number(select.value);
+      const note   = document.getElementById('representativeStepBlockedNote');
+      const newStep = speciesSteps.find(s => s.id === newId);
+
+      if (newStep && existingStepImages[newStep.step_order] && !removedStepOrders.includes(newStep.step_order)) {
+        select.value = representativeStepId; // 선택 되돌리기
+        note.style.display = '';
+        note.textContent = `"${newStep.name || `Step ${newStep.step_order}`}"에는 이미 등록된 이미지가 있어 대표로 바로 바꿀 수 없어요. 먼저 해당 Step 이미지를 삭제(✕)한 뒤 다시 선택해주세요.`;
+        return;
+      }
+
+      note.style.display = 'none';
+      representativeStepId = newId;
+      renderStepImageUploads();
+    }
+
+    // 대표 이미지 성장 단계는 위 대표 이미지 입력 영역에서 이미 등록하므로 이 목록에는 표시하지 않는다.
+    function renderStepImageUploads() {
+      const extraSteps = speciesSteps.filter(s => s.id !== representativeStepId);
+      const section = document.getElementById('stepImageSection');
+      if (!extraSteps.length) { section.style.display = 'none'; return; }
+
+      section.style.display = '';
+      document.getElementById('stepImageList').innerHTML = extraSteps.map(s => {
+        const label = s.name || `Step ${s.step_order}`;
+        const existingRow = existingStepImages[s.step_order];
+        const previewUrl  = (!removedStepOrders.includes(s.step_order) && existingRow?.image_url) || '';
+        return `
+        <div class="form-group" style="margin-bottom:0;" data-step-order="${s.step_order}">
+          <label class="form-label" style="font-size:13px; font-weight:500;">${label}</label>
+          <input type="file" id="stepImageFile_${s.step_order}" accept="image/*" style="display:none;">
+          <div style="position:relative; width:fit-content;">
+            <div class="img-upload-box img-upload-box--portrait" style="max-width:220px;" onclick="document.getElementById('stepImageFile_${s.step_order}').click()">
+              <img id="stepImagePreview_${s.step_order}" style="display:${previewUrl ? 'block' : 'none'}; width:100%; height:100%; object-fit:cover; border-radius: var(--radius);" src="${previewUrl}">
+              <div id="stepUploadPlaceholder_${s.step_order}" style="display:${previewUrl ? 'none' : ''};">
+                <p class="img-upload-text">클릭하여 이미지 업로드</p>
+              </div>
+            </div>
+            ${previewUrl ? `<button type="button" onclick="removeExistingStepImage(event, ${s.step_order})" style="position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.5); color:#fff; border:none; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:12px; line-height:22px; text-align:center; padding:0;">✕</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+      extraSteps.forEach(s => {
+        document.getElementById(`stepImageFile_${s.step_order}`).addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          handleImageFileSelected(file, s.step_order, document.getElementById('editError'));
+        });
+
+        // 대표 Step 재선택으로 목록이 바뀌기 전에 이미 새로 골라둔 파일이 있으면 미리보기 복원
+        const pending = stepThumbnailBlobs[s.step_order] || stepFiles[s.step_order];
+        if (pending) {
+          const url = URL.createObjectURL(pending);
+          document.getElementById(`stepImagePreview_${s.step_order}`).src           = url;
+          document.getElementById(`stepImagePreview_${s.step_order}`).style.display = 'block';
+          document.getElementById(`stepUploadPlaceholder_${s.step_order}`).style.display = 'none';
+        }
+      });
+    }
+
+    function removeExistingStepImage(evt, stepOrder) {
+      evt.stopPropagation();
+      if (!removedStepOrders.includes(stepOrder)) removedStepOrders.push(stepOrder);
+      // existingStepImages는 제출 시 Storage 정리를 위해 그대로 유지 (삭제하지 않음)
+      document.getElementById(`stepImagePreview_${stepOrder}`).style.display = 'none';
+      document.getElementById(`stepUploadPlaceholder_${stepOrder}`).style.display = '';
+      evt.currentTarget.remove();
+    }
+
+    // 우선순위가 설정된 종족(현재 융용)의 대표 이미지 재계산.
+    // 저장(업로드/삭제) 후 DB에 실제로 남아있는 상태를 다시 조회해서
+    // 현재 보유한 Step 후보 중 우선순위가 가장 높은 것을 대표로 승격하고,
+    // 대표가 바뀌면 이전 대표는 character_step_images로 강등한다.
+    // 우선순위가 없는 종족은 아무 것도 하지 않는다(기존 동작 그대로).
+    async function recomputeRepresentativeStep(charId, speciesId, fallbackMainStepId) {
+      if (!hasRepresentativePriority(speciesId) || !fallbackMainStepId) return;
+
+      const [{ data: cur }, { data: steps }, { data: stepRows }] = await Promise.all([
+        sb.from('characters').select('image_url, thumbnail_url, original_image_url, representative_step_id').eq('id', charId).single(),
+        sb.from('species_steps').select('id, step_order, name').eq('species_id', speciesId),
+        sb.from('character_step_images').select('species_step_id, image_url, original_image_url, thumbnail_url').eq('character_id', charId),
+      ]);
+      if (!cur) return;
+
+      const curStepId  = cur.representative_step_id || fallbackMainStepId;
+      const curStepDef = (steps || []).find(s => s.id === curStepId);
+      const candidates = [];
+      if (curStepDef && cur.image_url) candidates.push({ ...curStepDef, _kind: 'current' });
+      (stepRows || []).forEach(row => {
+        const stepDef = (steps || []).find(s => s.id === row.species_step_id);
+        if (stepDef) candidates.push({ ...stepDef, _kind: 'step', _row: row });
+      });
+
+      const winner = pickHighestPriorityStep(speciesId, candidates);
+
+      if (!winner || winner._kind === 'current') {
+        // 대표가 이미 최우선이거나 후보가 전혀 없음 — representative_step_id만 현재 상태에 맞게 정합화
+        const desired = curStepId === fallbackMainStepId ? null : curStepId;
+        if (cur.representative_step_id !== desired) {
+          await sb.from('characters').update({ representative_step_id: desired }).eq('id', charId);
+        }
+        return;
+      }
+
+      // 승격: winner를 대표로, 기존 대표는 character_step_images로 강등
+      const { error: updErr } = await sb.from('characters').update({
+        image_url:              winner._row.image_url,
+        thumbnail_url:          winner._row.thumbnail_url,
+        original_image_url:     winner._row.original_image_url,
+        representative_step_id: winner.id,
+      }).eq('id', charId);
+      if (updErr) return;
+
+      if (cur.image_url) {
+        await sb.from('character_step_images').upsert({
+          character_id:        charId,
+          species_step_id:     curStepId,
+          image_url:           cur.image_url,
+          original_image_url:  cur.original_image_url,
+          thumbnail_url:       cur.thumbnail_url,
+        }, { onConflict: 'character_id,species_step_id' });
+      }
+      await sb.from('character_step_images').delete().eq('character_id', charId).eq('species_step_id', winner.id);
+    }
+
+    const PRESET_COLORS = [
+      '#ef4444','#f97316','#eab308','#22c55e','#14b8a6',
+      '#87ceeb','#4a90d9','#6366f1','#9b59b6','#f472b6'
+    ];
+
+    function initColorSwatches(selected = '') {
+      const container = document.getElementById('colorSwatches');
+      container.innerHTML = '';
+      PRESET_COLORS.forEach(color => {
+        const el = document.createElement('div');
+        const isSelected = selected === color;
+        el.title = color;
+        el.style.cssText = `width:28px; height:28px; border-radius:50%; background:${color}; cursor:pointer; flex-shrink:0; box-sizing:border-box; transition:box-shadow 0.1s; ${isSelected ? `box-shadow:0 0 0 2px #fff, 0 0 0 4px ${color};` : ''}`;
+        el.onclick = () => {
+          document.getElementById('categoryColor').value = color;
+          initColorSwatches(color);
+        };
+        container.appendChild(el);
+      });
+    }
+
+    function showCategoryInput() {
+      document.getElementById('categoryInputArea').style.display = '';
+      document.getElementById('categoryLabel').value = '';
+      document.getElementById('categoryColor').value = '';
+      initColorSwatches();
+    }
+
+    function cancelAddCategory() {
+      document.getElementById('categoryInputArea').style.display = 'none';
+    }
+
+    function confirmAddCategory() {
+      const label = document.getElementById('categoryLabel').value.trim();
+      const color = document.getElementById('categoryColor').value;
+      if (!label) { alert('분류 이름을 입력해주세요.'); return; }
+      if (!color) { alert('색깔을 선택해주세요.'); return; }
+      addedCategories.push({ color, label });
+      renderAddedCategories();
+      document.getElementById('categoryInputArea').style.display = 'none';
+    }
+
+    function removeCategory(idx) {
+      addedCategories.splice(idx, 1);
+      renderAddedCategories();
+    }
+
+    function renderAddedCategories() {
+      const container = document.getElementById('addedCategories');
+      container.innerHTML = '';
+      addedCategories.forEach((cat, idx) => {
+        const r = parseInt(cat.color.slice(1,3),16), g = parseInt(cat.color.slice(3,5),16), b = parseInt(cat.color.slice(5,7),16);
+        const tc = (0.299*r+0.587*g+0.114*b)/255 > 0.5 ? '#000' : '#fff';
+        const chip = document.createElement('div');
+        chip.style.cssText = `display:inline-flex; align-items:center; gap:6px; padding:5px 10px 5px 12px; border-radius:20px; background:${cat.color}; color:${tc}; font-size:13px; font-weight:600;`;
+        chip.innerHTML = `${cat.label}<button type="button" onclick="removeCategory(${idx})" style="background:none;border:none;color:${tc};cursor:pointer;font-size:14px;line-height:1;padding:0;margin-left:2px;">✕</button>`;
+        container.appendChild(chip);
+      });
+    }
+
+    async function loadCustomFields(speciesName, existingValues) {
+      if (!speciesName) return;
+      const { data: sp } = await sb.from('species').select('id, custom_fields').eq('name', speciesName).single();
+      if (!sp?.custom_fields?.length) return;
+      document.getElementById('customFieldsSection').style.display = '';
+
+      // LABBER 개체 전용: POD / CARTRIDGE / SUBJECT 는 자유입력 대신 관리소 특성(js/labber-traits.js) 선택형.
+      //  - CARTRIDGE : 복수 선택(체크박스) — add-on 특성
+      //  - POD / SUBJECT : 단일 선택(라디오) — labber_design_applications(pod_description/subject_description) 구조와 동일
+      //  - INK 등 그 외 필드 : 기존 자유입력 유지
+      const isLabber = (typeof LABBER_SPECIES_ID !== 'undefined') && sp.id === LABBER_SPECIES_ID;
+      const labberPickerCfg = (field) => {
+        if (!isLabber || typeof labberTraitGroups !== 'function') return null;
+        const key = String(field).trim().toLowerCase();
+        return (key in LABBER_TRAIT_TYPES) ? { type: key, multi: LABBER_TRAIT_TYPES[key].multi } : null;
+      };
+
+      document.getElementById('customFieldInputs').innerHTML = sp.custom_fields.map(field => {
+        const cfg = labberPickerCfg(field);
+        if (cfg) {
+          const selected = new Set(labberTraitCodesFromValue(cfg.type, existingValues?.[field]));
+          const inputType = cfg.multi ? 'checkbox' : 'radio';
+          const nameAttr  = cfg.multi ? '' : ` name="labberpick_${field}"`;
+          let rowsHtml = '';
+          if (!cfg.multi) {
+            rowsHtml += `
+            <label class="labber-trait-pick">
+              <input type="radio"${nameAttr} value=""${selected.size ? '' : ' checked'}>
+              <span class="labber-trait-pick-name labber-trait-pick-none">— 선택 안 함 —</span>
+            </label>`;
+          }
+          labberTraitGroups(cfg.type).forEach(g => {
+            if (g.group) rowsHtml += `<p class="labber-trait-pick-group">${g.group}</p>`;
+            rowsHtml += g.items.map(t => `
+            <label class="labber-trait-pick">
+              <input type="${inputType}"${nameAttr} value="${t.code}"${selected.has(t.code) ? ' checked' : ''}>
+              <span class="labber-trait-pick-name">${t.name}</span>
+              <span class="labber-trait-grade ${t.gradeClass}">${t.gradeLabel}</span>
+            </label>`).join('');
+          });
+          return `
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label" style="font-size:13px; font-weight:500;">${field}</label>
+              <div class="labber-trait-picker" data-field="${field}" data-trait-type="${cfg.type}">
+                ${rowsHtml}
+              </div>
+              <p style="margin:6px 0 0; font-size:12px; color:var(--text-mute);">LABBER 관리소 특성 기준 · 등급은 자동 적용돼요.${cfg.multi ? '' : ' (하나만 선택)'}</p>
+              ${cfg.type === 'subject' ? '<div id="labberSubjectImageBox" class="labber-subject-img-box" hidden></div>' : ''}
+            </div>`;
+        }
+        return `
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" style="font-size:13px; font-weight:500;">${field}</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" class="form-input custom-field-input" data-field="${field}"
+              placeholder="${field} 입력"
+              value="${existingValues?.[field] ? existingValues[field] : ''}"
+              style="flex:1;">
+            <button type="button" onclick="this.previousElementSibling.value=''"
+              style="flex-shrink:0; padding:0 12px; height:42px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text-mute); cursor:pointer; font-size:13px;">
+              삭제
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+
+      // LABBER SUBJECT 그림 관리 UI — SUBJECT 선택기가 실제로 그려진 경우에만 초기화
+      if (isLabber && document.getElementById('labberSubjectImageBox')) {
+        await initLabberSubjectImage(existingValues);
+      }
+    }
+
+    // ── LABBER SUBJECT 그림 (character_id + subject_code) ─────────────────────────
+    // 현재 "선택된" SUBJECT 1개의 그림만 등록/교체/삭제한다. 다른 SUBJECT 의 저장된 그림은 절대 건드리지 않는다.
+    //  - 읽기: labber_subject_images 공개 SELECT (직접 조회). 쓰기: 반드시 RPC (set/delete_labber_subject_image).
+    //  - 모든 변경(등록/교체/삭제)은 "저장하기" 시점에 반영한다. 순서: Storage 업로드 → characters 저장(SUBJECT 반영)
+    //    → RPC. RPC 는 서버에 저장된 현재 SUBJECT 와 일치하는 code 만 허용하므로 개체 저장이 먼저여야 한다.
+    //  - 저장하지 않은 변경(_lsPending)은 SUBJECT 를 바꾸면 확인 후 폐기한다.
+    //  - 워터마크 없음. JPG/PNG/WebP 만(GIF 제외). 공용 compressImage 대신 lsCompressKeepAlpha 로 압축(PNG/WebP 는 투명도 보존).
+    const LS_IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    let _lsActive       = false;
+    let _lsImages       = {};    // subject_code -> image_url (DB 저장분)
+    let _lsSelectedCode = '';    // 현재 선택 라디오 값 ('' = 선택 안 함)
+    let _lsPending      = null;  // { code, action:'set', blob, previewUrl } | { code, action:'delete' }
+
+    // SUBJECT 개별 이름 (character_id + subject_code) — 그림과 같은 단위로 SUBJECT 마다 따로 보존된다.
+    //  - 읽기: labber_subject_names 공개 SELECT. 쓰기: 반드시 RPC set_labber_subject_name (빈 이름 = 개별 이름 없음 = 서버가 행 삭제).
+    //  - "저장하기" 시점에 개체 저장(SUBJECT 반영) 후 RPC 로 반영. 서버는 현재 SUBJECT 와 일치하는 code 만 허용한다.
+    //  - 최대 16자(서버 CHECK 와 동일). SUBJECT 를 바꾸면 그 SUBJECT 에 저장된 이름을 불러오고, 없으면 빈 입력.
+    const LS_NAME_MAX = 16;
+    // 서버 정규화가 제거하는 보이지 않는 문자(제로폭 공백 U+200B~200D, U+2060, U+FEFF) — 소스에 숨은 문자를 두지 않으려고 코드값으로 생성
+    const LS_INVISIBLE_RE = new RegExp('[' + String.fromCharCode(0x200B) + '-' + String.fromCharCode(0x200D) + String.fromCharCode(0x2060) + String.fromCharCode(0xFEFF) + ']', 'g');
+    let _lsNames     = {};   // subject_code -> individual_name (DB 저장분)
+    let _lsNameDraft = '';   // 현재 선택 SUBJECT 의 입력창 값 (저장 전)
+
+    function lsPickerEl() {
+      return document.querySelector('.labber-trait-picker[data-trait-type="subject"]');
+    }
+    function lsSelectedFromDom() {
+      const el = lsPickerEl()?.querySelector('input:checked');
+      return el ? (el.value || '') : '';
+    }
+    function lsClearPending() {
+      if (_lsPending?.previewUrl) URL.revokeObjectURL(_lsPending.previewUrl);
+      _lsPending = null;
+    }
+    function lsMsg(text) {
+      const el = document.getElementById('labberSubjectImageMsg');
+      if (el) el.textContent = text || '';
+    }
+    function lsErrorText(code) {
+      return ({
+        NOT_AUTHENTICATED:    '로그인이 필요해요.',
+        FORBIDDEN:            'SUBJECT 그림을 관리할 권한이 없어요.',
+        NOT_LABBER_CHARACTER: 'LABBER 개체만 SUBJECT 그림을 등록할 수 있어요.',
+        NO_CURRENT_SUBJECT:   '현재 선택된 SUBJECT가 없어요.',
+        SUBJECT_MISMATCH:     '현재 저장된 SUBJECT와 대상 SUBJECT가 달라요. 페이지를 새로고침 후 다시 시도해주세요.',
+        INVALID_SUBJECT_CODE: '알 수 없는 SUBJECT예요.',
+        INVALID_IMAGE_URL:    '이미지 주소가 올바르지 않아요.',
+        INVALID_IMAGE_PATH:   '이미지 경로가 올바르지 않아요.',
+        IMAGE_NOT_UPLOADED:   '업로드된 이미지를 찾을 수 없어요.',
+        NAME_TOO_LONG:        `SUBJECT 이름은 ${LS_NAME_MAX}자 이하로 입력해주세요.`,
+      })[code] || `처리에 실패했어요. (${code || 'unknown'})`;
+    }
+
+    // 서버 정규화(NFC · 보이지 않는 문자 제거 · 공백 정리 · trim)와 같은 규칙 — 변경 여부 비교/길이 검사용
+    function lsNormName(s) {
+      return String(s == null ? '' : s).normalize('NFC')
+        .replace(LS_INVISIBLE_RE, '')
+        .replace(/[\s\u0000-\u001f]+/g, ' ')
+        .trim();
+    }
+    function lsNameChanged() {
+      return !!_lsSelectedCode && lsNormName(_lsNameDraft) !== (_lsNames[_lsSelectedCode] || '');
+    }
+    function lsOnNameInput(value) { _lsNameDraft = value; }
+    // 저장 전 검증 (문제가 있으면 메시지 반환)
+    function lsNameError() {
+      if (!_lsActive || !_lsSelectedCode) return null;
+      if ([...lsNormName(_lsNameDraft)].length > LS_NAME_MAX) return `SUBJECT 이름은 ${LS_NAME_MAX}자 이하로 입력해주세요.`;
+      return null;
+    }
+
+    async function initLabberSubjectImage(existingValues) {
+      const picker = lsPickerEl();
+      if (!picker) return;
+      _lsActive = true;
+      _lsSelectedCode = lsSelectedFromDom();
+
+      const { data, error } = await sb.from('labber_subject_images')
+        .select('subject_code, image_url').eq('character_id', charId);
+      if (error) console.warn('[LABBER SUBJECT 그림] 조회 실패:', error.message);
+      _lsImages = Object.fromEntries((data || []).map(r => [r.subject_code, r.image_url]));
+
+      const { data: nameRows, error: nameErr } = await sb.from('labber_subject_names')
+        .select('subject_code, individual_name').eq('character_id', charId);
+      if (nameErr) console.warn('[LABBER SUBJECT 이름] 조회 실패:', nameErr.message);
+      _lsNames = Object.fromEntries((nameRows || []).map(r => [r.subject_code, r.individual_name]));
+      _lsNameDraft = _lsNames[_lsSelectedCode] || '';
+
+      // SUBJECT 라디오 변경: 저장하지 않은 그림/이름 변경이 있으면 확인 후 폐기(취소 시 선택 원복)
+      picker.addEventListener('change', (e) => {
+        const input = e.target;
+        if (!input || input.type !== 'radio') return;
+        const newCode = input.value || '';
+        const pendImg  = !!(_lsPending && _lsPending.code !== newCode);
+        const pendName = lsNameChanged();
+        if (pendImg || pendName) {
+          const msg = (pendImg && pendName)
+            ? '저장하지 않은 SUBJECT 그림과 이름이 있습니다. 변경하면 현재 선택한 그림과 이름은 취소됩니다.\n계속할까요?'
+            : pendImg
+              ? '저장하지 않은 SUBJECT 그림이 있습니다. 변경하면 현재 선택한 그림은 취소됩니다.\n계속할까요?'
+              : '저장하지 않은 SUBJECT 이름이 있습니다. 변경하면 입력한 이름은 취소됩니다.\n계속할까요?';
+          if (!confirm(msg)) {
+            const prev = [...picker.querySelectorAll('input[type="radio"]')].find(r => (r.value || '') === _lsSelectedCode);
+            if (prev) prev.checked = true;
+            return;
+          }
+          lsClearPending();
+        }
+        _lsSelectedCode = newCode;
+        _lsNameDraft = _lsNames[newCode] || '';   // 새 SUBJECT 에 과거 저장한 이름이 있으면 불러오고, 없으면 빈 입력
+        lsMsg('');
+        renderLabberSubjectImageBox();
+      });
+
+      renderLabberSubjectImageBox();
+    }
+
+    function renderLabberSubjectImageBox() {
+      const box = document.getElementById('labberSubjectImageBox');
+      if (!box) return;
+      const code = _lsSelectedCode;
+      if (!code) { box.hidden = true; box.innerHTML = ''; return; }   // SUBJECT 없음 → 그림 UI 숨김
+
+      const trait  = labberTraitByCode(code);
+      const stored = _lsImages[code] || null;
+      const pend   = (_lsPending && _lsPending.code === code) ? _lsPending : null;
+
+      let previewUrl = null, status = '', statusCls = '';
+      const actions = [];
+      if (pend && pend.action === 'set') {
+        previewUrl = pend.previewUrl;
+        status     = '새 그림이에요. 저장하기를 누르면 ' + (stored ? '교체' : '등록') + '돼요.';
+        statusCls  = 'is-pending';
+        actions.push('<button type="button" class="btn-ghost" onclick="lsPickFile()">다른 그림 선택</button>');
+        actions.push('<button type="button" class="btn-ghost" onclick="lsUndoPending()">선택 취소</button>');
+      } else if (pend && pend.action === 'delete') {
+        status    = '삭제 예정이에요. 저장하기를 누르면 이 그림이 삭제돼요.';
+        statusCls = 'is-delete';
+        actions.push('<button type="button" class="btn-ghost" onclick="lsUndoPending()">삭제 취소</button>');
+      } else if (stored) {
+        previewUrl = stored;
+        status     = '등록된 그림이에요.';
+        actions.push('<button type="button" class="btn-ghost" onclick="lsPickFile()">그림 교체</button>');
+        actions.push('<button type="button" class="btn-ghost" style="color:#ef4444;" onclick="lsMarkDelete()">삭제</button>');
+      } else {
+        status = '등록된 그림이 없어요.';
+        actions.push('<button type="button" class="btn-ghost" onclick="lsPickFile()">그림 등록</button>');
+      }
+
+      box.hidden = false;
+      box.innerHTML = `
+        <p class="labber-subject-img-title">SUBJECT 그림${trait ? ` · ${trait.name}` : ''}</p>
+        <div class="labber-subject-img-row">
+          ${previewUrl ? '<div class="labber-subject-img-preview"><img alt="SUBJECT 그림 미리보기"></div>' : ''}
+          <div class="labber-subject-img-body">
+            <p class="labber-subject-img-status ${statusCls}">${status}</p>
+            <div class="labber-subject-img-actions">${actions.join('')}</div>
+          </div>
+        </div>
+        <input type="file" id="labberSubjectFile" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="onLabberSubjectFile(this)">
+        <p class="labber-subject-img-msg" id="labberSubjectImageMsg"></p>
+        <p class="labber-subject-img-note">현재 선택한 SUBJECT의 그림만 등록할 수 있어요. 다른 SUBJECT에 등록해 둔 그림은 그대로 보존돼요. (JPG·PNG·WebP)</p>
+        <div class="labber-subject-name-field">
+          <label class="labber-subject-img-title" for="labberSubjectName">SUBJECT 이름${trait ? ` · ${trait.name}` : ''}</label>
+          <input type="text" id="labberSubjectName" class="form-input" maxlength="${LS_NAME_MAX}" autocomplete="off"
+                 placeholder="이 SUBJECT의 이름 (없으면 비워두세요)" oninput="lsOnNameInput(this.value)">
+          <p class="labber-subject-img-note">최대 ${LS_NAME_MAX}자. 비우고 저장하면 개별 이름이 없어져요. 다른 SUBJECT에 붙여 둔 이름은 그대로 보존돼요.</p>
+        </div>`;
+      if (previewUrl) box.querySelector('.labber-subject-img-preview img').src = previewUrl;
+      box.querySelector('#labberSubjectName').value = _lsNameDraft;   // DOM 으로 값을 넣어 이스케이프 문제 없음 / 다시 그려져도 입력 중인 값 유지
+    }
+
+    function lsPickFile() { document.getElementById('labberSubjectFile')?.click(); }
+
+    // SUBJECT 그림 전용 압축 — 공용 compressImage 는 투명 영역을 밝은 색으로 채운 JPEG 로 바꾸므로 쓰지 않는다.
+    //  - PNG / WebP 입력 → PNG 로 인코딩(알파 보존, 배경 채우기 없음). JPEG 입력 → JPEG.
+    //  - 긴 변 maxSize 로 축소. 2MB(MAX_BLOB_BYTES) 초과 시 크기를 줄여 재시도.
+    function lsCompressKeepAlpha(file, maxSize = 800) {
+      return new Promise((resolve, reject) => {
+        if (!LS_IMG_TYPES.includes(file.type)) { reject(new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.')); return; }
+        const keepAlpha = file.type === 'image/png' || file.type === 'image/webp';
+        const outType   = keepAlpha ? 'image/png' : 'image/jpeg';
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지 파일을 읽을 수 없어요.')); };
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          let cap = Math.min(maxSize, MAX_IMAGE_DIMENSION);
+          const attempt = (tries) => {
+            let { width, height } = img;
+            if (width > cap || height > cap) {
+              if (width > height) { height = Math.round(height * cap / width); width = cap; }
+              else                { width  = Math.round(width  * cap / height); height = cap; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);   // 배경 채우기 없음 → 투명 유지
+            canvas.toBlob((blob) => {
+              if (!blob) { reject(new Error('이미지 압축에 실패했어요.')); return; }
+              if (blob.size <= MAX_BLOB_BYTES) { resolve(blob); return; }
+              if (tries >= 3) { reject(new Error('압축 후에도 용량이 2MB를 초과해요. 더 작은 이미지를 사용해주세요.')); return; }
+              cap = Math.round(cap * 0.75);
+              attempt(tries + 1);
+            }, outType, 0.85);
+          };
+          attempt(0);
+        };
+        img.src = objectUrl;
+      });
+    }
+
+    async function onLabberSubjectFile(input) {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      lsMsg('');
+      if (!LS_IMG_TYPES.includes(file.type)) { lsMsg('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.'); return; }
+      const code = _lsSelectedCode;
+      if (!code) return;
+      try {
+        const blob = await lsCompressKeepAlpha(file, 800);
+        lsClearPending();
+        _lsPending = { code, action: 'set', blob, previewUrl: URL.createObjectURL(blob) };
+        renderLabberSubjectImageBox();
+      } catch (err) {
+        lsMsg(err.message || '이미지를 처리하지 못했어요.');
+      }
+    }
+
+    function lsMarkDelete() {
+      if (!_lsSelectedCode || !_lsImages[_lsSelectedCode]) return;
+      lsClearPending();
+      _lsPending = { code: _lsSelectedCode, action: 'delete' };
+      lsMsg('');
+      renderLabberSubjectImageBox();
+    }
+
+    function lsUndoPending() {
+      lsClearPending();
+      lsMsg('');
+      renderLabberSubjectImageBox();
+    }
+
+    // 저장 1단계(개체 저장 전): 새 그림 Storage 업로드. 경로에 character_id + subject_code 포함.
+    async function lsUploadPending() {
+      if (!_lsActive || !_lsPending || _lsPending.action !== 'set') return null;
+      const code = _lsPending.code;
+      if (code !== lsSelectedFromDom()) return null;   // 방어: 선택이 바뀌었다면 반영하지 않음
+      const isPng = _lsPending.blob.type === 'image/png';
+      const path = `labber-subject/${charId}/${code}/${Date.now()}.${isPng ? 'png' : 'jpg'}`;
+      const { error } = await sb.storage.from('images').upload(path, _lsPending.blob, { contentType: isPng ? 'image/png' : 'image/jpeg' });
+      if (error) throw new Error(`SUBJECT 그림 업로드에 실패했어요. (${error.message})`);
+      return { code, path, url: sb.storage.from('images').getPublicUrl(path).data.publicUrl };
+    }
+
+    // 개체 저장이 실패했을 때 방금 올린(미사용) 그림 파일 정리
+    async function lsDiscardUpload(up) {
+      if (up?.path) await sb.storage.from('images').remove([up.path]).catch(() => {});
+    }
+
+    // 저장 2단계(개체 저장 성공 후): RPC 로 DB 반영 → 성공 시 이전 파일 Storage 정리.
+    // 실패 문자열(없으면 null)을 반환한다. DB 반영 후 Storage 정리 실패는 되돌리지 않고 경고만 남긴다.
+    async function lsApplyPending(up) {
+      if (!_lsActive || !_lsPending) return null;
+      const pend = _lsPending;
+      try {
+        if (pend.action === 'set' && up) {
+          const { data, error } = await sb.rpc('set_labber_subject_image', {
+            p_character_id: Number(charId), p_subject_code: up.code, p_image_url: up.url,
+          });
+          if (error || !data?.success) {
+            await lsDiscardUpload(up);
+            return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
+          }
+          _lsImages[up.code] = up.url;
+          const oldPath = storagePathFromUrl(data.previous_image_url);
+          if (oldPath) {
+            const { error: rmErr } = await sb.storage.from('images').remove([oldPath]);
+            if (rmErr) console.warn('[LABBER SUBJECT 그림] 이전 파일 정리 실패(orphan 가능):', oldPath, rmErr.message);
+          }
+        } else if (pend.action === 'delete') {
+          const { data, error } = await sb.rpc('delete_labber_subject_image', {
+            p_character_id: Number(charId), p_subject_code: pend.code,
+          });
+          if (error || !data?.success) {
+            return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
+          }
+          delete _lsImages[pend.code];
+          const oldPath = storagePathFromUrl(data.deleted_image_url);
+          if (oldPath) {
+            const { error: rmErr } = await sb.storage.from('images').remove([oldPath]);
+            if (rmErr) console.warn('[LABBER SUBJECT 그림] 삭제된 그림 파일 정리 실패(orphan 가능):', oldPath, rmErr.message);
+          }
+        }
+        lsClearPending();
+        return null;
+      } catch (err) {
+        if (up) await lsDiscardUpload(up);
+        return err.message || String(err);
+      }
+    }
+
+    // 저장 3단계(개체 저장 성공 후): SUBJECT 개별 이름 반영. 변경이 없으면 RPC 를 호출하지 않는다.
+    // 빈 이름 = 개별 이름 없음(서버가 행 삭제). 실패 문자열(없으면 null)을 반환한다.
+    async function lsApplyName() {
+      if (!_lsActive) return null;
+      const code = lsSelectedFromDom();       // 방금 개체 저장으로 서버에 반영된 현재 SUBJECT
+      if (!code || code !== _lsSelectedCode) return null;
+      const next = lsNormName(_lsNameDraft);
+      if (next === (_lsNames[code] || '')) return null;
+      try {
+        const { data, error } = await sb.rpc('set_labber_subject_name', {
+          p_character_id: Number(charId), p_subject_code: code, p_name: next,
+        });
+        if (error || !data?.success) return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
+        if (data.individual_name) _lsNames[code] = data.individual_name;
+        else delete _lsNames[code];
+        _lsNameDraft = _lsNames[code] || '';
+        return null;
+      } catch (err) {
+        return err.message || String(err);
+      }
+    }
+
+    async function loadExistingCategories(speciesName) {
+      if (!speciesName) return;
+      const { data: chars } = await sb
+        .from('characters')
+        .select('char_categories')
+        .eq('species_name', speciesName)
+        .not('char_categories', 'is', null);
+      if (!chars?.length) return;
+      const seen = new Set();
+      const unique = [];
+      chars.forEach(c => (c.char_categories || []).forEach(cat => {
+        if (!cat.label || seen.has(cat.label)) return;
+        seen.add(cat.label);
+        unique.push(cat);
+      }));
+      if (!unique.length) return;
+      const container = document.getElementById('existingCategoryChips');
+      unique.forEach(cat => {
+        const r = parseInt(cat.color.slice(1,3),16), g = parseInt(cat.color.slice(3,5),16), b = parseInt(cat.color.slice(5,7),16);
+        const tc = (0.299*r+0.587*g+0.114*b)/255 > 0.5 ? '#000' : '#fff';
+        const chip = document.createElement('div');
+        chip.style.cssText = `padding:5px 12px; border-radius:20px; background:${cat.color}; color:${tc}; font-size:12px; font-weight:600; cursor:pointer;`;
+        chip.textContent = cat.label;
+        chip.onclick = () => {
+          document.getElementById('categoryLabel').value = cat.label;
+          document.getElementById('categoryColor').value = cat.color;
+          initColorSwatches(cat.color);
+        };
+        container.appendChild(chip);
+      });
+    }
+
+    async function loadUsers(currentOwner, currentContact, currentOwnerIsOffsite) {
+      renderUserList([]);
+
+      // 기존 소유주 판별 — 정확히 일치하는 닉네임의 사이트 유저가 있는지 검색으로 확인
+      // (owner_is_offsite=false면 검색 실패와 무관하게 site 유지 — id는 submit 시
+      //  selectedNickId가 없으면 originalOwnerUserId로 폴백된다)
+      let ownerMatch = null;
+      if (currentOwner) {
+        const { data } = await searchUsers(currentOwner, { limit: 5 });
+        ownerMatch = (data || []).find(u => u.nickname === currentOwner) || null;
+      }
+
+      if (!currentOwnerIsOffsite) {
+        setOwnerType('site');
+        if (currentOwner) selectUser(currentOwner, ownerMatch?.id || null);
+      } else if (ownerMatch) {
+        setOwnerType('site');
+        selectUser(currentOwner, ownerMatch.id);
+      } else {
+        setOwnerType('external');
+        document.getElementById('ownerExternalName').value    = currentOwner || '';
+        document.getElementById('ownerExternalContact').value = currentContact || '';
+      }
+
+      // 기존 디자이너 로드
+      // 우선순위: ① designer_user_ids(uuid, 연구소) + designer_external(jsonb, 외부) — 신규 구조화 데이터
+      //          ② 둘 다 없는 완전 레거시 단일 텍스트 — 통째로 1개 항목
+      //          ③ designer_user_ids만 있고 designer_external이 없는 과거 부분 레거시 —
+      //             " / "로 split하지 않고, 알고 있는 연구소 닉네임을 문자열 앞/뒤에서만 제거해
+      //             남는 부분이 있으면 외부 디자이너 1개 항목으로만 보존
+      const c = originalCharData;
+      const existingIds = c.designer_user_ids || [];
+      const resolvedDesigners = existingIds.length ? await resolveUsersByIds(existingIds) : [];
+      existingIds.forEach(uid => {
+        const user = resolvedDesigners.find(u => u.id === uid);
+        designers.push({ type: 'site', userId: uid, nickname: user ? user.nickname : '(알수없음)' });
+      });
+
+      if (Array.isArray(c.designer_external) && c.designer_external.length) {
+        c.designer_external.forEach(ext => {
+          if (ext && ext.name) designers.push({ type: 'external', name: ext.name, contact: ext.contact || '' });
+        });
+      } else if (existingIds.length === 0 && c.designer_nickname) {
+        // 완전 레거시 단일 텍스트: 검색해서 찾으면 site, 없으면 external (분리하지 않음)
+        const { data: legacyData } = await searchUsers(c.designer_nickname, { limit: 5 });
+        const found = (legacyData || []).find(u => u.nickname === c.designer_nickname);
+        if (found) {
+          designers.push({ type: 'site', userId: found.id, nickname: found.nickname });
+        } else {
+          designers.push({ type: 'external', name: c.designer_nickname, contact: c.designer_contact || '' });
+        }
+      } else if (existingIds.length > 0 && c.designer_nickname) {
+        const siteNicknames = designers.filter(d => d.type === 'site').map(d => d.nickname);
+        const leftover = extractLegacyDesignerLeftover(c.designer_nickname, siteNicknames);
+        if (leftover) designers.push({ type: 'external', name: leftover, contact: c.designer_contact || '' });
+      }
+      renderDesignerItems();
+
+      // 기존 아티스트(선택) 로드
+      await loadArtists();
+    }
+
+    function renderUserList(list) {
+      const el = document.getElementById('ownerUserList');
+      if (!list.length) {
+        el.innerHTML = '<p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>';
+        return;
+      }
+      el.innerHTML = list.map(u => `
+        <div onclick="selectUser('${u.nickname.replace(/'/g,"\\'")}','${u.id}')" id="userItem_${u.id}"
+          style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); transition:background 0.1s;"
+          onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background= selectedNickId==='${u.id}' ? 'var(--sky-light)' : ''">
+          ${u.nickname}
+        </div>
+      `).join('');
+      highlightSelectedUser();
+    }
+
+    function highlightSelectedUser() {
+      document.querySelectorAll('#ownerUserList > div').forEach(el => {
+        const isSel = el.id === `userItem_${selectedNickId}`;
+        el.style.background = isSel ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = isSel ? '600' : '';
+      });
+    }
+
+    function selectUser(nick, id) {
+      selectedNick   = nick;
+      selectedNickId = id;
+      highlightSelectedUser();
+      const disp = document.getElementById('ownerSelectedDisplay');
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    const filterUsersDebounced = debounce(async (q) => {
+      const { data } = await searchUsers(q, { limit: 20 });
+      renderUserList(data || []);
+    }, 250);
+
+    function filterUsers(q) {
+      if (!q.trim()) { renderUserList([]); return; }
+      filterUsersDebounced(q);
+    }
+
+    function renderDesignerItems() {
+      const el = document.getElementById('designerList');
+      if (!designers.length) { el.innerHTML = ''; return; }
+      el.innerHTML = designers.map((d, idx) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 12px; background:var(--bg-sub); border-radius:8px; border:1px solid var(--border);">
+          <span style="font-size:13px; color:var(--text);">
+            <span style="font-size:11px; color:var(--text-mute); background:#e2e8f0; padding:1px 6px; border-radius:4px; margin-right:6px;">${d.type === 'site' ? '연구소' : '외부'}</span>
+            ${d.type === 'site' ? d.nickname : d.name}${d.type === 'external' && d.contact ? `<span style="color:var(--text-mute);font-size:11px;margin-left:4px;">(${d.contact})</span>` : ''}
+          </span>
+          <button type="button" onclick="removeDesigner(${idx})" style="background:none;border:none;cursor:pointer;color:var(--text-mute);font-size:16px;padding:2px 6px;border-radius:4px;line-height:1;font-family:inherit;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-mute)'">✕</button>
+        </div>
+      `).join('');
+    }
+
+    const filterDesignersDebounced = debounce(async (q) => {
+      const dropdown = document.getElementById('designerDropdown');
+      const { data } = await searchUsers(q, { limit: 15 });
+      const results = (data || [])
+        .filter(u => !designers.some(d => d.type === 'site' && d.userId === u.id));
+      if (!results.length) {
+        dropdown.innerHTML = '<p style="padding:10px 14px; font-size:13px; color:var(--text-mute);">일치하는 유저가 없어요</p>';
+        dropdown.style.display = '';
+        return;
+      }
+      dropdown.innerHTML = results.map(u => `
+        <div onclick="addSiteDesigner('${u.id}','${u.nickname.replace(/'/g,"\\'")}')"
+          style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); transition:background 0.1s;"
+          onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background=''">
+          ${u.nickname}
+        </div>
+      `).join('');
+      dropdown.style.display = '';
+    }, 250);
+
+    function filterDesigners(q) {
+      const dropdown = document.getElementById('designerDropdown');
+      const qTrim = q.trim();
+      if (!qTrim) { dropdown.style.display = 'none'; return; }
+      filterDesignersDebounced(qTrim);
+    }
+
+    function addSiteDesigner(userId, nickname) {
+      if (designers.some(d => d.type === 'site' && d.userId === userId)) return;
+      designers.push({ type: 'site', userId, nickname });
+      renderDesignerItems();
+      document.getElementById('designerSearch').value = '';
+      document.getElementById('designerDropdown').style.display = 'none';
+    }
+
+    function addExternalDesigner() {
+      const name    = document.getElementById('designerExternalName').value.trim();
+      const contact = document.getElementById('designerExternalContact').value.trim();
+      const errorEl = document.getElementById('editError');
+      if (!name) { errorEl.textContent = '디자이너 이름을 입력해주세요.'; return; }
+      if (designers.some(d => d.type === 'external' && d.name === name)) {
+        errorEl.textContent = '이미 추가된 외부 디자이너예요.'; return;
+      }
+      errorEl.textContent = '';
+      designers.push({ type: 'external', name, contact });
+      renderDesignerItems();
+      document.getElementById('designerExternalName').value = '';
+      document.getElementById('designerExternalContact').value = '';
+    }
+
+    function removeDesigner(idx) {
+      designers.splice(idx, 1);
+      renderDesignerItems();
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#designerSearch') && !e.target.closest('#designerDropdown')) {
+        const dd = document.getElementById('designerDropdown');
+        if (dd) dd.style.display = 'none';
+      }
+      if (!e.target.closest('#artistSearch') && !e.target.closest('#artistDropdown')) {
+        const ad = document.getElementById('artistDropdown');
+        if (ad) ad.style.display = 'none';
+      }
+    });
+
+    // ── 아티스트(선택·여러 명·회원/외부 겸용) ──
+    // 디자이너 입력 로직을 그대로 축소 재사용: 연락처만 없다.
+    function renderArtistItems() {
+      const el = document.getElementById('artistList');
+      if (!artists.length) { el.innerHTML = ''; return; }
+      el.innerHTML = artists.map((a, idx) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 12px; background:var(--bg-sub); border-radius:8px; border:1px solid var(--border);">
+          <span style="font-size:13px; color:var(--text);">
+            <span style="font-size:11px; color:var(--text-mute); background:#e2e8f0; padding:1px 6px; border-radius:4px; margin-right:6px;">${a.type === 'site' ? '연구소' : '외부'}</span>
+            ${a.type === 'site' ? a.nickname : a.name}
+          </span>
+          ${artistEditable ? `<button type="button" onclick="removeArtist(${idx})" style="background:none;border:none;cursor:pointer;color:var(--text-mute);font-size:16px;padding:2px 6px;border-radius:4px;line-height:1;font-family:inherit;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-mute)'">✕</button>` : ''}
+        </div>
+      `).join('');
+    }
+
+    const filterArtistsDebounced = debounce(async (q) => {
+      const dropdown = document.getElementById('artistDropdown');
+      const { data } = await searchUsers(q, { limit: 15 });
+      const results = (data || [])
+        .filter(u => !artists.some(a => a.type === 'site' && a.userId === u.id));
+      if (!results.length) {
+        dropdown.innerHTML = '<p style="padding:10px 14px; font-size:13px; color:var(--text-mute);">일치하는 유저가 없어요</p>';
+        dropdown.style.display = '';
+        return;
+      }
+      dropdown.innerHTML = results.map(u => `
+        <div onclick="addSiteArtist('${u.id}','${u.nickname.replace(/'/g,"\\'")}')"
+          style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); transition:background 0.1s;"
+          onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background=''">
+          ${u.nickname}
+        </div>
+      `).join('');
+      dropdown.style.display = '';
+    }, 250);
+
+    function filterArtists(q) {
+      const dropdown = document.getElementById('artistDropdown');
+      const qTrim = q.trim();
+      if (!qTrim) { dropdown.style.display = 'none'; return; }
+      filterArtistsDebounced(qTrim);
+    }
+
+    function addSiteArtist(userId, nickname) {
+      if (!artistEditable) return;
+      if (artists.some(a => a.type === 'site' && a.userId === userId)) return;
+      artists.push({ type: 'site', userId, nickname });
+      renderArtistItems();
+      document.getElementById('artistSearch').value = '';
+      document.getElementById('artistDropdown').style.display = 'none';
+    }
+
+    function addExternalArtist() {
+      if (!artistEditable) return;
+      const name = document.getElementById('artistExternalName').value.trim();
+      const errorEl = document.getElementById('editError');
+      if (!name) { errorEl.textContent = '아티스트 이름을 입력해주세요.'; return; }
+      if (artists.some(a => a.type === 'external' && a.name === name)) {
+        errorEl.textContent = '이미 추가된 외부 아티스트예요.'; return;
+      }
+      errorEl.textContent = '';
+      artists.push({ type: 'external', name });
+      renderArtistItems();
+      document.getElementById('artistExternalName').value = '';
+    }
+
+    function removeArtist(idx) {
+      if (!artistEditable) return;
+      artists.splice(idx, 1);
+      renderArtistItems();
+    }
+
+    // 기존 아티스트 값 로드 (initPage → loadUsers 끝에서 호출)
+    async function loadArtists() {
+      const c = originalCharData;
+      const ids = c.artist_user_ids || [];
+      const resolved = ids.length ? await resolveUsersByIds(ids) : [];
+      ids.forEach(uid => {
+        const u = (resolved || []).find(x => x.id === uid);
+        artists.push({ type: 'site', userId: uid, nickname: u ? u.nickname : '(알수없음)' });
+      });
+      if (Array.isArray(c.artist_external)) {
+        c.artist_external.forEach(e => { if (e && e.name) artists.push({ type: 'external', name: e.name }); });
+      }
+      renderArtistItems();
+    }
+
+    function setOwnerType(type) {
+      ownerType = type;
+      const isSite = type === 'site';
+      document.getElementById('ownerSiteSection').style.display    = isSite ? '' : 'none';
+      document.getElementById('ownerExternalSection').style.display = isSite ? 'none' : '';
+      document.getElementById('btnSiteUser').classList.toggle('is-active', isSite);
+      document.getElementById('btnExternal').classList.toggle('is-active', !isSite);
+    }
+
+    // 디자이너 입력유형 탭: "지금 추가할 디자이너 종류"만 전환한다.
+    // designers 배열(이미 추가된 항목)은 건드리지 않으므로 두 유형이 함께 유지된다.
+    function setDesignerTab(kind) {
+      const isSite = kind === 'site';
+      document.getElementById('designerSiteInput').style.display     = isSite ? '' : 'none';
+      document.getElementById('designerExternalInput').style.display = isSite ? 'none' : '';
+      document.getElementById('designerTabSite').classList.toggle('is-active', isSite);
+      document.getElementById('designerTabExternal').classList.toggle('is-active', !isSite);
+      document.getElementById('designerDropdown').style.display = 'none';
+    }
+
+    // 아티스트 입력유형 탭: "지금 추가할 아티스트 종류"만 전환한다(디자이너와 동일).
+    // artists 배열(이미 추가된 항목)은 건드리지 않으므로 두 유형이 함께 유지된다.
+    function setArtistTab(kind) {
+      if (!artistEditable) return;
+      const isSite = kind === 'site';
+      document.getElementById('artistSiteInput').style.display     = isSite ? '' : 'none';
+      document.getElementById('artistExternalInput').style.display = isSite ? 'none' : '';
+      document.getElementById('artistTabSite').classList.toggle('is-active', isSite);
+      document.getElementById('artistTabExternal').classList.toggle('is-active', !isSite);
+      document.getElementById('artistDropdown').style.display = 'none';
+    }
+
+    // 이미지 선택 → 크롭 모달 오픈 (메인 이미지 / 성장 Step 이미지 공용)
+    // 대표 이미지(targetStep===null)와, 우선순위가 설정된 종족(현재 융용)의 성장 Step 이미지는
+    // 대표 후보가 될 수 있으므로 크롭 모달을 거친다. 그 외 종족의 Step 이미지는 크롭 없이 바로 미리보기만 표시한다.
+    function handleImageFileSelected(file, targetStep, errorEl) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        errorEl.textContent = 'PNG, GIF, JPG, WebP 형식의 이미지만 업로드할 수 있어요.';
+        return;
+      }
+      errorEl.textContent = '';
+
+      const previewId     = targetStep === null ? 'imagePreview' : `stepImagePreview_${targetStep}`;
+      const placeholderId = targetStep === null ? 'uploadPlaceholder' : `stepUploadPlaceholder_${targetStep}`;
+
+      if (targetStep === null) { selectedMainFile = file; pendingThumbnailBlob = null; }
+      else { stepFiles[targetStep] = file; delete stepThumbnailBlobs[targetStep]; }
+
+      const wantsStepCrop = targetStep !== null && hasRepresentativePriority(currentSpeciesId);
+
+      // 크롭 모달 스킵 대상: 우선순위 미설정 종족의 Step 이미지, 또는 GIF(모든 슬롯)
+      if ((targetStep !== null && !wantsStepCrop) || file.type === 'image/gif') {
+        const url = URL.createObjectURL(file);
+        document.getElementById(previewId).src           = url;
+        document.getElementById(previewId).style.display = 'block';
+        document.getElementById(placeholderId).style.display = 'none';
+        return;
+      }
+
+      cropTargetStep = targetStep;
+      const cropImg = document.getElementById('cropImage');
+      cropImg.onerror = () => {
+        URL.revokeObjectURL(cropImg.src);
+        errorEl.textContent = '이미지 파일을 읽을 수 없습니다. 파일 용량·색상 프로파일·손상 여부를 확인해주세요.';
+        if (targetStep === null) selectedMainFile = null; else delete stepFiles[targetStep];
+      };
+      cropImg.onload = () => {
+        document.getElementById('cropModal').style.display = 'flex';
+        if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+        cropperInstance = new Cropper(cropImg, {
+          aspectRatio: 3 / 4,
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 0.85,
+          guides: true,
+          center: true,
+          highlight: true,
+          cropBoxMovable: false,
+          cropBoxResizable: false,
+          toggleDragModeOnDblclick: false,
+        });
+      };
+      cropImg.src = URL.createObjectURL(file);
+    }
+
+    document.getElementById('imageFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      handleImageFileSelected(file, null, document.getElementById('editError'));
+    });
+
+    // 기존 추가 이미지 제거
+    function removeExistingImage(btn, url) {
+      removedExtraImages.push(url);
+      btn.closest('div').remove();
+    }
+
+    // 새 추가 이미지 선택
+    function addExtraImages(input) {
+      const files   = [...input.files];
+      const errorEl = document.getElementById('editError');
+      files.forEach(file => {
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+          errorEl.textContent = `"${file.name}"은 지원하지 않는 형식이에요. PNG, GIF, JPG, WebP만 가능해요.`;
+          return;
+        }
+        newExtraFiles.push(file);
+        const idx = newExtraFiles.length - 1;
+        const previewUrl = URL.createObjectURL(file);
+        const box = document.createElement('div');
+        box.style.cssText = 'position:relative; width:90px; height:90px; border-radius:8px; overflow:hidden; border:1px solid var(--border);';
+        box.innerHTML = `
+          <img src="${previewUrl}" style="width:100%; height:100%; object-fit:cover;" onload="URL.revokeObjectURL(this.src)" onerror="URL.revokeObjectURL(this.src)">
+          <button type="button" onclick="removeNewImage(this, ${idx})" style="position:absolute; top:3px; right:3px; background:rgba(0,0,0,0.5); color:#fff; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:12px; line-height:20px; text-align:center; padding:0;">✕</button>
+        `;
+        document.getElementById('extraImageList').appendChild(box);
+      });
+      input.value = '';
+    }
+
+    function removeNewImage(btn, idx) {
+      newExtraFiles[idx] = null;
+      btn.closest('div').remove();
+    }
+
+    // ── 크롭 모달 (대표 이미지 / 우선순위 종족의 성장 Step 이미지 공용) ──────────────────────
+    async function confirmCrop() {
+      const errorEl = document.getElementById('editError');
+      try {
+        const blob = await cropToBlob(cropperInstance, 600, 0.85);
+        if (cropTargetStep === null) pendingThumbnailBlob = blob;
+        else stepThumbnailBlobs[cropTargetStep] = blob;
+        showThumbPreview(blob);
+        closeCropModal();
+      } catch (err) { errorEl.textContent = err.message; }
+    }
+
+    async function useCropAsIs() {
+      const targetFile = cropTargetStep === null ? selectedMainFile : stepFiles[cropTargetStep];
+      if (!targetFile) return;
+      const errorEl = document.getElementById('editError');
+      try {
+        const blob = await autoCenterCropToBlob(targetFile, 3/4, 600, 0.85);
+        if (cropTargetStep === null) pendingThumbnailBlob = blob;
+        else stepThumbnailBlobs[cropTargetStep] = blob;
+        showThumbPreview(blob);
+        closeCropModal();
+      } catch (err) { errorEl.textContent = err.message; }
+    }
+
+    function cancelCropModal() {
+      if (cropTargetStep === null) {
+        selectedMainFile = null; pendingThumbnailBlob = null;
+        document.getElementById('imageFile').value            = '';
+        document.getElementById('imagePreview').src           = currentThumbnailUrl || currentImageUrl || '';
+        document.getElementById('imagePreview').style.display = (currentImageUrl || currentThumbnailUrl) ? 'block' : 'none';
+        document.getElementById('uploadPlaceholder').style.display = (currentImageUrl || currentThumbnailUrl) ? 'none' : '';
+      } else {
+        const existingUrl = existingStepImages[cropTargetStep]?.image_url || '';
+        delete stepFiles[cropTargetStep];
+        delete stepThumbnailBlobs[cropTargetStep];
+        document.getElementById(`stepImageFile_${cropTargetStep}`).value            = '';
+        document.getElementById(`stepImagePreview_${cropTargetStep}`).src           = existingUrl;
+        document.getElementById(`stepImagePreview_${cropTargetStep}`).style.display = existingUrl ? 'block' : 'none';
+        document.getElementById(`stepUploadPlaceholder_${cropTargetStep}`).style.display = existingUrl ? 'none' : '';
+      }
+      closeCropModal();
+    }
+
+    function showThumbPreview(blob) {
+      const previewId     = cropTargetStep === null ? 'imagePreview' : `stepImagePreview_${cropTargetStep}`;
+      const placeholderId = cropTargetStep === null ? 'uploadPlaceholder' : `stepUploadPlaceholder_${cropTargetStep}`;
+      const url = URL.createObjectURL(blob);
+      document.getElementById(previewId).src           = url;
+      document.getElementById(previewId).style.display = 'block';
+      document.getElementById(placeholderId).style.display = 'none';
+    }
+
+    function closeCropModal() {
+      document.getElementById('cropModal').style.display = 'none';
+      cropTargetStep = null;
+      if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+    }
+
+    // 저장
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('editError');
+      const btn     = document.getElementById('submitBtn');
+      errorEl.textContent = '';
+
+      // 소유주 전용 저장 (개체명·소유주 영역만)
+      if (editRole === 'owner') {
+        // 소유주는 개체명(characters.name)이 아닌 소유주 설정 개체명(owner_custom_name)만 편집한다.
+        // 비워두면 NULL로 저장되어 상세 페이지의 등록명/소유주명 전환 탭이 다시 숨겨진다(선택 항목).
+        const ownerCustomName = document.getElementById('charOwnerCustomName').value.trim().normalize('NFC') || null;
+
+        btn.textContent = '저장 중...';
+        btn.disabled = true;
+        try {
+          // 소유주 섹션만 form에서 수집, 종족주 섹션은 원본 유지
+          const allCollected    = collectSections();
+          const ownerSections   = allCollected.filter(s => s.author_role === 'owner');
+          const speciesSections = (originalCharData.char_sections || []).filter(s => (s.author_role || 'species_owner') === 'species_owner');
+          const mergedSections  = [...speciesSections, ...ownerSections];
+
+          const { error } = await sb.from('characters').update({
+            owner_custom_name: ownerCustomName,
+            owner_description: document.getElementById('ownerDesc').value.trim() || null,
+            char_sections:     mergedSections.length ? mergedSections : null,
+          }).eq('id', charId);
+
+          if (error) throw new Error(`저장에 실패했어요: ${error.message}`);
+
+          // 등록명(characters.name)은 이 분기에서 변경되지 않으므로 adoptions.character_name 동기화 불필요
+
+          // 소유주 업적 체크
+          try {
+            const { data: { session: _achSess } } = await sb.auth.getSession();
+            const currentUser = _achSess?.user;
+            console.log('[업적DBG] currentUser:', currentUser?.id);
+            console.log('[업적DBG] isOwner:', editRole === 'owner');
+
+            // 설명: 소유주 설명 OR 종족주 설명(원본) 중 하나라도 있으면
+            const _od  = document.getElementById('ownerDesc').value.trim();
+            const _sd  = (originalCharData?.description || '').trim();
+            const _hasDesc = !!_od || !!_sd;
+            console.log('[업적DBG] owner desc value:', _od, '/ species desc value:', _sd, '/ hasDesc:', _hasDesc);
+
+            // 관계: 소유주 관계 OR 종족주 관계(원본) 중 하나라도 있으면
+            const _hasOwnerRel    = ownerSections.some(s => s.type === 'relation' && (s.relations?.length ?? 0) > 0);
+            const _speciesSecs    = (originalCharData?.char_sections || []).filter(s => (s.author_role || 'species_owner') === 'species_owner');
+            const _hasSpeciesRel  = _speciesSecs.some(s => s.type === 'relation' && (s.relations?.length ?? 0) > 0);
+            const _hasRelation    = _hasOwnerRel || _hasSpeciesRel;
+            console.log('[업적DBG] hasOwnerRel:', _hasOwnerRel, '/ hasSpeciesRel:', _hasSpeciesRel, '/ hasRelation:', _hasRelation);
+
+            if (_hasDesc) {
+              console.log('[업적DBG] char_owner_desc 호출');
+              try {
+                await window.awardAchievement?.('char_owner_desc', { pending: true });
+                console.log('[업적DBG] char_owner_desc 완료');
+              } catch (_e1) { console.error('[업적DBG] char_owner_desc 실패:', _e1); }
+            }
+            if (_hasRelation) {
+              console.log('[업적DBG] char_owner_relation 호출');
+              try {
+                await window.awardAchievement?.('char_owner_relation', { pending: true });
+                console.log('[업적DBG] char_owner_relation 완료');
+              } catch (_e2) { console.error('[업적DBG] char_owner_relation 실패:', _e2); }
+            }
+          } catch (_ae) {
+            console.error('[업적DBG] 소유주 업적 체크 실패:', _ae);
+          }
+
+          window.location.href = `character.html?id=${charId}`;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          btn.textContent = '저장하기';
+          btn.disabled = false;
+        }
+        return;
+      }
+
+      // 종족주 / 관리자 저장 (종족 설정 영역)
+      const name      = document.getElementById('charName').value.trim().normalize('NFC');
+      const desc      = document.getElementById('charDesc').value.trim();
+      const ownerDesc = document.getElementById('ownerDesc').value.trim();
+      const file      = document.getElementById('imageFile').files[0];
+
+      if (!name) { errorEl.textContent = '이름을 입력해주세요.'; return; }
+      if (!currentImageUrl && !file && !selectedDefaultImageIndex) { errorEl.textContent = '메인 이미지를 등록하거나 기본 이미지를 선택해주세요.'; return; }
+
+      let owner = null;
+      let externalContact = null;
+      if (ownerType === 'site') {
+        if (!selectedNick) { errorEl.textContent = '소유주를 선택해주세요.'; return; }
+        owner = selectedNick;
+      } else {
+        const externalName = document.getElementById('ownerExternalName').value.trim();
+        if (!externalName) { errorEl.textContent = '소유주 이름을 입력해주세요.'; return; }
+        owner = externalName;
+        externalContact = document.getElementById('ownerExternalContact').value.trim();
+      }
+
+      // 디자이너 수집 (1명 이상 필수)
+      if (!designers.length) { errorEl.textContent = '디자이너를 1명 이상 추가해주세요.'; return; }
+      // 연구소 디자이너는 userId로만 식별(designer_user_ids), 외부 디자이너는 항목 단위로
+      // designer_external에 그대로 저장한다. designer_nickname은 재파싱하지 않는 표시용 캐시일 뿐이다.
+      const designer_user_ids = designers.filter(d => d.type === 'site').map(d => d.userId);
+      const designer_external = designers.filter(d => d.type === 'external').map(d => ({ name: d.name, contact: d.contact || '' }));
+      const designer_nickname = designers.map(d => d.type === 'site' ? d.nickname : d.name).join(' / ');
+      const designer_contact  = designer_external[0]?.contact || null;
+
+      // 아티스트(선택·여러 명): 디자이너와 동일 구조, 연락처만 없음. 모두 지우고 저장하면 전부 NULL.
+      const artist_user_ids = artists.filter(a => a.type === 'site').map(a => a.userId);
+      const artist_external = artists.filter(a => a.type === 'external').map(a => ({ name: a.name }));
+      const artist_nickname = artists.length ? artists.map(a => a.type === 'site' ? a.nickname : a.name).join(' / ') : null;
+
+      // LABBER SUBJECT 이름 길이 검사 (개체 저장/업로드를 시작하기 전에 막는다)
+      const lsNameProblem = lsNameError();
+      if (lsNameProblem) { errorEl.textContent = lsNameProblem; return; }
+
+      btn.textContent = '저장 중...';
+      btn.disabled = true;
+
+      try {
+        // 메인 이미지 + 썸네일 업로드
+        let image_url          = currentImageUrl;
+        let thumbnail_url      = currentThumbnailUrl;
+        let newOriginalUrl = null;
+        let newWatermarkType = null; // 실제 적용한 워터마크 종류 (GIF 등 워터마크 미적용 시 null → 기존 값 유지)
+        // 개인 워터마크 있으면 사용, 없으면 연구소 기본
+        const wmSrc = userWatermarkUrl || '../images/watermark.png';
+        if (file) {
+          const ts    = Date.now();
+          const isGif = file.type === 'image/gif';
+          const ext   = isGif ? 'gif' : 'jpg';
+          const blob  = await compressImage(file);
+
+          // 원본 저장
+          const origName = `${ts}_orig.${ext}`;
+          const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: isGif ? 'image/gif' : 'image/jpeg' });
+          if (origErr) throw new Error(`원본 이미지 업로드에 실패했어요. (${origErr.message})`);
+          newOriginalUrl = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
+
+          if (isGif) {
+            // GIF: 워터마크 미적용, 원본 그대로 사용
+            image_url = newOriginalUrl;
+          } else {
+            // 워터마크 합성 후 저장
+            const wmBlob   = await applyWatermark(blob, wmSrc);
+            const mainName = `${ts}.jpg`;
+            const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: 'image/jpeg' });
+            if (mainErr) throw new Error(`메인 이미지 업로드에 실패했어요. (${mainErr.message})`);
+            image_url = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
+            newWatermarkType = userWatermarkUrl ? 'personal' : 'lab_black';
+          }
+
+          // 썸네일 (워터마크 없음 — 첫 프레임 크롭)
+          const thumbBlob = pendingThumbnailBlob || await autoCenterCropToBlob(file, 3/4, 600, 0.85);
+          const thumbName = `${ts}_thumb.jpg`;
+          const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
+          if (thumbErr) throw new Error(`썸네일 업로드에 실패했어요. (${thumbErr.message})`);
+          thumbnail_url = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
+        }
+
+        // 추가 이미지: 기존 중 삭제 안 된 것 (원본 배열과 인덱스 동기화)
+        const keptImages         = [];
+        const keptOriginalImages = [];
+        existingExtraImages.forEach((url, idx) => {
+          if (!removedExtraImages.includes(url)) {
+            keptImages.push(url);
+            // 원본이 없는 기존 이미지는 null 유지 (이중 워터마크 방지)
+            keptOriginalImages.push(existingOriginalExtraImages[idx] ?? null);
+          }
+        });
+
+        // 새로 추가하는 이미지 (원본 + 워터마크 적용본)
+        const uploadedNew         = [];
+        const uploadedNewOriginal = [];
+        for (const f of newExtraFiles.filter(f => f !== null)) {
+          const ts    = Date.now();
+          const isGif = f.type === 'image/gif';
+          const ext   = isGif ? 'gif' : 'jpg';
+          const rnd   = Math.random().toString(36).slice(2);
+          const blob  = await compressImage(f);
+
+          // 원본 저장
+          const origName = `${ts}_extra_orig_${rnd}.${ext}`;
+          const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: isGif ? 'image/gif' : 'image/jpeg' });
+          if (origErr) throw new Error(`추가 이미지 원본 업로드에 실패했어요. (${f.name}: ${origErr.message})`);
+          const origUrl = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
+          uploadedNewOriginal.push(origUrl);
+
+          if (isGif) {
+            // GIF: 워터마크 미적용, 원본 그대로 사용
+            uploadedNew.push(origUrl);
+          } else {
+            // 워터마크 적용본 저장
+            const wmBlob   = await applyWatermark(blob, wmSrc);
+            const fileName = `${ts}_extra_${rnd}.jpg`;
+            const { error: uploadError } = await sb.storage.from('images').upload(fileName, wmBlob, { contentType: 'image/jpeg' });
+            if (uploadError) throw new Error(`추가 이미지 업로드에 실패했어요. (${f.name}: ${uploadError.message})`);
+            uploadedNew.push(sb.storage.from('images').getPublicUrl(fileName).data.publicUrl);
+            newWatermarkType = userWatermarkUrl ? 'personal' : 'lab_black';
+          }
+        }
+
+        const additional_images          = [...keptImages, ...uploadedNew];
+        const allOriginalAdditional      = [...keptOriginalImages, ...uploadedNewOriginal];
+        // 하나라도 실제 URL이 있으면 배열로 저장
+        const original_additional_images = allOriginalAdditional.some(Boolean) ? allOriginalAdditional : null;
+
+        // 성장 Step 이미지 업로드 (새로 선택된 Step만 재업로드 — 손대지 않은 Step은 그대로 둠).
+        // 우선순위가 설정된 종족(현재 융용)은 대표 후보이므로 원본+워터마크에 더해 3:4 썸네일도 생성한다.
+        // 그 외 종족은 기존처럼 크롭·썸네일 없이 원본 구도 그대로 원본+워터마크 이미지만 생성한다.
+        // 선택사항인 이미지이므로 한 Step의 업로드가 실패해도 나머지 저장은 계속 진행하고,
+        // 실패한 Step에서 이미 올라간 파일은 정리하며 기존 이미지는 그대로 유지한다.
+        const stepImageUpserts = [];
+        const stepUploadErrs   = [];
+        const usesStepPriority = hasRepresentativePriority(currentSpeciesId);
+        for (const [stepOrderStr, stepFile] of Object.entries(stepFiles)) {
+          if (!stepFile) continue;
+          const stepOrder   = parseInt(stepOrderStr, 10);
+          const speciesStep = speciesSteps.find(s => s.step_order === stepOrder);
+          if (!speciesStep || speciesStep.id === representativeStepId) continue;
+
+          const uploadedNames = [];
+          try {
+            const ts    = Date.now();
+            const isGif = stepFile.type === 'image/gif';
+            const ext   = isGif ? 'gif' : 'jpg';
+            const blob  = await compressImage(stepFile);
+
+            const origName = `${ts}_step${stepOrder}_orig.${ext}`;
+            const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: isGif ? 'image/gif' : 'image/jpeg' });
+            if (origErr) throw new Error(`원본 업로드 실패 (${origErr.message})`);
+            uploadedNames.push(origName);
+            const stepOriginalUrl = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
+
+            let stepImageUrl;
+            if (isGif) {
+              stepImageUrl = stepOriginalUrl;
+            } else {
+              const wmBlob   = await applyWatermark(blob, wmSrc);
+              const mainName = `${ts}_step${stepOrder}.jpg`;
+              const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: 'image/jpeg' });
+              if (mainErr) throw new Error(`워터마크 이미지 업로드 실패 (${mainErr.message})`);
+              uploadedNames.push(mainName);
+              stepImageUrl = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
+              newWatermarkType = userWatermarkUrl ? 'personal' : 'lab_black';
+            }
+
+            let stepThumbUrl = null;
+            if (usesStepPriority) {
+              const thumbBlob = stepThumbnailBlobs[stepOrder] || await autoCenterCropToBlob(stepFile, 3/4, 600, 0.85);
+              const thumbName = `${ts}_step${stepOrder}_thumb.jpg`;
+              const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
+              if (thumbErr) throw new Error(`썸네일 업로드 실패 (${thumbErr.message})`);
+              uploadedNames.push(thumbName);
+              stepThumbUrl = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
+            }
+
+            stepImageUpserts.push({
+              stepOrder,
+              species_step_id:    speciesStep.id,
+              image_url:          stepImageUrl,
+              original_image_url: stepOriginalUrl,
+              thumbnail_url:      stepThumbUrl,
+            });
+          } catch (stepErr) {
+            if (uploadedNames.length) await sb.storage.from('images').remove(uploadedNames).catch(() => {});
+            stepUploadErrs.push(`${speciesStep.name || `Step ${stepOrder}`}: ${stepErr.message}`);
+          }
+        }
+
+        // 커스텀 필드 값 수집
+        const customFieldValues = {};
+        document.querySelectorAll('.custom-field-input').forEach(input => {
+          const val = input.value.trim();
+          if (val) customFieldValues[input.dataset.field] = val;
+        });
+        // LABBER 특성 선택형 필드 (POD/CARTRIDGE/SUBJECT) — 선택된 trait code 배열로 저장.
+        // 체크박스(복수)·라디오(단일) 공통. "— 선택 안 함 —"(value="") 은 filter(Boolean) 로 제외.
+        // 중복은 input 그룹 특성상 자동 방지.
+        document.querySelectorAll('.labber-trait-picker').forEach(picker => {
+          const codes = [...picker.querySelectorAll('input:checked')].map(el => el.value).filter(Boolean);
+          if (codes.length) customFieldValues[picker.dataset.field] = codes;
+        });
+
+        const isSensitive   = document.getElementById('isSensitive').checked;
+        const sensitiveNote = document.getElementById('sensitiveNote').value.trim();
+
+        function getTristate(name) {
+          const v = document.querySelector(`input[name="${name}"]:checked`)?.value;
+          return v === 'true' ? true : v === 'false' ? false : null;
+        }
+
+        const allSections = collectSections();
+        const isOffsiteChar = originalCharData?.owner_is_offsite === true;
+        // 종족주 + 사이트 소유주: 소유주 섹션은 원본 유지 / 오프사이트 or admin: 전체 반영
+        const finalSections = (editRole === 'species_owner' && !isOffsiteChar)
+          ? [
+              ...allSections.filter(s => (s.author_role || 'species_owner') === 'species_owner'),
+              ...(originalCharData.char_sections || []).filter(s => (s.author_role || 'species_owner') === 'owner'),
+            ]
+          : allSections;
+
+        // 저장 직전 안전장치: representativeStepId가 실제로 현재 종족(currentSpeciesId)의
+        // Step인지 다시 확인한다. species_steps는 항상 currentSpeciesId로 필터링해 조회하므로
+        // 정상적인 흐름에서는 항상 일치하지만, 비동기 조회가 늦게 겹쳐 도착하는 경우까지
+        // 대비해 요청 직전에 한 번 더 검증한다.
+        if (representativeStepId && !speciesSteps.some(s => s.id === representativeStepId)) {
+          await loadSpeciesSteps(currentSpeciesId);
+          throw new Error('대표 이미지 성장 단계 정보가 최신 상태가 아니었어요. 다시 불러왔으니 선택을 확인하고 다시 저장해주세요.');
+        }
+
+        // LABBER SUBJECT 그림: 새 그림이 있으면 개체 저장 전에 Storage 업로드(RPC 는 개체 저장 성공 후 호출)
+        const lsUpload = await lsUploadPending();
+
+        const { error } = await sb.from('characters').update({
+          name,
+          char_number:         document.getElementById('charNumber').value.trim() || null,
+          designer_nickname:   designer_nickname,
+          designer_user_ids:   designer_user_ids,
+          designer_external:   designer_external,
+          designer_contact:    designer_contact,
+          artist_user_ids:     artist_user_ids.length ? artist_user_ids : null,
+          artist_external:     artist_external.length ? artist_external : null,
+          artist_nickname:     artist_nickname,
+          owner_nickname:      owner,
+          owner_is_offsite:    ownerType !== 'site',
+          owner_user_id:       ownerType === 'site' ? (selectedNickId || originalOwnerUserId) : null,
+          owner_contact:       externalContact || null,
+          description:         desc || null,
+          ...((editRole !== 'species_owner' || isOffsiteChar) && { owner_description: ownerDesc || null }),
+          // 소유주 설정 이름(owner_custom_name) — admin과 종족주 둘 다 수정 가능(트리거 정책과 동일, 2026-09-12 확장)
+          ...((editRole === 'admin' || editRole === 'species_owner') && { owner_custom_name: document.getElementById('charOwnerCustomName').value.trim().normalize('NFC') || null }),
+          image_url,
+          thumbnail_url,
+          default_image_index: selectedDefaultImageIndex,
+          ...(newOriginalUrl && { original_image_url: newOriginalUrl }),
+          ...(newWatermarkType && { watermark_type: newWatermarkType }),
+          // 공통 기능: 종족에 species_steps가 있으면 사용자가 고른 "대표 이미지 성장 단계"를 그대로 저장한다.
+          // 우선순위가 설정된 종족(현재 융용)은 이 저장 직후 recomputeRepresentativeStep이
+          // 기존 자동 승격 정책에 따라 이 값을 다시 덮어쓸 수 있다(의도된 동작, 변경하지 않음).
+          ...(representativeStepId && { representative_step_id: representativeStepId }),
+          additional_images:            additional_images.length ? additional_images : null,
+          original_additional_images:   original_additional_images,
+          custom_field_values: Object.keys(customFieldValues).length ? customFieldValues : null,
+          char_categories:     addedCategories.length ? addedCategories : null,
+          is_sensitive:        isSensitive,
+          sensitive_note:      isSensitive ? (sensitiveNote || null) : null,
+          allow_free_adoption:  getTristate('allowFreeAdoption'),
+          allow_resale:         getTristate('allowResale'),
+          allow_paid_adoption:  getTristate('allowPaidAdoption'),
+          allow_other_adoption: getTristate('allowOtherAdoption'),
+          char_sections:       finalSections.length ? finalSections : null,
+        }).eq('id', charId);
+
+        if (error) {
+          await lsDiscardUpload(lsUpload);   // 개체 저장 실패 → 방금 올린 미사용 SUBJECT 그림 파일 정리
+          throw new Error(`저장에 실패했어요: ${error.message}`);
+        }
+
+        // LABBER SUBJECT 그림 반영 (등록/교체/삭제) — 서버에 SUBJECT 가 저장된 뒤 RPC 로만 변경
+        const lsErr     = await lsApplyPending(lsUpload);
+        const lsNameErr = await lsApplyName();   // SUBJECT 이름 (개체 저장 후 RPC)
+        if (lsErr || lsNameErr) {
+          alert('개체 정보는 저장됐지만 SUBJECT 처리에 실패했어요:\n' +
+            [lsErr && ('그림: ' + lsErr), lsNameErr && ('이름: ' + lsNameErr)].filter(Boolean).join('\n'));
+        }
+
+        // 성장 Step 이미지 반영: 새 파일 있는 Step은 upsert, ✕로 제거된 Step은 delete
+        if (stepImageUpserts.length) {
+          const { error: stepUpsertErr } = await sb.from('character_step_images')
+            .upsert(
+              stepImageUpserts.map(({ stepOrder, ...row }) => ({ ...row, character_id: charId })),
+              { onConflict: 'character_id,species_step_id' }
+            );
+          if (stepUpsertErr) {
+            stepUploadErrs.push(`Step 이미지 저장 실패: ${stepUpsertErr.message}`);
+          } else {
+            // 교체(재업로드)된 Step은 upsert 성공 후 이전 원본·워터마크·썸네일 파일을 Storage에서 정리
+            for (const row of stepImageUpserts) {
+              const old = existingStepImages[row.stepOrder];
+              if (!old) continue;
+              const oldPaths = [old.image_url, old.original_image_url, old.thumbnail_url]
+                .map(storagePathFromUrl).filter(Boolean);
+              if (oldPaths.length) await sb.storage.from('images').remove(oldPaths).catch(() => {});
+            }
+          }
+        }
+        if (removedStepOrders.length) {
+          const removedOrders = removedStepOrders.filter(order => !stepFiles[order]); // 제거 후 다시 올린 Step은 upsert된 값을 유지
+          const removedStepIds = removedOrders
+            .map(order => speciesSteps.find(s => s.step_order === order)?.id)
+            .filter(Boolean);
+          if (removedStepIds.length) {
+            const { error: stepDelErr } = await sb.from('character_step_images')
+              .delete().eq('character_id', charId).in('species_step_id', removedStepIds);
+            if (stepDelErr) {
+              stepUploadErrs.push(`Step 이미지 삭제 실패: ${stepDelErr.message}`);
+            } else {
+              // DB 삭제 성공 후 해당 Step의 원본·워터마크·썸네일 파일도 Storage에서 정리
+              for (const order of removedOrders) {
+                const old = existingStepImages[order];
+                if (!old) continue;
+                const oldPaths = [old.image_url, old.original_image_url, old.thumbnail_url]
+                  .map(storagePathFromUrl).filter(Boolean);
+                if (oldPaths.length) await sb.storage.from('images').remove(oldPaths).catch(() => {});
+              }
+            }
+          }
+        }
+        if (stepUploadErrs.length) {
+          alert('개체 정보는 저장됐지만 일부 성장 Step 이미지 처리에 실패했어요:\n' + stepUploadErrs.join('\n'));
+        }
+
+        // 우선순위가 설정된 종족(현재 융용)은 지금까지의 업로드/삭제 결과를 반영해 대표 이미지를 재계산한다.
+        await recomputeRepresentativeStep(charId, currentSpeciesId, mainImageStepId).catch(err => {
+          console.warn('[대표 이미지 재계산 실패]', err);
+        });
+
+        if (editRole === 'admin') {
+          await logAdminAction('character_edit', 'character', charId, name, {
+            species_name:    originalCharData.species_name || '',
+            owner_nickname:  owner,
+          }).catch(() => {});
+        }
+
+        // 캐릭터 이름 변경 시 분양글 character_name 동기화
+        const { error: adoptionSyncErr } = await sb.from('adoptions')
+          .update({ character_name: name })
+          .eq('character_id', charId);
+        if (adoptionSyncErr) console.warn('[adoption sync] character_name 동기화 실패:', adoptionSyncErr.message);
+
+        // 현재 유저가 이 개체의 소유주이면 설명/관계 업적 체크
+        try {
+          const { data: { session: _achSess2 } } = await sb.auth.getSession();
+          const currentUser2 = _achSess2?.user;
+          console.log('[업적DBG] currentUser:', currentUser2?.id);
+          console.log('[업적DBG] isOwner (isCharOwner):', isCharOwner);
+          console.log('[업적DBG] owner_user_id:', originalCharData?.owner_user_id);
+
+          // 설명: 소유주 설명 OR 종족주 설명 중 하나라도 있으면
+          const _od2      = document.getElementById('ownerDesc').value.trim();
+          const _sd2      = document.getElementById('charDesc').value.trim();
+          const _hasDesc2 = !!_od2 || !!_sd2;
+          console.log('[업적DBG] owner desc value:', _od2, '/ species desc value:', _sd2, '/ hasDesc:', _hasDesc2);
+
+          // 관계: 소유주 관계 OR 종족주 관계 중 하나라도 있으면
+          const _hasRelation2 = finalSections.some(s => s.type === 'relation' && (s.relations?.length ?? 0) > 0);
+          console.log('[업적DBG] hasRelation (OR):', _hasRelation2);
+
+          if (isCharOwner && _hasDesc2) {
+            console.log('[업적DBG] char_owner_desc 호출');
+            try {
+              await window.awardAchievement?.('char_owner_desc', { pending: true });
+              console.log('[업적DBG] char_owner_desc 완료');
+            } catch (_e3) { console.error('[업적DBG] char_owner_desc 실패:', _e3); }
+          }
+          if (isCharOwner && _hasRelation2) {
+            console.log('[업적DBG] char_owner_relation 호출');
+            try {
+              await window.awardAchievement?.('char_owner_relation', { pending: true });
+              console.log('[업적DBG] char_owner_relation 완료');
+            } catch (_e4) { console.error('[업적DBG] char_owner_relation 실패:', _e4); }
+          }
+        } catch (_ae) {
+          console.error('[업적DBG] 소유주 업적 체크 실패(admin path):', _ae);
+        }
+
+        window.location.href = `character.html?id=${charId}`;
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        btn.textContent = '저장하기';
+        btn.disabled = false;
+      }
+    });
+
+    initPage();
+  </script>
+
+  <!-- 크롭 모달 -->
+  <div id="cropModal" class="crop-modal-overlay" style="display:none;">
+    <div class="crop-modal-box">
+      <div class="crop-modal-header">
+        <h3>썸네일 편집</h3>
+        <p>드래그로 이동 · 스크롤로 확대/축소 — 목록 카드에 표시될 영역을 선택하세요.</p>
+      </div>
+      <div class="crop-modal-canvas">
+        <img id="cropImage" src="">
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn-ghost" style="color:var(--text-mute);" onclick="cancelCropModal()">취소</button>
+        <button type="button" class="btn-ghost" onclick="useCropAsIs()">원본 그대로 사용</button>
+        <button type="button" class="btn-secondary" onclick="confirmCrop()">확정</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>채팅 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    body { overflow:hidden; }
+    .chat-layout {
+      display:flex; flex-direction:column;
+      height: calc(100vh - 60px); /* header 높이 제외 */
+    }
+    .chat-inner {
+      display:flex; flex-direction:column;
+      flex:1; overflow:hidden;
+      max-width:700px; width:100%; margin:0 auto; padding:0 20px;
+    }
+    .chat-header {
+      padding:16px 0 12px; border-bottom:1px solid var(--border); flex-shrink:0;
+    }
+    .chat-messages {
+      flex:1; overflow-y:auto; padding:20px 0;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .msg-row { display:flex; gap:10px; align-items:flex-end; }
+    .msg-row--mine { flex-direction:row-reverse; }
+    .msg-avatar {
+      width:32px; height:32px; border-radius:50%;
+      background:var(--sky-light); display:flex; align-items:center;
+      justify-content:center; font-size:13px; font-weight:700;
+      color:var(--sky-deep); flex-shrink:0;
+    }
+    .msg-content { display:flex; flex-direction:column; gap:3px; max-width:68%; }
+    .msg-row--mine .msg-content { align-items:flex-end; }
+    .msg-sender { font-size:11px; color:var(--text-mute); }
+    .msg-bubble {
+      padding:10px 14px; border-radius:18px;
+      font-size:14px; line-height:1.55; word-break:break-word;
+    }
+    .msg-bubble--theirs {
+      background:#fff; border:1px solid var(--border);
+      border-bottom-left-radius:5px;
+    }
+    .msg-bubble--mine {
+      background:var(--sky); color:#fff;
+      border-bottom-right-radius:5px;
+    }
+    .msg-time { font-size:11px; color:var(--text-mute); flex-shrink:0; padding-bottom:4px; }
+    .chat-input-area {
+      flex-shrink:0; border-top:1px solid var(--border);
+      padding:12px 0 16px; display:flex; gap:10px; align-items:flex-end;
+    }
+    .chat-input {
+      flex:1; border:1px solid var(--border); border-radius:20px;
+      padding:10px 16px; font-size:14px; outline:none; resize:none;
+      max-height:120px; overflow-y:auto; font-family:inherit; line-height:1.5;
+      background:#fff;
+    }
+    .chat-input:focus { border-color:var(--sky); }
+    .chat-send-btn {
+      width:40px; height:40px; border-radius:50%; border:none;
+      background:var(--sky); color:#fff; font-size:20px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      transition:opacity 0.15s;
+    }
+    .chat-send-btn:disabled { opacity:0.35; cursor:default; }
+    @keyframes msgIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .msg-animate { animation: msgIn 0.15s ease; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav"><a href="login.html" class="btn-login">로그인</a></nav>
+    </div>
+  </header>
+
+  <div class="layout chat-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="chat-inner">
+
+      <div class="chat-header">
+        <div class="breadcrumb" style="margin-bottom:6px;">
+          <a href="messages.html">메시지</a><span>/</span>
+          <span id="otherNickDisplay">...</span>
+        </div>
+        <h2 id="chatTitle" style="font-size:17px; font-weight:700;"></h2>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <p class="page-loading">불러오는 중...</p>
+      </div>
+
+      <div class="chat-input-area">
+        <textarea id="msgInput" class="chat-input" placeholder="메시지를 입력하세요..." rows="1"
+          oninput="autoResize(this)" onkeydown="onKeyDown(event)"></textarea>
+        <button class="chat-send-btn" id="sendBtn" onclick="sendMessage()" disabled title="전송">↑</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const convId = new URLSearchParams(window.location.search).get('id');
+    let myNick  = null;
+    let channel = null;
+
+    if (!convId) { window.location.href = 'messages.html'; }
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      myNick = user.user_metadata?.nickname;
+
+      const { data: conv, error } = await sb.from('conversations').select('*').eq('id', convId).single();
+      if (error || !conv) { window.location.href = 'messages.html'; return; }
+
+      const otherNick = conv.user1_nickname === myNick ? conv.user2_nickname : conv.user1_nickname;
+      document.getElementById('otherNickDisplay').textContent = otherNick;
+      document.getElementById('chatTitle').textContent = otherNick;
+      document.title = `${otherNick} — 종족연구소`;
+
+      document.getElementById('msgInput').addEventListener('input', () => {
+        document.getElementById('sendBtn').disabled = !document.getElementById('msgInput').value.trim();
+      });
+
+      await loadMessages();
+      subscribeRealtime();
+    }
+
+    async function loadMessages() {
+      const { data: msgs } = await sb
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
+
+      const area = document.getElementById('chatMessages');
+      if (!msgs || msgs.length === 0) {
+        area.innerHTML = '<p class="page-loading" style="opacity:0.5; padding-top:40px;">첫 메시지를 보내보세요</p>';
+        return;
+      }
+      area.innerHTML = '';
+      msgs.forEach(m => appendMessage(m, false));
+      scrollToBottom();
+    }
+
+    function appendMessage(msg, animate) {
+      const area   = document.getElementById('chatMessages');
+      const isMine = msg.sender_nickname === myNick;
+      const time   = new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+
+      const empty = area.querySelector('.page-loading');
+      if (empty) empty.remove();
+
+      const row = document.createElement('div');
+      row.className = `msg-row${isMine ? ' msg-row--mine' : ''}${animate ? ' msg-animate' : ''}`;
+
+      row.innerHTML = `
+        ${!isMine ? `<div class="msg-avatar">${msg.sender_nickname.charAt(0).toUpperCase()}</div>` : ''}
+        <div class="msg-content">
+          ${!isMine ? `<span class="msg-sender">${msg.sender_nickname}</span>` : ''}
+          <div class="msg-bubble ${isMine ? 'msg-bubble--mine' : 'msg-bubble--theirs'}">${escapeHtml(msg.content)}</div>
+        </div>
+        <span class="msg-time">${time}</span>
+      `;
+
+      area.appendChild(row);
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    }
+
+    function scrollToBottom() {
+      const area = document.getElementById('chatMessages');
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function subscribeRealtime() {
+      channel = sb.channel(`conv_${convId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${convId}`,
+        }, (payload) => {
+          // 내가 보낸 메시지는 sendMessage에서 이미 낙관적으로 추가하므로 중복 방지
+          if (payload.new.sender_nickname !== myNick) {
+            appendMessage(payload.new, true);
+            scrollToBottom();
+          }
+        })
+        .subscribe();
+    }
+
+    async function sendMessage() {
+      const input   = document.getElementById('msgInput');
+      const content = input.value.trim();
+      if (!content) return;
+
+      const btn = document.getElementById('sendBtn');
+      btn.disabled  = true;
+      input.value   = '';
+      input.style.height = '';
+
+      // 낙관적 UI: 바로 표시
+      appendMessage({ sender_nickname: myNick, content, created_at: new Date().toISOString() }, true);
+      scrollToBottom();
+
+      const now = new Date().toISOString();
+      await sb.from('messages').insert({ conversation_id: convId, sender_nickname: myNick, content });
+      await sb.from('conversations').update({ last_message: content, last_message_at: now }).eq('id', convId);
+    }
+
+    function onKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!document.getElementById('sendBtn').disabled) sendMessage();
+      }
+    }
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

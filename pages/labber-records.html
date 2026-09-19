@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개체기록실 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="labber-theme labber-records-page">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <!-- 상단: breadcrumb + 제목 + LABBER 로고 (소개/설명 영역 없음 — 바로 목록부터) -->
+        <div class="list-page-header" style="margin-bottom:20px;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <a href="labber-lab.html">LABBER</a>
+              <span>/</span>
+              <span>개체기록실</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">개체기록실</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 소속 개체 목록 ────────────────────────────────────────────
+             species.html?id=204 의 #charactersSection 과 동일한 마크업/ID.
+             목록/정렬/분류필터/관리(선택삭제) 로직은 공통 모듈 js/species-character-list.js.
+             카드 클릭 → character.html?id=X (개체 수정 / 소유권 이전은 그 페이지에서 처리). -->
+        <section class="section labber-records-panel" id="charactersSection" style="display:none;">
+          <div class="section-header">
+            <h2>소속 개체 <span class="count-badge" id="charCount">0</span></h2>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="charSort" class="list-sort" style="margin:0;">
+                <option value="recent">최근 등록순</option>
+                <option value="name">이름순</option>
+                <option value="charNumber">개체번호순</option>
+              </select>
+              <button type="button" id="charSortDirBtn" class="sort-dir-btn" data-dir="desc" onclick="toggleSortDir()" title="정렬 방향: 내림차순" aria-label="정렬 방향: 내림차순 (누르면 오름차순으로 전환)">
+                <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button id="manageBtn" style="display:none; padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; cursor:pointer; color:var(--text-sub);" onclick="toggleManage()">관리</button>
+            </div>
+          </div>
+          <!-- 관리 모드 액션 바 -->
+          <div id="manageBar" style="display:none; margin-bottom:12px; padding:10px 14px; background:var(--sky-pale); border-radius:10px; border:1px solid var(--sky-light); align-items:center; gap:12px; flex-wrap:wrap;">
+            <span id="selectedCount" style="font-size:13px; color:var(--text-sub);">0개 선택됨</span>
+            <button onclick="selectAll()" style="padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:var(--white); font-size:12px; cursor:pointer;">전체 선택</button>
+            <button onclick="deselectAll()" style="padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:var(--white); font-size:12px; cursor:pointer;">전체 해제</button>
+            <button id="deleteSelectedBtn" onclick="deleteSelected()" disabled style="padding:4px 12px; border:none; border-radius:6px; background:#ef4444; color:#fff; font-size:12px; cursor:pointer; opacity:0.4;">선택 삭제</button>
+            <button onclick="toggleManage()" style="padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:var(--white); font-size:12px; cursor:pointer; margin-left:auto;">취소</button>
+          </div>
+          <!-- 분류 필터 -->
+          <div id="categoryFilterSection" style="display:none; margin-bottom:14px;">
+            <input type="text" class="list-search" id="categorySearchInput" placeholder="분류명 검색하기" style="width:100%; box-sizing:border-box; margin-bottom:8px;" oninput="filterCategoryButtons(this.value)">
+            <div id="categoryFilterBarWrap" style="overflow:hidden;">
+              <div id="categoryFilterBar" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+            </div>
+            <button type="button" id="categoryFilterMoreBtn" onclick="toggleCategoryFilter()" style="display:none; align-items:center; gap:4px; margin-top:6px; padding:3px 2px; background:none; border:none; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text-sub); font-family:inherit;">
+              <span id="categoryFilterMoreLabel">더보기</span>
+              <svg id="categoryFilterChevron" width="10" height="10" viewBox="0 0 12 12" style="transition:transform .15s;"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="character-grid" id="characterGrid"></div>
+        </section>
+
+        <p id="recordsError" class="page-loading" style="display:none;"></p>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/species-character-list.js"></script>
+  <script src="../js/labber-records.js"></script>
+</body>
+</html>

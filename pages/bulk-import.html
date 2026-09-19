@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>개체 일괄 등록 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .bulk-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .bulk-item-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+    .bulk-thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--sky-pale);
+      overflow: hidden;
+      flex-shrink: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-mute);
+      font-size: 11px;
+      text-align: center;
+    }
+    .bulk-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .bulk-name-input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    .bulk-name-input:focus { border-color: var(--sky); }
+    .bulk-toggle-btn {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-sub);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .bulk-remove-btn {
+      flex-shrink: 0;
+      border: none;
+      background: none;
+      color: var(--text-mute);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .bulk-item-body {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .bulk-item-body.open { display: block; }
+    .bulk-item-body .form-group { margin-top: 14px; margin-bottom: 0; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom:24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="species-list.html">전체 종족</a>
+          <span>/</span>
+          <a href="#" id="breadcrumbSpecies"></a>
+          <span>/</span>
+          <span>일괄 등록</span>
+        </div>
+
+        <h1 class="register-title">개체 일괄 등록</h1>
+        <p class="register-subtitle" id="pageSubtitle">여러 개체를 한번에 등록해요</p>
+
+        <!-- 모드 전환 -->
+        <div style="display:flex; gap:8px; margin-bottom:20px;">
+          <button type="button" id="btnModeManual" class="bulk-toggle-btn" onclick="setPageMode('manual')" style="border-color:var(--sky); color:var(--sky-deep); font-weight:600;">개별 등록</button>
+          <button type="button" id="btnModeJson" class="bulk-toggle-btn" onclick="setPageMode('json')">JSON 일괄 등록</button>
+        </div>
+
+        <div id="manualModeSection">
+
+        <!-- 공통 설정 -->
+        <div class="register-form" style="margin-bottom:24px;">
+          <p class="form-label" style="margin-bottom:12px;">공통 설정</p>
+
+          <!-- 기본 디자이너 -->
+          <div class="form-group">
+            <label class="form-label">기본 디자이너 <span class="required">*</span></label>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button type="button" id="btnDefaultDesignerSite" onclick="setDefaultDesignerType('site')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--sky); background:var(--sky); color:#fff; font-size:13px; cursor:pointer;">
+                사이트 유저
+              </button>
+              <button type="button" id="btnDefaultDesignerExternal" onclick="setDefaultDesignerType('external')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--border); background:#fff; color:var(--text-sub); font-size:13px; cursor:pointer;">
+                사이트 밖 유저
+              </button>
+            </div>
+            <div id="defaultDesignerSiteSection">
+              <input type="text" id="defaultDesignerSearch" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterDefaultDesigners(this.value)" style="margin-bottom:8px;">
+              <div id="defaultDesignerUserList" style="border:1px solid var(--border); border-radius:10px; max-height:160px; overflow-y:auto; background:#fff;">
+                <p style="padding:12px; color:var(--text-mute); font-size:13px;">불러오는 중...</p>
+              </div>
+              <p id="defaultDesignerSelectedDisplay" style="margin-top:8px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+            </div>
+            <div id="defaultDesignerExternalSection" style="display:none;">
+              <input type="text" id="defaultDesignerExternalName" class="form-input" placeholder="디자이너 이름 입력" style="margin-bottom:8px;">
+              <input type="text" id="defaultDesignerExternalContact" class="form-input" placeholder="연락처 (트위터, 디스코드 등) — 선택사항">
+            </div>
+            <p class="form-hint" style="margin-top:8px;">개별 항목에서 따로 설정하지 않으면 이 디자이너로 등록돼요</p>
+          </div>
+
+          <!-- 기본 소유주 -->
+          <div class="form-group">
+            <label class="form-label">기본 소유주 <span class="required">*</span></label>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button type="button" id="btnDefaultOwnerSite" onclick="setDefaultOwnerType('site')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--sky); background:var(--sky); color:#fff; font-size:13px; cursor:pointer;">
+                사이트 유저
+              </button>
+              <button type="button" id="btnDefaultOwnerExternal" onclick="setDefaultOwnerType('external')"
+                style="flex:1; padding:8px; border-radius:8px; border:2px solid var(--border); background:#fff; color:var(--text-sub); font-size:13px; cursor:pointer;">
+                사이트 밖 유저
+              </button>
+            </div>
+            <div id="defaultOwnerSiteSection">
+              <input type="text" id="defaultOwnerSearch" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterDefaultOwners(this.value)" style="margin-bottom:8px;">
+              <div id="defaultOwnerUserList" style="border:1px solid var(--border); border-radius:10px; max-height:160px; overflow-y:auto; background:#fff;">
+                <p style="padding:12px; color:var(--text-mute); font-size:13px;">불러오는 중...</p>
+              </div>
+              <p id="defaultOwnerSelectedDisplay" style="margin-top:8px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+            </div>
+            <div id="defaultOwnerExternalSection" style="display:none;">
+              <input type="text" id="defaultOwnerExternalName" class="form-input" placeholder="소유주 이름 입력">
+            </div>
+            <p class="form-hint" style="margin-top:8px;">개별 항목에서 따로 설정하지 않으면 이 소유주로 등록돼요</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">공통 설명 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항</span></label>
+            <textarea id="defaultDesc" class="form-textarea" rows="3" placeholder="모든 개체에 동일하게 들어갈 설명 (개별 항목에서 덮어쓸 수 있어요)"></textarea>
+          </div>
+        </div>
+
+        <!-- 드래그 앤 드롭 존 -->
+        <div id="dropZone" onclick="document.getElementById('dropFileInput').click()"
+          style="border:2px dashed var(--border); border-radius:var(--radius); padding:32px 20px; text-align:center; cursor:pointer; margin-bottom:16px; transition:border-color 0.2s, background 0.2s;">
+          <p style="font-size:14px; color:var(--text-sub); margin-bottom:6px;">이미지를 여기에 끌어다 놓거나 클릭해서 선택</p>
+          <p style="font-size:12px; color:var(--text-mute);">여러 장 한번에 가능 — 파일명이 이름으로 자동 입력돼요</p>
+        </div>
+        <input type="file" id="dropFileInput" accept="image/*" multiple style="display:none;" onchange="handleDropFiles(this.files)">
+
+        <!-- 안내 문구 -->
+        <p style="font-size:12px; color:var(--text-mute); margin-bottom:10px;">각 항목의 <strong style="font-weight:600;">펼치기</strong>를 누르면 디자이너·소유주를 개별로 설정할 수 있어요</p>
+
+        <!-- 개체 목록 -->
+        <div id="itemList"></div>
+
+        <!-- 추가 버튼 -->
+        <button type="button" class="btn-field-add" onclick="addItem()" style="width:100%; margin-bottom:24px;">
+          + 개체 추가
+        </button>
+
+        <!-- 진행 상태 -->
+        <div id="progressWrap" style="display:none; margin-bottom:16px;">
+          <div style="background:var(--border); border-radius:99px; height:8px; margin-bottom:8px; overflow:hidden;">
+            <div id="progressBar" style="height:100%; background:var(--sky); width:0%; transition:width 0.3s; border-radius:99px;"></div>
+          </div>
+          <p id="progressText" style="font-size:13px; color:var(--text-sub);"></p>
+        </div>
+
+        <p class="auth-error" id="bulkError"></p>
+
+        <div class="register-actions">
+          <a href="#" id="cancelBtn" class="btn-ghost">취소</a>
+          <button type="button" class="btn-secondary" id="submitBtn" onclick="submitAll()">일괄 등록하기</button>
+        </div>
+
+        </div>
+        <!-- /manualModeSection -->
+
+        <!-- JSON 일괄 등록 모드 -->
+        <div id="jsonModeSection" style="display:none;">
+          <div class="register-form" style="margin-bottom:24px;">
+            <p class="form-label" style="margin-bottom:12px;">JSON 일괄 등록</p>
+            <p class="form-hint" style="margin-bottom:14px;">
+              정제된 개체 JSON 파일과 이미지 폴더를 선택하면, 기존 등록 파이프라인(원본 업로드 → 워터마크 합성 → 썸네일 생성)과 동일한 방식으로 개체를 등록해요.
+              이미지 파일명 끝의 숫자가 JSON의 char_number와 자릿수까지 정확히 일치해야 자동으로 매칭돼요(예: <code>0028</code> 또는 <code>002</code>).
+            </p>
+
+            <div class="form-group">
+              <label class="form-label" style="font-size:13px;">개체 JSON 파일</label>
+              <input type="file" id="jsonFileInput" accept="application/json,.json" onchange="onJsonFileSelected(this)">
+              <p id="jsonFileStatus" class="form-hint" style="margin-top:6px;"></p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="font-size:13px;">이미지 폴더</label>
+              <input type="file" id="jsonImageInput" webkitdirectory multiple onchange="onJsonImagesSelected(this)">
+              <p id="jsonImageStatus" class="form-hint" style="margin-top:6px;"></p>
+              <p class="form-hint" style="margin-top:2px;">폴더 전체를 선택해도 JSON에 있는 char_number와 매칭되는 파일만 사용돼요. 나머지 파일은 무시되고 업로드되지 않아요.</p>
+            </div>
+
+            <button type="button" class="btn-field-add" onclick="buildJsonPreview()">미리보기 생성 / 새로고침</button>
+          </div>
+
+          <div id="jsonPreviewWrap" style="display:none;">
+            <div style="overflow-x:auto; margin-bottom:16px; border:1px solid var(--border); border-radius:var(--radius);">
+              <table id="jsonPreviewTable" style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                  <tr style="text-align:left; border-bottom:2px solid var(--border); background:var(--bg-sub);">
+                    <th style="padding:8px;">개체번호</th>
+                    <th style="padding:8px;">이름</th>
+                    <th style="padding:8px;">소유주</th>
+                    <th style="padding:8px;">주식</th>
+                    <th style="padding:8px;">분류</th>
+                    <th style="padding:8px;">이미지 매칭</th>
+                    <th style="padding:8px;">DB 상태</th>
+                  </tr>
+                </thead>
+                <tbody id="jsonPreviewBody"></tbody>
+              </table>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+              <label style="font-size:13px; color:var(--text-sub);">테스트 등록 대상</label>
+              <select id="jsonTestSelect" class="form-input" style="width:200px; margin:0;"></select>
+              <button type="button" class="btn-secondary" id="jsonTestBtn" onclick="runJsonTest()">테스트 등록 (1건만)</button>
+            </div>
+            <p id="jsonTestResult" style="font-size:13px; margin-bottom:16px;"></p>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="btn-secondary" id="jsonBatchBtn" onclick="runJsonFullBatch()" disabled>나머지 전체 등록</button>
+              <span id="jsonBatchHint" class="form-hint">먼저 테스트 등록을 1건 성공시켜야 활성화돼요.</span>
+            </div>
+
+            <div id="jsonProgressWrap" style="display:none; margin-top:16px;">
+              <div style="background:var(--border); border-radius:99px; height:8px; margin-bottom:8px; overflow:hidden;">
+                <div id="jsonProgressBar" style="height:100%; background:var(--sky); width:0%; transition:width 0.3s; border-radius:99px;"></div>
+              </div>
+              <p id="jsonProgressText" style="font-size:13px; color:var(--text-sub);"></p>
+            </div>
+            <p class="auth-error" id="jsonError" style="white-space:pre-line;"></p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/search.js"></script>
+  <script>
+    const params      = new URLSearchParams(window.location.search);
+    const speciesId   = params.get('species_id');
+    const speciesName = params.get('species');
+
+    let currentUser                 = null;
+    let customFields                = [];
+    let speciesWatermarkUrl         = null; // 종족주의 개인 워터마크 URL (없으면 null → 연구소 기본)
+    let itemCount                   = 0;
+    let defaultDesignerType         = 'site';
+    let selectedDefaultDesignerNick = null;
+    let defaultOwnerType            = 'site';
+    let selectedDefaultOwnerNick    = null;
+    let selectedDefaultOwnerNickId  = null;
+    let itemStates                  = {};
+
+    document.getElementById('cancelBtn').href = speciesId ? `species.html?id=${speciesId}` : 'species-list.html';
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+      const role = user.user_metadata?.role;
+      if (!isAdminOrStaff(role) && role !== 'species_owner') { window.location.href = 'index.html'; return; }
+
+      currentUser = user;
+
+      if (speciesName) {
+        const backHref = speciesId ? `species.html?id=${speciesId}` : 'species-list.html';
+        document.getElementById('breadcrumbSpecies').textContent = speciesName;
+        document.getElementById('breadcrumbSpecies').href = backHref;
+        document.getElementById('pageSubtitle').textContent = `${speciesName}의 개체를 한번에 등록해요`;
+
+        const { data: sp } = await sb.from('species').select('custom_fields, owner_user_id').eq('name', speciesName).single();
+        customFields = sp?.custom_fields || [];
+
+        // 종족주의 개인 워터마크 조회 (없으면 null → 연구소 기본 워터마크 사용)
+        if (sp?.owner_user_id) {
+          const { data: profile } = await sb.from('user_profiles')
+            .select('watermark_url').eq('user_id', sp.owner_user_id).maybeSingle();
+          speciesWatermarkUrl = profile?.watermark_url || null;
+        }
+      }
+
+      await loadBulkUsers();
+
+      // 기본 1개 추가
+      addItem();
+    }
+
+    async function loadBulkUsers() {
+      const myName = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
+      renderDefaultDesignerList([]);
+      renderDefaultOwnerList([]);
+      if (myName) selectDefaultOwner(myName, currentUser.id);
+    }
+
+    function renderDefaultDesignerList(list) {
+      const el = document.getElementById('defaultDesignerUserList');
+      el.innerHTML = list.length
+        ? list.map(u => `
+            <div onclick="selectDefaultDesigner('${u.nickname.replace(/'/g,"\\'")}')" id="ddItem_${u.nickname}"
+              style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); background:${selectedDefaultDesignerNick===u.nickname?'var(--sky-light)':''};"
+              onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background= selectedDefaultDesignerNick==='${u.nickname}' ? 'var(--sky-light)' : ''">
+              ${u.nickname}
+            </div>`).join('')
+        : '<p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>';
+    }
+
+    function selectDefaultDesigner(nick) {
+      selectedDefaultDesignerNick = nick;
+      document.querySelectorAll('#defaultDesignerUserList > div').forEach(el => {
+        el.style.background = el.id === `ddItem_${nick}` ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = el.id === `ddItem_${nick}` ? '600' : '';
+      });
+      const disp = document.getElementById('defaultDesignerSelectedDisplay');
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    const filterDefaultDesignersDebounced = debounce(async (q) => {
+      const { data } = await searchUsers(q, { limit: 20 });
+      renderDefaultDesignerList(data || []);
+    }, 250);
+
+    function filterDefaultDesigners(q) {
+      if (!q.trim()) { renderDefaultDesignerList([]); return; }
+      filterDefaultDesignersDebounced(q);
+    }
+
+    function setDefaultDesignerType(type) {
+      defaultDesignerType = type;
+      const isSite = type === 'site';
+      document.getElementById('defaultDesignerSiteSection').style.display    = isSite ? '' : 'none';
+      document.getElementById('defaultDesignerExternalSection').style.display = isSite ? 'none' : '';
+      document.getElementById('btnDefaultDesignerSite').style.cssText     = `flex:1; padding:8px; border-radius:8px; border:2px solid ${isSite ? 'var(--sky)' : 'var(--border)'}; background:${isSite ? 'var(--sky)' : '#fff'}; color:${isSite ? '#fff' : 'var(--text-sub)'}; font-size:13px; cursor:pointer;`;
+      document.getElementById('btnDefaultDesignerExternal').style.cssText = `flex:1; padding:8px; border-radius:8px; border:2px solid ${isSite ? 'var(--border)' : 'var(--sky)'}; background:${isSite ? '#fff' : 'var(--sky)'}; color:${isSite ? 'var(--text-sub)' : '#fff'}; font-size:13px; cursor:pointer;`;
+    }
+
+    function renderDefaultOwnerList(list) {
+      const el = document.getElementById('defaultOwnerUserList');
+      el.innerHTML = list.length
+        ? list.map(u => `
+            <div onclick="selectDefaultOwner('${u.nickname.replace(/'/g,"\\'")}','${u.id}')" id="doItem_${u.id}"
+              style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border);"
+              onmouseover="this.style.background='var(--sky-pale)'" onmouseout="this.style.background= selectedDefaultOwnerNickId==='${u.id}' ? 'var(--sky-light)' : ''">
+              ${u.nickname}
+            </div>`).join('')
+        : '<p style="padding:12px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>';
+    }
+
+    function selectDefaultOwner(nick, id) {
+      selectedDefaultOwnerNick   = nick;
+      selectedDefaultOwnerNickId = id;
+      document.querySelectorAll('#defaultOwnerUserList > div').forEach(el => {
+        el.style.background = el.id === `doItem_${id}` ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = el.id === `doItem_${id}` ? '600' : '';
+      });
+      const disp = document.getElementById('defaultOwnerSelectedDisplay');
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    const filterDefaultOwnersDebounced = debounce(async (q) => {
+      const { data } = await searchUsers(q, { limit: 20 });
+      renderDefaultOwnerList(data || []);
+    }, 250);
+
+    function filterDefaultOwners(q) {
+      if (!q.trim()) { renderDefaultOwnerList([]); return; }
+      filterDefaultOwnersDebounced(q);
+    }
+
+    function setDefaultOwnerType(type) {
+      defaultOwnerType = type;
+      const isSite = type === 'site';
+      document.getElementById('defaultOwnerSiteSection').style.display    = isSite ? '' : 'none';
+      document.getElementById('defaultOwnerExternalSection').style.display = isSite ? 'none' : '';
+      document.getElementById('btnDefaultOwnerSite').style.cssText     = `flex:1; padding:8px; border-radius:8px; border:2px solid ${isSite ? 'var(--sky)' : 'var(--border)'}; background:${isSite ? 'var(--sky)' : '#fff'}; color:${isSite ? '#fff' : 'var(--text-sub)'}; font-size:13px; cursor:pointer;`;
+      document.getElementById('btnDefaultOwnerExternal').style.cssText = `flex:1; padding:8px; border-radius:8px; border:2px solid ${isSite ? 'var(--border)' : 'var(--sky)'}; background:${isSite ? '#fff' : 'var(--sky)'}; color:${isSite ? 'var(--text-sub)' : '#fff'}; font-size:13px; cursor:pointer;`;
+    }
+
+    function createItemHTML(id) {
+      const cfHTML = customFields.length ? `
+        <div class="form-group">
+          <label class="form-label" style="font-size:13px;">개체 항목</label>
+          ${customFields.map(f => `
+            <div style="margin-top:8px;">
+              <label style="font-size:12px; color:var(--text-sub); display:block; margin-bottom:4px;">${f}</label>
+              <input type="text" class="form-input custom-field-input" data-field="${f}" placeholder="${f} 입력" style="margin:0;">
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+      return `
+        <div class="bulk-item-header">
+          <div class="bulk-thumb" id="thumb_${id}" onclick="document.getElementById('file_${id}').click()">
+            <span>이미지<br>추가</span>
+          </div>
+          <input type="file" id="file_${id}" accept="image/*" style="display:none;" onchange="onFileChange(this, ${id})">
+          <input type="text" class="bulk-name-input" id="name_${id}" placeholder="개체 이름">
+          <button type="button" class="bulk-toggle-btn" onclick="toggleBody(${id})">펼치기</button>
+          <button type="button" class="bulk-remove-btn" onclick="removeItem(${id})">✕</button>
+        </div>
+        <div class="bulk-item-body" id="body_${id}">
+          <div class="form-group">
+            <label class="form-label" style="font-size:13px;">디자이너 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">비워두면 공통 디자이너 적용</span></label>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <button type="button" id="btnID_${id}" onclick="setItemDesignerType(${id},'site')"
+                style="flex:1; padding:7px; border-radius:8px; border:2px solid var(--sky); background:var(--sky); color:#fff; font-size:12px; cursor:pointer;">사이트 유저</button>
+              <button type="button" id="btnIDExt_${id}" onclick="setItemDesignerType(${id},'external')"
+                style="flex:1; padding:7px; border-radius:8px; border:2px solid var(--border); background:#fff; color:var(--text-sub); font-size:12px; cursor:pointer;">사이트 밖 유저</button>
+            </div>
+            <div id="itemDSite_${id}">
+              <input type="text" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterItemDesigners(${id},this.value)" style="margin-bottom:6px; font-size:13px;">
+              <div id="itemDList_${id}" style="border:1px solid var(--border); border-radius:10px; max-height:150px; overflow-y:auto; background:#fff;">
+                <p style="padding:10px 14px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>
+              </div>
+              <p id="itemDDisp_${id}" style="margin-top:6px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+            </div>
+            <div id="itemDExt_${id}" style="display:none;">
+              <input type="text" class="form-input" id="itemDExtName_${id}" placeholder="디자이너 이름 입력">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:13px;">소유주 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">비워두면 공통 소유주 적용</span></label>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <button type="button" id="btnIO_${id}" onclick="setItemOwnerType(${id},'site')"
+                style="flex:1; padding:7px; border-radius:8px; border:2px solid var(--sky); background:var(--sky); color:#fff; font-size:12px; cursor:pointer;">사이트 유저</button>
+              <button type="button" id="btnIOExt_${id}" onclick="setItemOwnerType(${id},'external')"
+                style="flex:1; padding:7px; border-radius:8px; border:2px solid var(--border); background:#fff; color:var(--text-sub); font-size:12px; cursor:pointer;">사이트 밖 유저</button>
+            </div>
+            <div id="itemOSite_${id}">
+              <input type="text" class="form-input" placeholder="닉네임 또는 아이디로 검색..." oninput="filterItemOwners(${id},this.value)" style="margin-bottom:6px; font-size:13px;">
+              <div id="itemOList_${id}" style="border:1px solid var(--border); border-radius:10px; max-height:150px; overflow-y:auto; background:#fff;">
+                <p style="padding:10px 14px; color:var(--text-mute); font-size:13px;">닉네임 또는 아이디를 입력하세요</p>
+              </div>
+              <p id="itemODisp_${id}" style="margin-top:6px; font-size:13px; color:var(--sky-deep); display:none;"></p>
+            </div>
+            <div id="itemOExt_${id}" style="display:none;">
+              <input type="text" class="form-input" id="itemOExtName_${id}" placeholder="소유주 이름 입력">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:13px;">설명</label>
+            <textarea class="form-textarea" id="desc_${id}" rows="3" placeholder="설명 (선택사항)"></textarea>
+          </div>
+          ${cfHTML}
+          <div class="form-group">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap; font-size:13px; font-weight:500; color:var(--text);">
+                <input type="checkbox" id="sensitive_${id}" style="width:15px; height:15px; cursor:pointer; accent-color:var(--sky); flex-shrink:0;">
+                민감한 요소 포함
+              </label>
+              <input type="text" class="form-input" id="sensitiveNote_${id}" placeholder="시선공포, 쨍한색 등" style="flex:1; min-width:140px; font-size:13px;">
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function addItem() {
+      const id = itemCount++;
+      const div = document.createElement('div');
+      div.className = 'bulk-item';
+      div.id = `item_${id}`;
+      div.innerHTML = createItemHTML(id);
+      document.getElementById('itemList').appendChild(div);
+    }
+
+    function onFileChange(input, id) {
+      const file    = input.files[0];
+      if (!file) return;
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        document.getElementById('bulkError').textContent = `"${file.name}"은 지원하지 않는 형식이에요. PNG, GIF, JPG, WebP만 가능해요.`;
+        input.value = '';
+        return;
+      }
+
+      if (!itemStates[id]) itemStates[id] = {};
+      itemStates[id].file = file;
+
+      // 파일명 → 이름 자동 입력
+      const nameInput = document.getElementById(`name_${id}`);
+      if (!nameInput.value) {
+        nameInput.value = file.name.replace(/\.[^/.]+$/, '');
+      }
+
+      // 썸네일 미리보기
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const thumb = document.getElementById(`thumb_${id}`);
+        thumb.innerHTML = `<img src="${ev.target.result}">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function toggleBody(id) {
+      const body = document.getElementById(`body_${id}`);
+      const btn  = body.previousElementSibling.querySelector('.bulk-toggle-btn');
+      const isOpen = body.classList.toggle('open');
+      btn.textContent = isOpen ? '접기' : '펼치기';
+    }
+
+    function removeItem(id) {
+      const el = document.getElementById(`item_${id}`);
+      if (el) el.remove();
+      delete itemStates[id];
+    }
+
+    function setItemDesignerType(id, type) {
+      if (!itemStates[id]) itemStates[id] = {};
+      itemStates[id].designerType = type;
+      const isSite = type === 'site';
+      document.getElementById(`itemDSite_${id}`).style.display = isSite ? '' : 'none';
+      document.getElementById(`itemDExt_${id}`).style.display  = isSite ? 'none' : '';
+      document.getElementById(`btnID_${id}`).style.cssText    = `flex:1;padding:7px;border-radius:8px;border:2px solid ${isSite?'var(--sky)':'var(--border)'};background:${isSite?'var(--sky)':'#fff'};color:${isSite?'#fff':'var(--text-sub)'};font-size:12px;cursor:pointer;`;
+      document.getElementById(`btnIDExt_${id}`).style.cssText = `flex:1;padding:7px;border-radius:8px;border:2px solid ${isSite?'var(--border)':'var(--sky)'};background:${isSite?'#fff':'var(--sky)'};color:${isSite?'var(--text-sub)':'#fff'};font-size:12px;cursor:pointer;`;
+    }
+
+    function renderItemDesignerList(id, list) {
+      const el = document.getElementById(`itemDList_${id}`);
+      if (!el) return;
+      el.innerHTML = list.length
+        ? list.map(u => `<div onclick="selectItemDesigner(${id},'${u.nickname.replace(/'/g,"\\'")}')" id="idItem_${id}_${u.nickname}"
+            style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);"
+            onmouseover="this.style.background='var(--sky-pale)'"
+            onmouseout="this.style.background=(itemStates[${id}]&&itemStates[${id}].selectedDesigner==='${u.nickname}')?'var(--sky-light)':''">
+            ${u.nickname}
+          </div>`).join('')
+        : '<p style="padding:10px 14px;color:var(--text-mute);font-size:13px;">닉네임 또는 아이디를 입력하세요</p>';
+    }
+
+    function selectItemDesigner(id, nick) {
+      if (!itemStates[id]) itemStates[id] = {};
+      itemStates[id].selectedDesigner = nick;
+      document.querySelectorAll(`#itemDList_${id} > div`).forEach(el => {
+        const sel = el.id === `idItem_${id}_${nick}`;
+        el.style.background = sel ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = sel ? '600' : '';
+      });
+      const disp = document.getElementById(`itemDDisp_${id}`);
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    const _filterItemDesignersDebounced = {};
+    function filterItemDesigners(id, q) {
+      if (!q.trim()) { renderItemDesignerList(id, []); return; }
+      if (!_filterItemDesignersDebounced[id]) {
+        _filterItemDesignersDebounced[id] = debounce(async (qq) => {
+          const { data } = await searchUsers(qq, { limit: 20 });
+          renderItemDesignerList(id, data || []);
+        }, 250);
+      }
+      _filterItemDesignersDebounced[id](q);
+    }
+
+    function setItemOwnerType(id, type) {
+      if (!itemStates[id]) itemStates[id] = {};
+      itemStates[id].ownerType = type;
+      const isSite = type === 'site';
+      document.getElementById(`itemOSite_${id}`).style.display = isSite ? '' : 'none';
+      document.getElementById(`itemOExt_${id}`).style.display  = isSite ? 'none' : '';
+      document.getElementById(`btnIO_${id}`).style.cssText    = `flex:1;padding:7px;border-radius:8px;border:2px solid ${isSite?'var(--sky)':'var(--border)'};background:${isSite?'var(--sky)':'#fff'};color:${isSite?'#fff':'var(--text-sub)'};font-size:12px;cursor:pointer;`;
+      document.getElementById(`btnIOExt_${id}`).style.cssText = `flex:1;padding:7px;border-radius:8px;border:2px solid ${isSite?'var(--border)':'var(--sky)'};background:${isSite?'#fff':'var(--sky)'};color:${isSite?'var(--text-sub)':'#fff'};font-size:12px;cursor:pointer;`;
+    }
+
+    function renderItemOwnerList(id, list) {
+      const el = document.getElementById(`itemOList_${id}`);
+      if (!el) return;
+      el.innerHTML = list.length
+        ? list.map(u => `<div onclick="selectItemOwner(${id},'${u.nickname.replace(/'/g,"\\'")}','${u.id}')" id="ioItem_${id}_${u.id}"
+            style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);"
+            onmouseover="this.style.background='var(--sky-pale)'"
+            onmouseout="this.style.background=(itemStates[${id}]&&itemStates[${id}].selectedOwnerId==='${u.id}')?'var(--sky-light)':''">
+            ${u.nickname}
+          </div>`).join('')
+        : '<p style="padding:10px 14px;color:var(--text-mute);font-size:13px;">닉네임 또는 아이디를 입력하세요</p>';
+    }
+
+    function selectItemOwner(id, nick, ownerId) {
+      if (!itemStates[id]) itemStates[id] = {};
+      itemStates[id].selectedOwner   = nick;
+      itemStates[id].selectedOwnerId = ownerId;
+      document.querySelectorAll(`#itemOList_${id} > div`).forEach(el => {
+        const sel = el.id === `ioItem_${id}_${ownerId}`;
+        el.style.background = sel ? 'var(--sky-light)' : '';
+        el.style.fontWeight  = sel ? '600' : '';
+      });
+      const disp = document.getElementById(`itemODisp_${id}`);
+      disp.textContent = `선택됨: ${nick}`;
+      disp.style.display = 'block';
+    }
+
+    const _filterItemOwnersDebounced = {};
+    function filterItemOwners(id, q) {
+      if (!q.trim()) { renderItemOwnerList(id, []); return; }
+      if (!_filterItemOwnersDebounced[id]) {
+        _filterItemOwnersDebounced[id] = debounce(async (qq) => {
+          const { data } = await searchUsers(qq, { limit: 20 });
+          renderItemOwnerList(id, data || []);
+        }, 250);
+      }
+      _filterItemOwnersDebounced[id](q);
+    }
+
+    async function submitAll() {
+      const defaultDesc = document.getElementById('defaultDesc').value.trim();
+      const errorEl    = document.getElementById('bulkError');
+      const btn        = document.getElementById('submitBtn');
+      errorEl.textContent = '';
+
+      let defaultDesigner = null;
+      if (defaultDesignerType === 'site') {
+        defaultDesigner = selectedDefaultDesignerNick;
+      } else {
+        defaultDesigner = document.getElementById('defaultDesignerExternalName').value.trim() || null;
+      }
+      if (!defaultDesigner) { errorEl.textContent = '기본 디자이너를 설정해주세요.'; return; }
+
+      let defaultOwner = null;
+      if (defaultOwnerType === 'site') {
+        defaultOwner = selectedDefaultOwnerNick;
+      } else {
+        defaultOwner = document.getElementById('defaultOwnerExternalName').value.trim() || null;
+      }
+      if (!defaultOwner) { errorEl.textContent = '기본 소유주를 설정해주세요.'; return; }
+
+      const items = [...document.getElementById('itemList').querySelectorAll('.bulk-item')];
+      if (!items.length) { errorEl.textContent = '등록할 개체가 없어요.'; return; }
+
+      // 유효성 검사
+      for (const item of items) {
+        const id    = item.id.replace('item_', '');
+        const name  = document.getElementById(`name_${id}`).value.trim();
+        const state = itemStates[id] || {};
+        const designer = (state.designerType === 'external'
+          ? document.getElementById(`itemDExtName_${id}`)?.value.trim()
+          : state.selectedDesigner) || defaultDesigner;
+        if (!name)     { errorEl.textContent = '이름이 비어있는 항목이 있어요.'; return; }
+        if (!designer) { errorEl.textContent = `"${name}" 항목의 디자이너를 입력해주세요.`; return; }
+      }
+
+      btn.disabled = true;
+      btn.textContent = '등록 중...';
+
+      const progressWrap = document.getElementById('progressWrap');
+      const progressBar  = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      progressWrap.style.display = '';
+
+      let done = 0;
+      let failed = [];
+
+      for (const item of items) {
+        const id       = item.id.replace('item_', '');
+        const name     = document.getElementById(`name_${id}`).value.trim().normalize('NFC');
+        const state    = itemStates[id] || {};
+        const designer = (state.designerType === 'external'
+          ? document.getElementById(`itemDExtName_${id}`)?.value.trim()
+          : state.selectedDesigner) || defaultDesigner;
+        const itemOwnerType = state.ownerType || defaultOwnerType;
+        const owner    = (itemOwnerType === 'external'
+          ? document.getElementById(`itemOExtName_${id}`)?.value.trim()
+          : state.selectedOwner) || defaultOwner;
+        const ownerUserId = itemOwnerType === 'site'
+          ? (state.selectedOwnerId || selectedDefaultOwnerNickId || null)
+          : null;
+        const desc     = document.getElementById(`desc_${id}`).value.trim() || defaultDesc;
+        const file  = itemStates[id]?.file || document.getElementById(`file_${id}`).files[0];
+
+        progressText.textContent = `${done + 1} / ${items.length} 처리 중... (${name})`;
+
+        try {
+          // 이미지 업로드 (단일 등록과 동일하게 원본/워터마크 분리 저장)
+          let image_url          = null;
+          let thumbnail_url      = null;
+          let original_image_url = null;
+          let watermark_type     = null; // 실제 적용한 워터마크 종류 (GIF 등 워터마크 미적용 시 null → DB 기본값)
+          // 종족주 개인 워터마크 있으면 사용, 없으면 연구소 기본
+          const wmSrc = speciesWatermarkUrl || '../images/watermark.png';
+          if (file) {
+            const rnd   = Math.random().toString(36).slice(2);
+            const isGif = file.type === 'image/gif';
+            const ext   = isGif ? 'gif' : 'jpg';
+            const blob  = await compressImage(file);
+
+            // 원본 저장
+            const origName = `${Date.now()}_${rnd}_orig.${ext}`;
+            const { error: origErr } = await sb.storage.from('images').upload(origName, blob, {
+              contentType: isGif ? 'image/gif' : 'image/jpeg',
+            });
+            if (origErr) throw new Error(origErr.message);
+            original_image_url = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
+
+            if (isGif) {
+              // GIF: 워터마크 미적용, 원본 그대로 사용
+              image_url = original_image_url;
+            } else {
+              // 워터마크 합성 후 저장
+              const wmBlob   = await applyWatermark(blob, wmSrc);
+              const mainName = `${Date.now()}_${rnd}.jpg`;
+              const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, {
+                contentType: 'image/jpeg',
+              });
+              if (mainErr) throw new Error(mainErr.message);
+              image_url = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
+              watermark_type = speciesWatermarkUrl ? 'personal' : 'lab_black';
+            }
+
+            // 썸네일 (워터마크 없음 — 기존 정책 유지)
+            const thumbBlob = await autoCenterCropToBlob(file, 3/4, 600, 0.85);
+            const thumbName = `${Date.now()}_${rnd}_thumb.jpg`;
+            const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, {
+              contentType: 'image/jpeg',
+            });
+            if (!thumbErr) {
+              thumbnail_url = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
+            }
+          }
+
+          // 커스텀 필드 수집
+          const customFieldValues = {};
+          item.querySelectorAll('.custom-field-input').forEach(input => {
+            const val = input.value.trim();
+            if (val) customFieldValues[input.dataset.field] = val;
+          });
+
+          const isSensitive   = document.getElementById(`sensitive_${id}`)?.checked || false;
+          const sensitiveNote = document.getElementById(`sensitiveNote_${id}`)?.value.trim() || null;
+
+          // DB 저장
+          const { error } = await sb.from('characters').insert({
+            name,
+            species_name:        speciesName || null,
+            designer_nickname:   designer || null,
+            owner_nickname:      owner,
+            owner_user_id:       ownerUserId,
+            owner_is_offsite:    itemOwnerType !== 'site',
+            description:         desc || null,
+            image_url,
+            thumbnail_url,
+            original_image_url,
+            ...(watermark_type ? { watermark_type } : {}),
+            custom_field_values: Object.keys(customFieldValues).length ? customFieldValues : null,
+            is_sensitive:        isSensitive,
+            sensitive_note:      isSensitive ? sensitiveNote : null,
+          });
+
+          if (error) failed.push(name);
+        } catch (e) {
+          console.warn(`[일괄등록] 실패 (${name}):`, e.message);
+          failed.push(name);
+        }
+
+        done++;
+        progressBar.style.width = `${(done / items.length) * 100}%`;
+      }
+
+      if (failed.length) {
+        errorEl.textContent = `실패한 항목: ${failed.join(', ')}`;
+        btn.textContent = '일괄 등록하기';
+        btn.disabled = false;
+      } else {
+        progressText.textContent = `완료! ${done}개 등록됐어요.`;
+        setTimeout(() => {
+          window.location.href = speciesId ? `species.html?id=${speciesId}` : 'species-list.html';
+        }, 1200);
+      }
+    }
+
+    function fillSlotWithFile(id, file) {
+      if (!itemStates[id]) itemStates[id] = {};
+      itemStates[id].file = file;
+
+      document.getElementById(`name_${id}`).value = file.name.replace(/\.[^/.]+$/, '');
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById(`thumb_${id}`).innerHTML = `<img src="${ev.target.result}">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleDropFiles(files) {
+      const imageFiles = [...files].filter(f => ALLOWED_IMAGE_TYPES.includes(f.type));
+      let fileIndex = 0;
+
+      // 빈 슬롯(이름 없고 이미지 없는 항목)부터 채우기
+      const emptySlots = [...document.getElementById('itemList').querySelectorAll('.bulk-item')]
+        .filter(item => {
+          const id = item.id.replace('item_', '');
+          return !document.getElementById(`thumb_${id}`).querySelector('img')
+              && !document.getElementById(`name_${id}`).value;
+        });
+
+      for (const slot of emptySlots) {
+        if (fileIndex >= imageFiles.length) break;
+        fillSlotWithFile(slot.id.replace('item_', ''), imageFiles[fileIndex++]);
+      }
+
+      // 남은 파일은 새 항목으로 추가
+      while (fileIndex < imageFiles.length) {
+        const file = imageFiles[fileIndex++];
+        const id = itemCount++;
+        const div = document.createElement('div');
+        div.className = 'bulk-item';
+        div.id = `item_${id}`;
+
+        div.innerHTML = createItemHTML(id);
+
+        document.getElementById('itemList').appendChild(div);
+        fillSlotWithFile(id, file);
+      }
+
+      document.getElementById('dropFileInput').value = '';
+    }
+
+    // 드래그 앤 드롭 이벤트
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--sky)';
+      dropZone.style.background  = 'var(--sky-pale)';
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.borderColor = 'var(--border)';
+      dropZone.style.background  = '';
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--border)';
+      dropZone.style.background  = '';
+      handleDropFiles(e.dataTransfer.files);
+    });
+
+    // ── JSON 일괄 등록 모드 ──────────────────────────────
+    // 대상 종족은 URL의 species_id/species 파라미터로 고정된다(species.html에서 "일괄 등록"으로 진입).
+    // 워터마크 소스(speciesWatermarkUrl)는 initPage()에서 이미 로드됨 — 개별 등록/일반 일괄 등록과 동일 로직 재사용.
+    let jsonItems      = [];  // 로드된 JSON 배열
+    let jsonImageFiles = {};  // char_number(4자리) -> File
+    let jsonExisting   = new Set(); // species_name+char_number 기준 이미 DB에 존재하는 char_number
+    let jsonTestedOk   = new Set(); // 이번 세션에서 테스트 등록에 성공한 char_number
+
+    function setPageMode(mode) {
+      document.getElementById('manualModeSection').style.display = mode === 'manual' ? '' : 'none';
+      document.getElementById('jsonModeSection').style.display   = mode === 'json'   ? '' : 'none';
+      document.getElementById('btnModeManual').style.cssText = mode === 'manual'
+        ? 'border-color:var(--sky); color:var(--sky-deep); font-weight:600;' : '';
+      document.getElementById('btnModeJson').style.cssText = mode === 'json'
+        ? 'border-color:var(--sky); color:var(--sky-deep); font-weight:600;' : '';
+    }
+
+    function onJsonFileSelected(input) {
+      const file    = input.files[0];
+      const statusEl = document.getElementById('jsonFileStatus');
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!Array.isArray(parsed)) throw new Error('JSON 최상위는 배열이어야 해요.');
+          jsonItems = parsed;
+          jsonTestedOk = new Set();
+          statusEl.textContent  = `${jsonItems.length}개 항목 로드됨`;
+          statusEl.style.color  = 'var(--sky-deep)';
+        } catch (err) {
+          jsonItems = [];
+          statusEl.textContent = 'JSON 파싱 실패: ' + err.message;
+          statusEl.style.color = '#ef4444';
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    // 파일명 끝의 숫자를 char_number 후보로 추출 (자릿수는 파일명에 있는 그대로 사용 — 예: tails_0028.png -> "0028", water_002.png -> "002")
+    function extractCharNumberFromFilename(filename) {
+      const base = filename.replace(/\.[^.]+$/, '');
+      const m = base.match(/(\d+)$/);
+      if (!m) return null;
+      return m[1];
+    }
+
+    function onJsonImagesSelected(input) {
+      const files = [...input.files];
+      jsonImageFiles = {};
+      let matched = 0;
+      files.forEach(f => {
+        if (!ALLOWED_IMAGE_TYPES.includes(f.type)) return;
+        const num = extractCharNumberFromFilename(f.name);
+        if (num) { jsonImageFiles[num] = f; matched++; }
+      });
+      document.getElementById('jsonImageStatus').textContent =
+        `${files.length}개 파일 선택됨 (개체번호 매칭 가능 ${matched}개) — JSON에 없는 char_number 파일은 사용되지 않아요.`;
+    }
+
+    async function buildJsonPreview() {
+      const errorEl = document.getElementById('jsonError');
+      errorEl.textContent = '';
+      if (!jsonItems.length) { errorEl.textContent = 'JSON 파일을 먼저 선택해주세요.'; return; }
+      if (!speciesName) { errorEl.textContent = 'URL에 species 파라미터가 없어요. 종족 상세페이지의 "일괄 등록" 진입 경로로 접속해주세요.'; return; }
+
+      const mismatched = jsonItems.filter(it => it.species_name !== speciesName);
+      if (mismatched.length) {
+        errorEl.textContent = `JSON의 species_name이 현재 페이지 종족("${speciesName}")과 다른 항목이 있어요: ${mismatched.map(m => m.char_number).join(', ')}`;
+        return;
+      }
+
+      const charNumbers = jsonItems.map(it => it.char_number);
+      const { data: existingRows, error: dupErr } = await sb.from('characters')
+        .select('char_number')
+        .eq('species_name', speciesName)
+        .in('char_number', charNumbers);
+      if (dupErr) { errorEl.textContent = `중복 확인 실패: ${dupErr.message}`; return; }
+      jsonExisting = new Set((existingRows || []).map(r => r.char_number));
+
+      document.getElementById('jsonPreviewWrap').style.display = '';
+      renderJsonPreviewTable();
+
+      const testSelect = document.getElementById('jsonTestSelect');
+      testSelect.innerHTML = jsonItems
+        .slice()
+        .sort((a, b) => a.char_number.localeCompare(b.char_number))
+        .map(it => `<option value="${it.char_number}">${it.char_number} — ${it.name}</option>`)
+        .join('');
+    }
+
+    function renderJsonPreviewTable() {
+      const body = document.getElementById('jsonPreviewBody');
+      body.innerHTML = jsonItems.map(it => {
+        const file = jsonImageFiles[it.char_number];
+        const imgStatus = file ? `✅ ${file.name}` : '❌ 매칭 안됨';
+        const dbStatus = jsonExisting.has(it.char_number)
+          ? '<span style="color:#ef4444;">이미 등록됨(건너뜀)</span>'
+          : (jsonTestedOk.has(it.char_number) ? '<span style="color:var(--sky-deep);">테스트 등록됨</span>' : '신규');
+        const cfv = it.custom_field_values || {};
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">${it.char_number}</td>
+          <td style="padding:8px;">${it.name}</td>
+          <td style="padding:8px;">${it.owner_nickname}${it.owner_is_offsite ? ' <span style="color:var(--text-mute);">(사이트 밖)</span>' : ''}</td>
+          <td style="padding:8px;">${cfv['주식'] ?? ''}</td>
+          <td style="padding:8px;">${cfv['분류'] ?? ''}</td>
+          <td style="padding:8px;">${imgStatus}</td>
+          <td style="padding:8px;">${dbStatus}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // 단일 개체 등록 — 개별 등록/일반 일괄 등록과 동일한 compressImage/applyWatermark/autoCenterCropToBlob
+    // + Storage 업로드 파이프라인을 그대로 재사용한다. JSON에 있는 값만 그대로 저장하고 임의 가공하지 않는다.
+    async function registerJsonItem(item, file) {
+      const wmSrc = speciesWatermarkUrl || '../images/watermark.png';
+      const rnd   = Math.random().toString(36).slice(2);
+      const isGif = file.type === 'image/gif';
+      const ext   = isGif ? 'gif' : 'jpg';
+      const blob  = await compressImage(file);
+
+      const origName = `${Date.now()}_${rnd}_orig.${ext}`;
+      const { error: origErr } = await sb.storage.from('images').upload(origName, blob, {
+        contentType: isGif ? 'image/gif' : 'image/jpeg',
+      });
+      if (origErr) throw new Error(`원본 업로드 실패: ${origErr.message}`);
+      const original_image_url = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
+
+      let image_url, watermark_type = null;
+      if (isGif) {
+        image_url = original_image_url;
+      } else {
+        const wmBlob   = await applyWatermark(blob, wmSrc);
+        const mainName = `${Date.now()}_${rnd}.jpg`;
+        const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: 'image/jpeg' });
+        if (mainErr) throw new Error(`메인 이미지 업로드 실패: ${mainErr.message}`);
+        image_url = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
+        watermark_type = speciesWatermarkUrl ? 'personal' : 'lab_black';
+      }
+
+      const thumbBlob = await autoCenterCropToBlob(file, 3 / 4, 600, 0.85);
+      const thumbName = `${Date.now()}_${rnd}_thumb.jpg`;
+      const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
+      if (thumbErr) throw new Error(`썸네일 업로드 실패: ${thumbErr.message}`);
+      const thumbnail_url = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
+
+      const { data: inserted, error: insertErr } = await sb.from('characters').insert({
+        name:                 item.name,
+        species_name:         speciesName,
+        char_number:          item.char_number,
+        owner_nickname:       item.owner_nickname,
+        owner_user_id:        item.owner_user_id ?? null,
+        owner_is_offsite:     !!item.owner_is_offsite,
+        owner_contact:        item.owner_contact || null,
+        designer_nickname:    item.designer_nickname,
+        designer_user_ids:    item.designer_user_ids || [],
+        designer_contact:     item.designer_contact || null,
+        description:          item.description || null,
+        custom_field_values:  item.custom_field_values || null,
+        image_url, thumbnail_url, original_image_url,
+        ...(watermark_type ? { watermark_type } : {}),
+      }).select('id').single();
+      if (insertErr) throw new Error(`DB 저장 실패: ${insertErr.message}`);
+
+      return inserted.id;
+    }
+
+    async function runJsonTest() {
+      const errorEl  = document.getElementById('jsonError');
+      const resultEl = document.getElementById('jsonTestResult');
+      const btn      = document.getElementById('jsonTestBtn');
+      errorEl.textContent  = '';
+      resultEl.textContent = '';
+
+      const charNumber = document.getElementById('jsonTestSelect').value;
+      const item = jsonItems.find(it => it.char_number === charNumber);
+      if (!item) { errorEl.textContent = '테스트 대상을 찾을 수 없어요.'; return; }
+
+      // 미리보기 이후 다른 곳에서 등록됐을 가능성까지 대비해 실행 직전 재확인
+      const { data: dup } = await sb.from('characters').select('id')
+        .eq('species_name', speciesName).eq('char_number', charNumber).maybeSingle();
+      if (dup) {
+        errorEl.textContent = `개체번호 ${charNumber}은(는) 이미 등록돼 있어요. 다른 항목을 선택해주세요.`;
+        jsonExisting.add(charNumber);
+        renderJsonPreviewTable();
+        return;
+      }
+
+      const file = jsonImageFiles[charNumber];
+      if (!file) { errorEl.textContent = `개체번호 ${charNumber}에 매칭된 이미지 파일이 없어요.`; return; }
+
+      btn.disabled = true;
+      btn.textContent = '등록 중...';
+      try {
+        const newId = await registerJsonItem(item, file);
+        jsonTestedOk.add(charNumber);
+        jsonExisting.add(charNumber); // 전체 등록 시 방금 테스트 등록한 항목을 다시 등록하지 않도록 반영
+        renderJsonPreviewTable();
+        resultEl.innerHTML = `✅ 테스트 등록 완료 — <a href="character.html?id=${newId}" target="_blank" style="color:var(--sky-deep);">등록된 개체 확인하기</a>`;
+        document.getElementById('jsonBatchBtn').disabled = false;
+        document.getElementById('jsonBatchHint').textContent = '테스트 결과를 실제 사이트에서 확인한 뒤 전체 등록을 실행하세요.';
+      } catch (err) {
+        errorEl.textContent = err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '테스트 등록 (1건만)';
+      }
+    }
+
+    async function runJsonFullBatch() {
+      const errorEl = document.getElementById('jsonError');
+      errorEl.textContent = '';
+
+      const remaining = jsonItems.filter(it => !jsonExisting.has(it.char_number));
+      if (!remaining.length) { errorEl.textContent = '등록할 신규 항목이 없어요.'; return; }
+
+      const missingImage = remaining.filter(it => !jsonImageFiles[it.char_number]);
+      if (missingImage.length) {
+        errorEl.textContent = `이미지가 매칭되지 않은 항목이 있어요: ${missingImage.map(it => it.char_number).join(', ')}`;
+        return;
+      }
+
+      const ok = confirm(`${remaining.length}건을 등록합니다. (이미 등록된 항목은 자동으로 건너뜁니다) 계속할까요?`);
+      if (!ok) return;
+
+      const btn = document.getElementById('jsonBatchBtn');
+      btn.disabled = true;
+      btn.textContent = '등록 중...';
+      const progressWrap = document.getElementById('jsonProgressWrap');
+      const progressBar  = document.getElementById('jsonProgressBar');
+      const progressText = document.getElementById('jsonProgressText');
+      progressWrap.style.display = '';
+
+      let done = 0;
+      const failed = [];
+      for (const item of remaining) {
+        progressText.textContent = `${done + 1} / ${remaining.length} 처리 중... (${item.char_number} ${item.name})`;
+        try {
+          await registerJsonItem(item, jsonImageFiles[item.char_number]);
+          jsonExisting.add(item.char_number);
+        } catch (err) {
+          console.warn(`[JSON일괄등록] 실패 (${item.char_number}):`, err.message);
+          failed.push(`${item.char_number} ${item.name}: ${err.message}`);
+        }
+        done++;
+        progressBar.style.width = `${(done / remaining.length) * 100}%`;
+      }
+
+      renderJsonPreviewTable();
+      btn.textContent = '나머지 전체 등록';
+      btn.disabled = failed.length === 0; // 전부 성공하면 더 등록할 게 없으니 비활성화, 일부 실패 시 재시도 가능하게 유지
+
+      if (failed.length) {
+        errorEl.textContent = `일부 실패:\n${failed.join('\n')}`;
+        progressText.textContent = `완료 (${done - failed.length}/${done}건 성공)`;
+      } else {
+        progressText.textContent = `완료! ${done}건 등록됐어요.`;
+      }
+    }
+    // ────────────────────────────────────────
+
+    initPage();
+  </script>
+</body>
+</html>
+

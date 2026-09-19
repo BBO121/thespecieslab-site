@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>버그 신고 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom: 24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="bug-report.html">버그리포트</a>
+          <span>/</span>
+          <span>작성</span>
+        </div>
+
+        <h1 class="register-title">버그 신고하기</h1>
+        <p style="font-size:13px; color:var(--text-mute); margin-bottom:8px;">작성한 버그리포트는 나와 관리자에게만 보여요.</p>
+
+        <form class="register-form" id="bugForm">
+
+          <div class="form-group">
+            <label class="form-label">제목 <span class="required">*</span></label>
+            <input type="text" id="bugTitle" class="form-input" placeholder="버그 제목을 간략히 입력하세요">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">버그 설명 <span class="required">*</span></label>
+            <textarea id="bugContent" class="form-textarea" rows="8" placeholder="어떤 버그가 발생했는지 자세히 설명해주세요"></textarea>
+          </div>
+
+<p class="auth-error" id="formError"></p>
+
+          <div class="register-actions">
+            <a href="bug-report.html" class="btn-ghost">취소</a>
+            <button type="submit" class="btn-secondary" id="submitBtn">신고하기</button>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    async function initPage() {
+      const user = await getUser();
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+    }
+
+    document.getElementById('bugForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const title   = document.getElementById('bugTitle').value.trim();
+      const content = document.getElementById('bugContent').value.trim();
+const errorEl = document.getElementById('formError');
+      const btn     = document.getElementById('submitBtn');
+
+      errorEl.textContent = '';
+
+      if (!title)   { errorEl.textContent = '제목을 입력해주세요.'; return; }
+      if (!content) { errorEl.textContent = '버그 설명을 입력해주세요.'; return; }
+
+      btn.textContent = '제출 중...';
+      btn.disabled = true;
+
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      const nickname = user.user_metadata?.display_name || user.user_metadata?.nickname;
+
+      const { error } = await sb.from('bug_reports').insert({
+        title,
+        content,
+        nickname,
+        user_id: user.id,
+        status: '접수됨',
+      });
+
+      if (error) {
+        console.error('[bug_report insert error]', error);
+        errorEl.textContent = `제출에 실패했어요. (${error.message})`;
+        btn.textContent = '신고하기';
+        btn.disabled = false;
+        return;
+      }
+
+      await window.awardAchievement?.('first_bug_report', { pending: true });
+      if (!window.incrementAchCounter) {
+        console.error('[업적] incrementAchCounter 함수가 없음 — achievements.js 로드 확인 필요');
+      }
+      const _bc = await window.incrementAchCounter?.('bug_report') || 0;
+      console.log('[업적] bug_report 카운터 결과:', _bc);
+      if (_bc >= 3)  await window.awardAchievement?.('bug_report_3', { pending: true });
+      if (_bc >= 10) await window.awardAchievement?.('bug_report_10', { pending: true });
+      window.location.href = 'bug-report.html';
+    });
+
+    initPage();
+  </script>
+</body>
+</html>
+

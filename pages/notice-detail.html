@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공지사항 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .notice-detail-content .ql-align-center  { text-align: center; }
+    .notice-detail-content .ql-align-right   { text-align: right; }
+    .notice-detail-content .ql-align-justify { text-align: justify; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <!-- 상단 네비 -->
+        <div class="notice-detail-nav">
+          <span id="navCount" class="notice-nav-count"></span>
+          <a href="notice.html?view=list" class="notice-nav-list-btn">목록보기</a>
+        </div>
+
+        <!-- 공지 본문 -->
+        <article class="notice-detail-article">
+
+          <div>
+            <div id="detailPin"></div>
+            <h1 id="detailTitle" class="notice-detail-title"></h1>
+            <div class="notice-detail-meta">
+              <span id="detailAuthor"></span>
+              <span class="notice-detail-sep">·</span>
+              <span id="detailDate"></span>
+            </div>
+          </div>
+
+          <div class="notice-detail-divider"></div>
+
+          <div id="detailContent" class="notice-detail-content"></div>
+
+        </article>
+
+        <!-- 하단 목록 버튼 -->
+        <div class="notice-detail-bottom">
+          <a href="notice.html?view=list" class="btn-ghost">← 목록으로</a>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js?v=20260919"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    async function initPage() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+
+      if (!id) {
+        window.location.href = 'notice.html';
+        return;
+      }
+
+      const [{ data, error }, { count }] = await Promise.all([
+        sb.from('notices').select('*').eq('id', id).single(),
+        sb.from('notices').select('*', { count: 'exact', head: true })
+      ]);
+
+      if (error || !data) {
+        window.location.href = 'notice.html';
+        return;
+      }
+
+      document.title = `${data.title} — 종족연구소`;
+
+      if (count) {
+        document.getElementById('navCount').textContent = `공지사항 총 ${count}개`;
+      }
+
+      if (data.is_pinned) {
+        document.getElementById('detailPin').innerHTML =
+          '<span class="notice-pin" style="display:inline-block; margin-bottom:10px;">고정</span>';
+      }
+
+      document.getElementById('detailTitle').textContent = data.title;
+      document.getElementById('detailAuthor').textContent = data.author || '관리자';
+
+      const date = new Date(data.created_at).toLocaleDateString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).replace(/\. /g, '.').replace(/\.$/, '');
+      document.getElementById('detailDate').textContent = date;
+
+      document.getElementById('detailContent').innerHTML = DOMPurify.sanitize(data.content, {
+        ADD_TAGS: ['img'],
+        ADD_ATTR: ['src', 'alt', 'style', 'class', 'width', 'height'],
+      });
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+      loadAdSense(); // 상세 본문이 렌더된 뒤에만 광고 로드
+
+      const _nc = await window.incrementAchCounter?.('notice_view') || 0;
+      if (_nc >= 1) await window.awardAchievement?.('first_notice');
+      if (_nc >= 5) await window.awardAchievement?.('notice_5');
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
+

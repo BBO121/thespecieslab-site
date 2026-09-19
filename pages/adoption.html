@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>분양란 — 종족연구소</title>
+  <meta name="description" content="종족연구소에서 진행 중인 개체 분양과 분양 기록을 확인할 수 있습니다.">
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .filter-wrap  { margin-bottom: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .filter-group { display: flex; flex-direction: column; gap: 7px; }
+    .filter-label { font-size: 12px; font-weight: 600; color: var(--text-mute); }
+    .filter-row   { display: flex; flex-wrap: wrap; gap: 6px; }
+    .filter-btn {
+      padding: 7px 14px; border: 1.5px solid var(--border); border-radius: 9px;
+      background: #fff; font-size: 13px; font-weight: 600; color: var(--text-sub);
+      cursor: pointer; font-family: inherit; white-space: nowrap; line-height: 1.4;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .filter-btn:hover  { border-color: var(--sky-dark); color: var(--sky-dark); }
+    .filter-btn.active { background: var(--sky-dark); border-color: var(--sky-dark); color: #fff; font-weight: 700; }
+    .search-input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; outline: none; background: #fff;
+      box-sizing: border-box; font-family: inherit;
+    }
+    .search-input:focus { border-color: var(--sky-dark); }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+
+      <div style="padding-top: 24px; margin-bottom: 20px;">
+        <h1 class="list-page-title">분양</h1>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+          <p class="list-page-count" id="adoptionCount" style="margin-top:0;"></p>
+          <a href="adoption-write.html" class="btn-secondary" id="writeBtn" style="display:none;">글 작성</a>
+        </div>
+      </div>
+
+      <!-- 필터 -->
+      <div class="filter-wrap">
+        <div class="filter-group">
+          <span class="filter-label">상태</span>
+          <div class="filter-row" id="statusFilterRow">
+            <button class="filter-btn active" data-status="open">분양중</button>
+            <button class="filter-btn" data-status="closed">분양완료</button>
+            <button class="filter-btn" data-status="all">전체</button>
+          </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">유형</span>
+          <div class="filter-row" id="typeFilterRow">
+            <button class="filter-btn active" data-type="all">전체</button>
+            <button class="filter-btn" data-type="currency">재화거래</button>
+            <button class="filter-btn" data-type="paid">유료</button>
+            <button class="filter-btn" data-type="free">무료</button>
+            <button class="filter-btn" data-type="auction">경매</button>
+            <button class="filter-btn" data-type="etc">기타</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 검색 -->
+      <div style="margin-bottom:20px;">
+        <input type="text" id="adoptionSearch" class="search-input"
+          placeholder="개체명, 종족명, 작성자로 검색...">
+      </div>
+
+      <div id="adoptionEventBox" class="event-adoption-box" style="display:none;">
+        <p class="event-adoption-label">이벤트 분양</p>
+        <div id="adoptionEventGrid" class="adoption-grid"></div>
+      </div>
+      <div id="adoptionGrid" class="adoption-grid"></div>
+      <div id="paginationWrap"></div>
+
+      <div id="emptyState" class="empty-state-wrap" style="display:none;">
+        <div class="empty-state-icon">🐾</div>
+        <p class="empty-state-title" id="emptyStateMsg">등록된 분양 글이 없어요</p>
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js?v=20260919"></script>
+  <script src="../js/main.js?v=20260617"></script>
+  <script>
+    const TYPE_LABEL = { free: '무료', paid: '유료', currency: '재화거래', auction: '경매', etc: '기타' };
+    const TYPE_CLASS  = { free: 'adoption-type--free', paid: 'adoption-type--paid', currency: 'adoption-type--currency', auction: 'adoption-type--auction', etc: 'adoption-type--paid' };
+    const OPEN_STATUSES = ['분양중', '확인 대기중', '즉분 대기중'];
+
+    let rawData     = [];
+    let activeStatus = 'open';
+    let activeType   = 'all';
+    let searchQuery  = '';
+
+    // ── 필터 적용 ──────────────────────────────────
+    let _firstLoad = true;
+    function applyFilters() {
+      const q = searchQuery.toLowerCase();
+
+      const matchesFilter = a => {
+        const status = a.status || '분양중';
+
+        if (activeStatus === 'open'   && !OPEN_STATUSES.includes(status)) return false;
+        if (activeStatus === 'closed' && status !== '완료')               return false;
+        if (activeType   !== 'all'    && a.adoption_type !== activeType)  return false;
+
+        if (q) {
+          const inName    = (a.character_name || '').toLowerCase().includes(q);
+          const inSpecies = (a.species_name   || '').toLowerCase().includes(q);
+          const inAuthor  = (a.author         || '').toLowerCase().includes(q);
+          if (!inName && !inSpecies && !inAuthor) return false;
+        }
+
+        return true;
+      };
+
+      const matched = rawData.filter(matchesFilter);
+      // 이벤트 경매는 항상 최상단 별도 영역에만 표시 — 일반 목록(pager)에는 절대 포함하지 않는다.
+      const eventMatched  = matched.filter(a => a.is_featured_event);
+      const filtered      = matched.filter(a => !a.is_featured_event);
+
+      renderEventItems(eventMatched);
+
+      const emptyEl  = document.getElementById('emptyState');
+      const emptyMsg = document.getElementById('emptyStateMsg');
+      const hasFilter = activeStatus !== 'all' || activeType !== 'all' || q;
+
+      if (matched.length === 0) {
+        emptyMsg.textContent = hasFilter ? '조건에 맞는 분양 글이 없어요' : '등록된 분양 글이 없어요';
+        emptyEl.style.display = 'flex';
+      } else {
+        emptyEl.style.display = 'none';
+      }
+
+      document.getElementById('adoptionCount').textContent = `총 ${matched.length}개`;
+
+      if (_firstLoad) {
+        _firstLoad = false;
+        pager.init(filtered);
+      } else {
+        // 필터 변경 시 URL에 상태 반영 (뒤로가기 복원용)
+        const url = new URL(location.href);
+        if (activeStatus !== 'open') url.searchParams.set('status', activeStatus);
+        else url.searchParams.delete('status');
+        if (activeType !== 'all') url.searchParams.set('type', activeType);
+        else url.searchParams.delete('type');
+        if (searchQuery) url.searchParams.set('q', searchQuery);
+        else url.searchParams.delete('q');
+        url.searchParams.delete('page');
+        history.replaceState(null, '', url);
+        pager.load(filtered);
+      }
+    }
+
+    // ── 카드 렌더링 ────────────────────────────────
+    function revealSensitive(overlayEl, e) {
+      e.stopPropagation(); e.preventDefault();
+      const wrap = overlayEl.parentElement;
+      wrap.querySelectorAll('.blurred').forEach(el => el.classList.remove('blurred'));
+      overlayEl.remove();
+    }
+
+    function buildSensitiveOverlay(note) {
+      return `<div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${note ? '<span class="sensitive-overlay-note">' + note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>`;
+    }
+
+    function buildAdoptionCard(a) {
+      const isSensitive   = a.characters?.is_sensitive === true;
+      const sensitiveNote = a.characters?.sensitive_note || null;
+      const typeLabel = TYPE_LABEL[a.adoption_type] || '';
+      const typeClass = TYPE_CLASS[a.adoption_type] || '';
+      const closed    = a.status === '완료';
+
+      // 카드 썸네일: thumbnail_url 우선, 없으면 image_url fallback
+      const cardThumb = a.thumbnail_url || a.image_url;
+      const stamp = closed ? `<img src="../images/adoption-complete.png" class="adoption-stamp" alt="분양완료">` : '';
+      let cardImgHtml;
+      if (isSensitive && cardThumb) {
+        cardImgHtml = `<div class="adoption-card-img"><div style="position:absolute;inset:0;background-image:url('${cardThumb}');background-size:cover;background-position:center;" class="blurred"></div>${buildSensitiveOverlay(sensitiveNote)}</div>`;
+      } else {
+        const imgStyle = cardThumb ? `background-image:url('${cardThumb}');background-size:cover;background-position:center;` : '';
+        cardImgHtml = `<div class="adoption-card-img" style="${imgStyle}"></div>`;
+      }
+
+      return `
+        <a class="adoption-card${closed ? ' adoption-card--closed' : ''}" href="adoption-detail.html?id=${a.id}">
+          ${cardImgHtml}
+          ${stamp}
+          <div class="adoption-card-info">
+            <div class="adoption-card-badges">
+              <span class="adoption-type-badge ${typeClass}">${typeLabel}</span>
+              <span class="adoption-status ${closed ? 'adoption-status--closed' : ''}">${a.status || '분양중'}</span>
+            </div>
+            <p class="adoption-card-charname">${a.character_name || '—'}</p>
+            <p class="adoption-card-species">${a.species_name || '—'}</p>
+          </div>
+        </a>
+      `;
+    }
+
+    function renderItems(list) {
+      document.getElementById('adoptionGrid').innerHTML = list.map(buildAdoptionCard).join('');
+    }
+
+    // 이벤트 분양 — 카드 개별 강조가 아니라 이 영역(box) 전체가 이벤트 구역임을 표시.
+    // 이벤트가 하나도 없으면 박스 자체를 렌더링하지 않는다(빈 박스 노출 금지).
+    function renderEventItems(list) {
+      const box  = document.getElementById('adoptionEventBox');
+      const grid = document.getElementById('adoptionEventGrid');
+      if (!list.length) { box.style.display = 'none'; grid.innerHTML = ''; return; }
+      box.style.display = 'block';
+      grid.innerHTML = list.map(buildAdoptionCard).join('');
+    }
+
+    const pager = createPager(renderItems);
+
+    // ── 이벤트 ─────────────────────────────────────
+    document.getElementById('statusFilterRow').addEventListener('click', e => {
+      const btn = e.target.closest('[data-status]');
+      if (!btn) return;
+      document.querySelectorAll('#statusFilterRow .filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStatus = btn.dataset.status;
+      applyFilters();
+    });
+
+    document.getElementById('typeFilterRow').addEventListener('click', e => {
+      const btn = e.target.closest('[data-type]');
+      if (!btn) return;
+      document.querySelectorAll('#typeFilterRow .filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeType = btn.dataset.type;
+      applyFilters();
+    });
+
+    document.getElementById('adoptionSearch').addEventListener('input', e => {
+      searchQuery = e.target.value.trim();
+      applyFilters();
+    });
+
+    // ── 초기화 ─────────────────────────────────────
+    async function initPage() {
+      const user = await getUser();
+      if (user) document.getElementById('writeBtn').style.display = 'inline-flex';
+
+      const { data, error } = await sb
+        .from('adoptions')
+        .select('*, characters(is_sensitive, sensitive_note)')
+        .order('created_at', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        document.getElementById('emptyState').style.display = 'flex';
+        return;
+      }
+
+      // URL에서 이전 상태 복원
+      const _p = new URLSearchParams(location.search);
+      const _status = _p.get('status');
+      const _type   = _p.get('type');
+      const _q      = _p.get('q');
+      if (_status) {
+        activeStatus = _status;
+        document.querySelectorAll('#statusFilterRow .filter-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.status === _status));
+      }
+      if (_type) {
+        activeType = _type;
+        document.querySelectorAll('#typeFilterRow .filter-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.type === _type));
+      }
+      if (_q) {
+        searchQuery = _q;
+        document.getElementById('adoptionSearch').value = _q;
+      }
+
+      rawData = data;
+      applyFilters();
+      loadAdSense(); // 분양 글이 1개 이상 있을 때만 광고 로드
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

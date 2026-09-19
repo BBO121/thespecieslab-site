@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>내 지갑 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span>내 지갑</span>
+            </div>
+            <h1 class="list-page-title">내 지갑</h1>
+          </div>
+        </div>
+
+        <!-- 섹션 1: 내 재화 -->
+        <div class="section" style="padding-top:24px; padding-bottom:20px;">
+          <div class="section-header" style="margin-bottom:14px;">
+            <h2 class="wallet-section-title">내 재화</h2>
+          </div>
+          <div class="wallet-currency-row">
+            <div class="wallet-currency-item">
+              <img src="../images/icons/currency-record.png" class="wallet-currency-icon" alt="연구기록">
+              <span class="wallet-currency-name">연구기록</span>
+              <span class="wallet-currency-amount" id="researchAmount">—</span>
+            </div>
+            <div class="wallet-currency-divider"></div>
+            <div class="wallet-currency-item">
+              <img src="../images/icons/currency-key.png" class="wallet-currency-icon" alt="열쇠">
+              <span class="wallet-currency-name">열쇠</span>
+              <span class="wallet-currency-amount wallet-currency-amount--muted" id="keysAmount">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 섹션 2: 재화 전송 -->
+        <div class="section" style="padding-top:20px; padding-bottom:20px;">
+          <div class="section-header" style="margin-bottom:12px;">
+            <h2 class="wallet-section-title">재화 전송</h2>
+          </div>
+          <div class="wallet-transfer-card">
+
+            <!-- 받는 사람 (검색 드롭다운) -->
+            <div class="wallet-tf-row wallet-tf-recipient-wrap">
+              <label class="wallet-tf-label">받는 사람</label>
+              <input type="text" class="wallet-tf-input" id="sendToInput"
+                placeholder="닉네임 검색..."
+                autocomplete="off"
+                oninput="filterRecipients(this.value)"
+                onfocus="if(this.value.trim()) filterRecipients(this.value)"
+                onblur="setTimeout(hideRecipientList, 150)">
+              <div id="recipientList" class="wallet-recipient-list" style="display:none;"></div>
+            </div>
+
+            <!-- 재화 선택 -->
+            <div class="wallet-tf-row">
+              <label class="wallet-tf-label">재화</label>
+              <div class="wallet-tf-currency-select">
+                <button class="wallet-tf-currency-btn active" data-currency="research_records" onclick="selectCurrency(this)">연구기록</button>
+                <button class="wallet-tf-currency-btn" data-currency="keys" onclick="selectCurrency(this)">열쇠</button>
+              </div>
+            </div>
+
+            <!-- 전송량 -->
+            <div class="wallet-tf-row">
+              <label class="wallet-tf-label">전송량</label>
+              <input type="number" class="wallet-tf-input" id="sendAmountInput" placeholder="0" min="1">
+              <span class="wallet-tf-balance" id="balanceHint"></span>
+            </div>
+
+            <!-- 메모 -->
+            <div class="wallet-tf-row wallet-tf-row--last">
+              <label class="wallet-tf-label">메모</label>
+              <input type="text" class="wallet-tf-input" id="sendNoteInput"
+                placeholder="선택 · 최대 100자" maxlength="100">
+            </div>
+
+            <!-- 에러 + 전송 버튼 -->
+            <div class="wallet-tf-footer">
+              <p id="sendError" class="wallet-tf-error" style="display:none;"></p>
+              <button class="wallet-tf-btn" onclick="openSendModal()">전송</button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 섹션 3: 거래 내역 -->
+        <div class="section" style="padding-top:20px;">
+          <div class="section-header">
+            <h2 class="wallet-section-title">거래 내역</h2>
+            <span id="logCount" style="font-size:12px; color:var(--text-mute);"></span>
+          </div>
+
+          <div class="transfer-filter-wrap">
+            <button class="transfer-filter-btn active" onclick="filterLogs(this,'all')">전체</button>
+            <button class="transfer-filter-btn" onclick="filterLogs(this,'receive')">받음</button>
+            <button class="transfer-filter-btn" onclick="filterLogs(this,'send')">보냄</button>
+          </div>
+
+          <div id="logTableWrap"></div>
+          <div id="paginationWrap"></div>
+          <p id="logEmpty" class="empty-state" style="display:none; padding:40px 0; text-align:center;">거래 내역이 없어요.</p>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <!-- 전송 확인 모달 -->
+  <div class="modal-overlay" id="sendModal" style="display:none;" onclick="if(event.target===this)closeSendModal()">
+    <div class="modal-card">
+      <p class="modal-title">재화 전송 확인</p>
+      <div class="wallet-confirm-table" id="modalDesc"></div>
+      <p class="wallet-confirm-warning">전송 후에는 되돌릴 수 없습니다.</p>
+      <div class="modal-actions">
+        <button class="btn-ghost wallet-confirm-cancel" onclick="closeSendModal()">취소</button>
+        <button class="btn-submit wallet-confirm-submit" id="modalConfirmBtn" onclick="doTransfer()">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/search.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const TYPE_LABEL = {
+      signup_bonus:         '가입보너스',
+      attendance_reward:    '일일 출석',
+      transfer_receive:     '받음',
+      transfer_send:        '보냄',
+      admin_grant:          '지급',
+      admin_deduct:         '차감',
+      shop_purchase:        '상점구매',
+      achievement_reward:   '업적보상',
+      achievement_backfill: '업적보상(필백)',
+      labber_exchange:      '수상한 연구실 교환',
+      email_verification_reward: '이메일 인증 보상',  // Stage 4 — 실제 이메일 인증 완료 보상
+    };
+    const TYPE_CLASS = {
+      signup_bonus:         'wallet-log-type--receive',
+      attendance_reward:    'wallet-log-type--receive',
+      transfer_receive:     'wallet-log-type--receive',
+      admin_grant:          'wallet-log-type--admin',
+      transfer_send:        'wallet-log-type--send',
+      admin_deduct:         'wallet-log-type--send',
+      shop_purchase:        'wallet-log-type--send',
+      achievement_reward:   'wallet-log-type--receive',
+      achievement_backfill: 'wallet-log-type--admin',
+      labber_exchange:      'wallet-log-type--labber',
+      email_verification_reward: 'wallet-log-type--receive',  // Stage 4 — 실제 이메일 인증 완료 보상
+    };
+    const RECEIVE_TYPES = new Set(['signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant', 'achievement_reward', 'achievement_backfill', 'email_verification_reward']);
+
+    // labber_exchange는 열쇠(차감)/연구기록(지급) 두 방향을 같은 type으로 공유하므로
+    // type만으로는 +/- 판정이 안 된다 — 이 타입만 currency로 방향을 추가 판정한다.
+    function isReceiveLog(log) {
+      if (log.type === 'labber_exchange') return log.currency === 'research_records';
+      return RECEIVE_TYPES.has(log.type);
+    }
+
+    let myBalance         = 0;
+    let myKeys            = 0;
+    let selectedCurrency  = 'research_records';
+    let allLogs           = [];
+    let selectedRecipient = null;
+    let _filteredUsers    = [];
+    let _myId             = null;
+    const pager           = createPager(renderLogs);
+
+    function fmt(n) { return Number(n ?? 0).toLocaleString(); }
+    function fmtDate(s) {
+      const d = new Date(s);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    function fmtDateMobile(s) {
+      const d   = new Date(s);
+      const now = new Date();
+      const hhmm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      if (d.toDateString() === now.toDateString()) return hhmm;
+      return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${hhmm}`;
+    }
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user) { window.location.href = 'login.html'; return; }
+
+      _myId = user.id;
+
+      const [{ data: wallet }, { data: logs }] = await Promise.all([
+        getMyWallet(user.id),
+        getMyCurrencyLogs(user.id),
+      ]);
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+
+      // 잔액
+      myBalance = wallet?.research_records ?? 0;
+      myKeys    = wallet?.keys ?? 0;
+      document.getElementById('researchAmount').textContent = fmt(myBalance);
+      document.getElementById('keysAmount').textContent     = fmt(myKeys);
+      updateBalanceHint();
+
+      // 거래 내역
+      allLogs = logs ?? [];
+      document.getElementById('logCount').textContent = `총 ${allLogs.length}건`;
+      if (allLogs.length === 0) {
+        document.getElementById('logEmpty').style.display = 'block';
+      } else {
+        pager.load(allLogs);
+      }
+    }
+
+    /* ── 재화 선택 ── */
+    function selectCurrency(btn) {
+      document.querySelectorAll('.wallet-tf-currency-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedCurrency = btn.dataset.currency;
+      updateBalanceHint();
+    }
+
+    function updateBalanceHint() {
+      const el = document.getElementById('balanceHint');
+      if (!el) return;
+      if (selectedCurrency === 'research_records') {
+        el.textContent = `보유 ${fmt(myBalance)}`;
+      } else {
+        el.textContent = `보유 ${fmt(myKeys)}`;
+      }
+    }
+
+    /* ── 유저 검색 드롭다운 ── */
+    const filterRecipientsDebounced = debounce(async (q) => {
+      const el = document.getElementById('recipientList');
+      const { data } = await searchUsers(q, { limit: 8 });
+      _filteredUsers = (data || []).filter(u => u.id !== _myId);
+
+      if (!_filteredUsers.length) {
+        el.innerHTML = '<div class="wallet-recipient-empty">검색 결과가 없어요</div>';
+        el.style.display = 'block';
+        return;
+      }
+
+      el.innerHTML = _filteredUsers.map((u, i) =>
+        `<div class="wallet-recipient-item" onclick="selectRecipient(${i})">${u.nickname}</div>`
+      ).join('');
+      el.style.display = 'block';
+    }, 250);
+
+    function filterRecipients(q) {
+      const el = document.getElementById('recipientList');
+      selectedRecipient = null;
+      if (!q.trim()) { el.style.display = 'none'; return; }
+      filterRecipientsDebounced(q);
+    }
+
+    function selectRecipient(i) {
+      const u = _filteredUsers[i];
+      if (!u) return;
+      selectedRecipient = u;
+      document.getElementById('sendToInput').value = u.nickname;
+      document.getElementById('recipientList').style.display = 'none';
+    }
+
+    function hideRecipientList() {
+      document.getElementById('recipientList').style.display = 'none';
+    }
+
+    /* ── 거래 내역 렌더 ── */
+    function renderLogs(slice) {
+      const wrap = document.getElementById('logTableWrap');
+      if (!slice.length) { wrap.innerHTML = ''; return; }
+
+      const CURRENCY_LABEL = { research_records: '연구기록', keys: '열쇠' };
+
+      const rows = slice.map(log => {
+        const isPlus      = isReceiveLog(log);
+        const curLabel    = CURRENCY_LABEL[log.currency] ?? log.currency;
+        const iconFile    = log.currency === 'keys' ? 'currency-key' : 'currency-record';
+        const curIconHtml = `<img src="../images/icons/${iconFile}.png" class="wlog-currency-icon-sm" alt="${curLabel}" title="${curLabel}">`;
+        const amtHtml     = isPlus
+          ? `<span class="wallet-log-amount--plus">+${fmt(log.amount)}</span>`
+          : `<span class="wallet-log-amount--minus">-${fmt(log.amount)}</span>`;
+        const typeLabel   = TYPE_LABEL[log.type] ?? log.type;
+        const typeClass   = TYPE_CLASS[log.type] ?? '';
+        const nick = log.counterpart_nickname;
+        const counterpart = (nick && log.counterpart_user_id)
+          ? `<a href="profile.html?user=${log.counterpart_user_id}" style="color:inherit;">${nick}</a>`
+          : (nick || '—');
+
+        // 모바일: 우측 텍스트 (상대방 · 시간)
+        const mobileRight = nick
+          ? `${nick} · ${fmtDateMobile(log.created_at)}`
+          : fmtDateMobile(log.created_at);
+        // 모바일: 메모 줄 (있을 때만)
+        const mobileNote = log.note
+          ? `<div class="wlog-note-mobile"><span class="wlog-note-label">메모</span><span class="wlog-note-text">${log.note}</span></div>` : '';
+
+        return `
+          <div class="transfer-table-row">
+            <div class="transfer-table-cell wlog-date">${fmtDate(log.created_at)}</div>
+            <div class="transfer-table-cell wlog-type">
+              <span class="wallet-log-type-badge ${typeClass}">${typeLabel}</span>
+            </div>
+            <div class="transfer-table-cell wlog-amount">${amtHtml}${curIconHtml}</div>
+            <div class="transfer-table-cell wlog-balance" style="color:var(--text-sub);">${fmt(log.balance_after)}</div>
+            <div class="transfer-table-cell wlog-counterpart">${counterpart}</div>
+            <div class="transfer-table-cell wlog-note" style="color:var(--text-mute);">${log.note ?? '—'}</div>
+            <div class="wlog-mobile-line1">
+              <div class="wlog-mobile-left">
+                <span class="wallet-log-type-badge ${typeClass} wlog-badge-mobile">${typeLabel}</span>
+                ${amtHtml}
+                <span class="wlog-currency-label">${curIconHtml}</span>
+              </div>
+              <div class="wlog-mobile-right">${mobileRight}</div>
+            </div>
+            ${mobileNote}
+          </div>`;
+      }).join('');
+
+      wrap.innerHTML = `
+        <div class="transfer-table wallet-log-table">
+          <div class="transfer-table-head">
+            <div class="transfer-table-cell">일시</div>
+            <div class="transfer-table-cell">구분</div>
+            <div class="transfer-table-cell">변동</div>
+            <div class="transfer-table-cell">잔액</div>
+            <div class="transfer-table-cell">상대방</div>
+            <div class="transfer-table-cell">메모</div>
+          </div>
+          ${rows}
+        </div>`;
+    }
+
+    function filterLogs(btn, filter) {
+      document.querySelectorAll('.transfer-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      let filtered = allLogs;
+      if (filter === 'receive') filtered = allLogs.filter(isReceiveLog);
+      if (filter === 'send')    filtered = allLogs.filter(l => !isReceiveLog(l));
+
+      const empty = document.getElementById('logEmpty');
+      if (filtered.length === 0) {
+        document.getElementById('logTableWrap').innerHTML = '';
+        document.getElementById('paginationWrap').innerHTML = '';
+        empty.style.display = 'block';
+      } else {
+        empty.style.display = 'none';
+        pager.load(filtered);
+      }
+    }
+
+    function showSendError(msg) {
+      const el = document.getElementById('sendError');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function hideSendError() {
+      document.getElementById('sendError').style.display = 'none';
+    }
+
+    function openSendModal() {
+      hideSendError();
+      const amount      = parseInt(document.getElementById('sendAmountInput').value, 10);
+      const note        = document.getElementById('sendNoteInput').value.trim();
+      const curBalance  = selectedCurrency === 'research_records' ? myBalance : myKeys;
+      const curLabel    = selectedCurrency === 'research_records' ? '연구기록' : '열쇠';
+
+      if (!selectedRecipient)    return showSendError('받는 사람을 선택해주세요.');
+      if (!amount || amount < 1) return showSendError('전송량은 1 이상이어야 합니다.');
+      if (amount > curBalance)   return showSendError('보유 잔액이 부족합니다.');
+
+      const noteRow = note
+        ? `<div class="wallet-confirm-row"><span class="wallet-confirm-label">메모</span><span class="wallet-confirm-value">${note}</span></div>`
+        : '';
+      document.getElementById('modalDesc').innerHTML = `
+        <div class="wallet-confirm-row">
+          <span class="wallet-confirm-label">받는 사람</span>
+          <span class="wallet-confirm-value">${selectedRecipient.nickname}</span>
+        </div>
+        <div class="wallet-confirm-row">
+          <span class="wallet-confirm-label">재화</span>
+          <span class="wallet-confirm-value">${curLabel}</span>
+        </div>
+        <div class="wallet-confirm-row">
+          <span class="wallet-confirm-label">전송량</span>
+          <span class="wallet-confirm-value wallet-confirm-amount">${fmt(amount)} <span class="wallet-confirm-unit">${curLabel}</span></span>
+        </div>
+        ${noteRow}
+      `;
+      document.getElementById('sendModal').style.display = 'flex';
+    }
+
+    function closeSendModal() {
+      document.getElementById('sendModal').style.display = 'none';
+    }
+
+    async function doTransfer() {
+      const amount = parseInt(document.getElementById('sendAmountInput').value, 10);
+      const note   = document.getElementById('sendNoteInput').value.trim() || null;
+
+      const btn = document.getElementById('modalConfirmBtn');
+      btn.disabled    = true;
+      btn.textContent = '처리 중...';
+      closeSendModal();
+
+      const { data, error } = await transferCurrency(selectedCurrency, selectedRecipient.nickname, amount, note);
+
+      btn.disabled    = false;
+      btn.textContent = '전송';
+
+      if (error || !data?.success) {
+        const errMap = {
+          NOT_AUTHENTICATED:    '로그인이 필요합니다.',
+          INVALID_CURRENCY:     '유효하지 않은 재화입니다.',
+          INVALID_AMOUNT:       '전송량은 1 이상이어야 합니다.',
+          USER_NOT_FOUND:       '존재하지 않는 유저입니다.',
+          SELF_TRANSFER:        '자기 자신에게는 전송할 수 없습니다.',
+          WALLET_NOT_FOUND:     '지갑 정보를 찾을 수 없습니다.',
+          INSUFFICIENT_BALANCE: '잔액이 부족합니다.',
+        };
+        return showSendError(errMap[data?.error] ?? '전송 중 오류가 발생했습니다.');
+      }
+
+      // 성공: 잔액 갱신 + 폼 초기화 + 내역 새로고침
+      if (selectedCurrency === 'research_records') {
+        myBalance = data.new_balance;
+        document.getElementById('researchAmount').textContent = fmt(myBalance);
+      } else {
+        myKeys = data.new_balance;
+        document.getElementById('keysAmount').textContent = fmt(myKeys);
+      }
+      updateBalanceHint();
+      document.getElementById('sendToInput').value     = '';
+      document.getElementById('sendAmountInput').value = '';
+      document.getElementById('sendNoteInput').value   = '';
+      selectedRecipient = null;
+
+      const user = await getUser();
+      const { data: logs } = await getMyCurrencyLogs(user.id);
+      allLogs = logs ?? [];
+      document.getElementById('logCount').textContent   = `총 ${allLogs.length}건`;
+      document.getElementById('logEmpty').style.display = allLogs.length ? 'none' : 'block';
+      if (allLogs.length) pager.load(allLogs);
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

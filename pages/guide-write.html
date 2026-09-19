@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>가이드 작성 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <style>
+    .quill-wrap .ql-toolbar {
+      border-radius: 9px 9px 0 0;
+      border: 1.5px solid var(--border);
+      border-bottom: none;
+      font-family: inherit;
+    }
+    .quill-wrap .ql-toolbar:focus-within,
+    .quill-wrap:focus-within .ql-toolbar { border-color: var(--sky); }
+    .quill-wrap .ql-container {
+      border-radius: 0 0 9px 9px;
+      border: 1.5px solid var(--border);
+      min-height: 240px;
+      font-size: 14px;
+      font-family: inherit;
+      line-height: 1.7;
+    }
+    .quill-wrap:focus-within .ql-container { border-color: var(--sky); }
+    .quill-wrap .ql-editor { min-height: 240px; }
+    .quill-wrap .ql-editor.ql-blank::before { color: #CBD5E1; font-style: normal; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '보통'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '작게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '조금 작게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '조금 크게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '크게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '더 크게'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before { content: '제목 크기'; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div class="register-wrap">
+
+        <div class="breadcrumb" style="margin-bottom: 24px;">
+          <a href="index.html">홈</a>
+          <span>/</span>
+          <a href="guide.html">가이드</a>
+          <span>/</span>
+          <span>작성</span>
+        </div>
+
+        <h1 class="register-title" id="pageTitle">가이드 작성</h1>
+
+        <form class="register-form" id="guideForm">
+
+          <div class="form-group">
+            <label class="notice-pin-label">
+              <input type="checkbox" id="isPinned" class="notice-pin-check">
+              <span>상단 고정</span>
+            </label>
+            <p class="form-hint">체크하면 가이드 목록 최상단에 고정돼요</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">제목 <span class="required">*</span></label>
+            <input type="text" id="guideTitle" class="form-input" placeholder="가이드 제목을 입력하세요">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">내용 <span class="required">*</span></label>
+            <div class="quill-wrap">
+              <div id="guideContentEditor"></div>
+            </div>
+          </div>
+
+          <p id="imgUploadStatus" style="font-size:13px; color:var(--muted); margin-top:4px;"></p>
+          <p class="auth-error" id="writeError"></p>
+
+          <div class="register-actions">
+            <a href="guide.html" class="btn-ghost" id="cancelBtn">취소</a>
+            <button type="submit" class="btn-secondary" id="submitBtn">등록하기</button>
+          </div>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.quilljs.com/1.3.7/quill.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const SizeStyle = Quill.import('attributors/style/size');
+    SizeStyle.whitelist = ['12px', '14px', '16px', '18px', '20px', '24px', '28px'];
+    Quill.register(SizeStyle, true);
+    Quill.register(Quill.import('attributors/style/align'), true);
+
+    const quill = new Quill('#guideContentEditor', {
+      theme: 'snow',
+      placeholder: '가이드 내용을 입력하세요',
+      modules: {
+        toolbar: [
+          [{ size: ['12px', '14px', false, '18px', '20px', '24px', '28px'] }],
+          ['bold', 'italic', 'underline'],
+          [{ color: [] }],
+          [{ align: [] }],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['link', 'image', 'clean'],
+        ],
+      },
+    });
+    const QuillDelta = Quill.import('delta');
+
+    /* ── 이미지 업로드 (Supabase Storage) — 파일선택/Ctrl+V/drag&drop 모두 이 함수로 수렴 ── */
+    async function uploadBoardImage(file) {
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (!allowed.includes(file.type)) throw new Error('PNG, JPG, WebP, GIF 형식만 업로드 가능해요.');
+      if (file.size > 5 * 1024 * 1024) throw new Error('이미지는 5MB 이하여야 해요.');
+      const status = document.getElementById('imgUploadStatus');
+      status.textContent = '이미지 업로드 중...';
+      document.getElementById('writeError').textContent = '';
+      const dotIdx = file.name.lastIndexOf('.');
+      const ext = dotIdx > -1 ? file.name.slice(dotIdx + 1).toLowerCase() : 'jpg';
+      const path = `board-images/guides/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await sb.storage.from('images').upload(path, file, { contentType: file.type });
+      status.textContent = '';
+      if (error) throw new Error('이미지 업로드 실패: ' + error.message);
+      const { data: urlData } = sb.storage.from('images').getPublicUrl(path);
+      return urlData.publicUrl;
+    }
+
+    async function insertBoardImageFile(file) {
+      if (!file || !file.type || !file.type.startsWith('image/')) return;
+      try {
+        const url   = await uploadBoardImage(file);
+        const range = quill.getSelection(true) || { index: quill.getLength() };
+        quill.insertEmbed(range.index, 'image', url, 'user');
+        quill.setSelection(range.index + 1, 0, 'silent');
+      } catch (err) {
+        document.getElementById('writeError').textContent = err.message || '이미지 업로드에 실패했어요.';
+      }
+    }
+
+    quill.getModule('toolbar').addHandler('image', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      input.addEventListener('change', () => insertBoardImageFile(input.files[0]));
+      input.click();
+    });
+
+    // 이미지 자체를 붙여넣는 경우: Quill 기본 base64 변환 전에 가로채서 업로드로 대체
+    quill.root.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          e.preventDefault();
+          e.stopPropagation();
+          insertBoardImageFile(item.getAsFile());
+          return;
+        }
+      }
+    }, true);
+
+    // 이미지 파일 드래그앤드롭
+    quill.root.addEventListener('drop', (e) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type && file.type.startsWith('image/')) {
+        e.preventDefault();
+        e.stopPropagation();
+        insertBoardImageFile(file);
+      }
+    });
+
+    // 다른 사이트/문서에서 복사한 HTML 안에 data:/blob: 이미지가 섞여 들어오는 경우 삽입 자체를 차단
+    quill.clipboard.addMatcher('IMG', (node, delta) => {
+      const src = node.getAttribute('src') || '';
+      if (src.startsWith('data:') || src.startsWith('blob:')) return new QuillDelta();
+      return delta;
+    });
+
+    // 저장 직전 방어 필터: data:/blob: 이미지만 확실히 제거 (외부 https 이미지는 허용)
+    function stripUnsafeImages(html) {
+      if (!html) return html;
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      div.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src') || '';
+        if (src.startsWith('data:') || src.startsWith('blob:')) img.remove();
+      });
+      return div.innerHTML;
+    }
+
+    const editId = new URLSearchParams(window.location.search).get('edit');
+
+    async function initPage() {
+      const user = await getUser();
+      if (!user || !isAdminOrStaff(user.user_metadata?.role)) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      if (editId) {
+        document.getElementById('pageTitle').textContent = '가이드 수정';
+        document.title = '가이드 수정 — 종족연구소';
+        document.getElementById('submitBtn').textContent = '수정하기';
+        document.querySelector('.breadcrumb span:last-child').textContent = '수정';
+
+        const { data, error } = await sb.from('guides').select('*').eq('id', editId).single();
+        if (error || !data) { window.location.href = 'guide.html'; return; }
+
+        document.getElementById('guideTitle').value = data.title;
+        document.getElementById('isPinned').checked = data.is_pinned;
+        quill.clipboard.dangerouslyPasteHTML(data.content || '');
+        document.getElementById('cancelBtn').href = `guide-detail.html?id=${editId}`;
+      }
+    }
+
+    document.getElementById('guideForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const title    = document.getElementById('guideTitle').value.trim();
+      const content  = stripUnsafeImages(quill.root.innerHTML.trim());
+      const isEmpty  = quill.getText().trim().length === 0;
+      const isPinned = document.getElementById('isPinned').checked;
+      const errorEl  = document.getElementById('writeError');
+      const btn      = document.getElementById('submitBtn');
+
+      errorEl.textContent = '';
+
+      if (!title)   { errorEl.textContent = '제목을 입력해주세요.'; return; }
+      if (isEmpty)  { errorEl.textContent = '내용을 입력해주세요.'; return; }
+
+      btn.textContent = editId ? '수정 중...' : '등록 중...';
+      btn.disabled = true;
+
+      if (editId) {
+        const { data: updated, error } = await sb
+          .from('guides')
+          .update({ title, content, is_pinned: isPinned })
+          .eq('id', editId)
+          .select('id');
+
+        if (error) {
+          console.error('[guide update error]', error);
+          errorEl.textContent = `수정에 실패했어요. (${error.message})`;
+          btn.textContent = '수정하기';
+          btn.disabled = false;
+          return;
+        }
+        if (!updated || updated.length === 0) {
+          errorEl.textContent = '수정에 실패했어요. (변경된 가이드가 없어요 — RLS 정책을 확인해 주세요)';
+          btn.textContent = '수정하기';
+          btn.disabled = false;
+          return;
+        }
+      } else {
+        const user = await getUser();
+        const { error } = await sb.from('guides').insert({
+          title, content,
+          is_pinned: isPinned,
+          author: user?.user_metadata?.nickname || '관리자',
+        });
+
+        if (error) {
+          console.error('[guide insert error]', error);
+          errorEl.textContent = `등록에 실패했어요. (${error.message})`;
+          btn.textContent = '등록하기';
+          btn.disabled = false;
+          return;
+        }
+      }
+
+      window.location.href = editId ? `guide-detail.html?id=${editId}` : 'guide.html';
+    });
+
+    initPage();
+  </script>
+</body>
+</html>
+

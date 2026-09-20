@@ -11,13 +11,18 @@
 // ── NPC 대사 ────────────────────────────────────────────
 const LABBER_AMP_NPC_LINE = '연구기록 넣어봐, 많이 나올 수도 있어! ....아마!';
 const LABBER_AMP_SNACK_LINE = '어? 이건 왜 들어있지?';   // 조각이 나오면 연구기록 대사보다 우선
+const LABBER_AMP_LINE_UP   = '거봐! 늘어난다니까!';    // 40 / 50 / 60
+const LABBER_AMP_LINE_HIGH = '우와! 많이 나왔다!';      // 70 / 80 / 90
 const LABBER_AMP_RESULT_LINES = {
   10:  '……다시 넣으면 늘어날지도?',
   20:  '조금 줄었네? 이상하다!',
   30:  '그대로잖아!',
-  40:  '거봐! 늘어난다니까!',
-  50:  '거봐! 늘어난다니까!',
-  70:  '우와! 많이 나왔다!',
+  40:  LABBER_AMP_LINE_UP,
+  50:  LABBER_AMP_LINE_UP,
+  60:  LABBER_AMP_LINE_UP,
+  70:  LABBER_AMP_LINE_HIGH,
+  80:  LABBER_AMP_LINE_HIGH,
+  90:  LABBER_AMP_LINE_HIGH,
   100: '……어? 이만큼 나오는 거였어?',
 };
 

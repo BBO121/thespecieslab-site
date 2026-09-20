@@ -180,6 +180,8 @@
       achievement_backfill: '업적보상(필백)',
       labber_exchange:      '수상한 연구실 교환',
       email_verification_reward: '이메일 인증 보상',  // Stage 4 — 실제 이메일 인증 완료 보상
+      record_amplification_cost:   '기록 증폭 실험 투입',  // LABBER 기록 증폭 실험 비용 차감
+      record_amplification_reward: '기록 증폭 실험 결과',  // LABBER 기록 증폭 실험 결과 지급
     };
     const TYPE_CLASS = {
       signup_bonus:         'wallet-log-type--receive',
@@ -193,8 +195,10 @@
       achievement_backfill: 'wallet-log-type--admin',
       labber_exchange:      'wallet-log-type--labber',
       email_verification_reward: 'wallet-log-type--receive',  // Stage 4 — 실제 이메일 인증 완료 보상
+      record_amplification_cost:   'wallet-log-type--send',     // 연구기록 차감
+      record_amplification_reward: 'wallet-log-type--receive',  // 연구기록 획득
     };
-    const RECEIVE_TYPES = new Set(['signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant', 'achievement_reward', 'achievement_backfill', 'email_verification_reward']);
+    const RECEIVE_TYPES = new Set(['signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant', 'achievement_reward', 'achievement_backfill', 'email_verification_reward', 'record_amplification_reward']);
 
     // labber_exchange는 열쇠(차감)/연구기록(지급) 두 방향을 같은 type으로 공유하므로
     // type만으로는 +/- 판정이 안 된다 — 이 타입만 currency로 방향을 추가 판정한다.

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>기록 증폭 실험 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/labber-amplification.css">
+</head>
+<body class="labber-theme labberamp-page">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <!-- ── 상단: breadcrumb + 제목 + LABBER 로고 + 소개 (LABBER 조합소/상점과 동일 구조) ── -->
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span>LABBER</span>
+              <span>/</span>
+              <span>기록 증폭 실험</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">기록 증폭 실험</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+            <p class="labber-intro">
+              기록 증폭 실험은 D를 찾아가십시오.<br>
+              연구기록을 투입하여 기록 증폭 실험을 진행할 수 있습니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- ── NPC 대화 씬: 대화창(왼쪽) + NPC D(오른쪽) — 수상한 연구실/상점/조합소와 동일 마크업/클래스 ── -->
+        <section class="labber-dialogue-scene">
+          <div class="labber-speech-bubble">
+            <p class="labber-npc-name">D</p>
+            <p class="labber-npc-line" id="labberAmpNpcLine" aria-live="polite"></p>
+          </div>
+          <div class="labber-npc-image-wrap">
+            <img class="labber-npc-image" src="../images/labber/labber_d.png" alt="D">
+          </div>
+        </section>
+
+        <!-- ── 실험 영역 ──────────────────────────────────────────────
+             결과(당첨)는 전부 서버 RPC play_record_amplification() 이 결정한다.
+             이 화면의 연출은 서버 결과를 받은 뒤 꾸며서 보여주는 역할만 한다.
+             동작은 js/labber-amplification.js, 스타일은 css/scss/_labber-amplification.scss (.labberamp-*). -->
+        <section class="labberamp-panel" id="labberAmpPanel">
+          <div class="labberamp-card">
+
+            <div class="labberamp-stats">
+              <div class="labberamp-stat">
+                <span class="labberamp-stat-label">보유 연구기록</span>
+                <span class="labberamp-stat-value"><img src="../images/icons/currency-record.png" class="labberamp-icon" alt=""><b id="labberAmpBalance">-</b></span>
+              </div>
+              <div class="labberamp-stat">
+                <span class="labberamp-stat-label">1회 비용</span>
+                <span class="labberamp-stat-value"><img src="../images/icons/currency-record.png" class="labberamp-icon" alt=""><b id="labberAmpCost">30</b></span>
+              </div>
+              <div class="labberamp-stat">
+                <span class="labberamp-stat-label">오늘의 실험</span>
+                <span class="labberamp-stat-value"><b id="labberAmpUsed">-</b> / <span id="labberAmpLimit">-</span></span>
+              </div>
+            </div>
+
+            <!-- 증폭 장치 표시부: 대기 / 진행 문구 / 결과 공개를 한 영역에서 교체 -->
+            <div class="labberamp-stage" id="labberAmpStage" aria-live="polite">
+              <p class="labberamp-stage-text" id="labberAmpStageText">연구기록을 넣고 실험을 시작해보세요.</p>
+
+              <div class="labberamp-result" id="labberAmpResult" hidden>
+                <p class="labberamp-result-main" id="labberAmpResultMain"></p>
+                <div class="labberamp-result-snack" id="labberAmpResultSnack" hidden>
+                  <span class="labberamp-snack-thumb"><img src="../images/items/item_lab_snack_wrapper_fragment.png" alt="" onerror="this.style.display='none'"></span>
+                  <span class="labberamp-snack-text" id="labberAmpResultSnackText"></span>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" class="labberamp-btn" id="labberAmpBtn" disabled>증폭 실험 시작</button>
+            <p class="labberamp-msg" id="labberAmpMsg" role="status"></p>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/labber-amplification.js"></script>
+</body>
+</html>

@@ -77,6 +77,7 @@ async function initSidebar() {
       <div class="sidebar-accordion-body" id="bodyLabber">
         <a href="labber-lab.html" class="sidebar-subitem ${path === 'labber-lab.html' ? 'active' : ''}">관리소</a>
         <a href="labber-records.html"     class="sidebar-subitem ${path === 'labber-records.html'     ? 'active' : ''}">개체기록실</a>
+        <a href="labber-amplification.html" class="sidebar-subitem ${path === 'labber-amplification.html' ? 'active' : ''}">기록 증폭 실험</a>
       </div>
     </div>
 
@@ -141,7 +142,7 @@ async function initSidebar() {
                         'bug-report.html','bug-report-write.html','bug-report-detail.html',
                         'species-apply.html','species-apply-write.html','species-apply-detail.html'];
   const shopPages     = ['shop.html','labber-shop.html','labber.html'];
-  const labberPages   = ['labber-lab.html','labber-records.html'];
+  const labberPages   = ['labber-lab.html','labber-records.html','labber-amplification.html'];
 
   const isUserProfile = path === 'profile.html' && new URLSearchParams(window.location.search).get('user');
   const isMyProfile   = path === 'profile.html' && !new URLSearchParams(window.location.search).get('user');

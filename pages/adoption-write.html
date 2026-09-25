@@ -615,28 +615,57 @@
       }
 
       if (selectedType === 'auction') {
-        await sb.from('auction_details').insert({
-          adoption_id:   adoption.id,
-          start_price:   getRawNum('startPrice'),
-          instant_price: getRawNum('instantPrice'),
-          bid_unit:      getRawNum('bidUnit'),
-          auction_currency: selectedAuctionCurrency,
-          close_method:  selectedCloseMethod,
-          // datetime-local(로컬=KST 벽시계) → 절대시각(ISO/UTC)으로 변환해 저장.
-          // bid_open_at / raffle_at 과 동일 방식. (원본 문자열 그대로 저장하면
-          // DB 세션이 UTC라 9시간 늦게 저장되는 버그 — 신규 등록분부터 정상화)
-          close_at:      selectedCloseMethod === 'date'
-                            ? (document.getElementById('closeAt').value
-                                ? new Date(document.getElementById('closeAt').value).toISOString()
-                                : null)
-                            : null,
-          close_hours:   selectedCloseMethod === 'last_bid'
-                            ? (parseInt(document.getElementById('closeHours').value, 10) || null)
-                            : null,
-          bid_open_at:   document.getElementById('bidOpenAt').value
-                            ? new Date(document.getElementById('bidOpenAt').value).toISOString()
-                            : null,
-        });
+        let detailErr = null;
+        try {
+          const { error: insErr } = await sb.from('auction_details').insert({
+            adoption_id:   adoption.id,
+            start_price:   getRawNum('startPrice'),
+            instant_price: getRawNum('instantPrice'),
+            bid_unit:      getRawNum('bidUnit'),
+            auction_currency: selectedAuctionCurrency,
+            close_method:  selectedCloseMethod,
+            // datetime-local(로컬=KST 벽시계) → 절대시각(ISO/UTC)으로 변환해 저장.
+            // bid_open_at / raffle_at 과 동일 방식. (원본 문자열 그대로 저장하면
+            // DB 세션이 UTC라 9시간 늦게 저장되는 버그 — 신규 등록분부터 정상화)
+            close_at:      selectedCloseMethod === 'date'
+                              ? (document.getElementById('closeAt').value
+                                  ? new Date(document.getElementById('closeAt').value).toISOString()
+                                  : null)
+                              : null,
+            close_hours:   selectedCloseMethod === 'last_bid'
+                              ? (parseInt(document.getElementById('closeHours').value, 10) || null)
+                              : null,
+            bid_open_at:   document.getElementById('bidOpenAt').value
+                              ? new Date(document.getElementById('bidOpenAt').value).toISOString()
+                              : null,
+          });
+          detailErr = insErr;
+        } catch (e) {
+          detailErr = e;
+        }
+
+        // 경매 정보 저장 실패 → 방금 만든 adoptions 글을 지워 "경매 배지만 있는 글"이 남지 않게 한다.
+        // (성공 처리/업적/페이지 이동 없음. 상세 오류는 콘솔에만 남기고 화면엔 일반 안내만)
+        if (detailErr) {
+          console.error('[auction_details insert error]', { adoptionId: adoption.id, error: detailErr });
+          let deleted = false;
+          try {
+            const { data: delRows, error: delErr } = await sb.from('adoptions')
+              .delete().eq('id', adoption.id).select('id');
+            if (delErr) console.error('[adoption rollback delete error]', { adoptionId: adoption.id, error: delErr });
+            deleted = !delErr && Array.isArray(delRows) && delRows.length > 0;
+            if (!delErr && !deleted) console.error('[adoption rollback delete: 0 rows]', { adoptionId: adoption.id });
+          } catch (e) {
+            console.error('[adoption rollback delete exception]', { adoptionId: adoption.id, error: e });
+          }
+
+          errorEl.textContent = deleted
+            ? '경매 정보 저장에 실패해 등록이 취소됐어요. 잠시 후 다시 시도해주세요.'
+            : '경매 정보 저장에 실패했고, 글이 경매 정보 없이 남았을 수 있어요. 내 분양 글에서 해당 글을 마감한 뒤 다시 등록해주세요.';
+          btn.textContent = '등록하기';
+          btn.disabled = false;
+          return;
+        }
       }
 
       await window.awardAchievement?.('first_adoption', { pending: true });

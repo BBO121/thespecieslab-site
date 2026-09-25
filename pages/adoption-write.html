@@ -176,9 +176,6 @@
             <div class="form-group" id="closeDateField">
               <label class="form-label">마감 날짜</label>
               <input type="datetime-local" id="closeAt" class="form-input">
-              <p class="form-hint" style="color:#b45309; margin-top:6px;">
-                ⚠️ 자동으로 닫히지 않으니 날짜와 시간을 확인하여 꼭 직접 분양확정 해주세요!
-              </p>
             </div>
 
             <div class="form-group" id="closeHoursField" style="display:none;">
@@ -187,14 +184,11 @@
                 <input type="number" id="closeHours" class="form-input" min="1" max="168" placeholder="24" style="max-width:120px;">
                 <span style="font-size:14px; color:var(--text-sub);">시간 후 마감</span>
               </div>
-              <p class="form-hint" style="color:#b45309; margin-top:6px;">
-                ⚠️ 자동으로 닫히지 않으니 꼭 직접 분양확정 해주세요!
-              </p>
             </div>
 
-            <!-- admin 전용: 입찰 시작 시각 -->
-            <div class="form-group" id="bidOpenAtField" style="display:none;">
-              <label class="form-label">입찰 시작 시각 <span style="font-size:11px; color:var(--text-mute); font-weight:400;">(admin 전용 · 선택)</span></label>
+            <!-- 입찰 시작 시각 (선택, 모든 사용자) -->
+            <div class="form-group" id="bidOpenAtField">
+              <label class="form-label">입찰 시작 시각 <span style="font-size:11px; color:var(--text-mute); font-weight:400;">(선택)</span></label>
               <input type="datetime-local" id="bidOpenAt" class="form-input">
               <p class="form-hint">비워두면 게시 즉시 입찰 가능해요. 값을 넣으면 해당 시각 전에는 아무도 입찰할 수 없어요(서버에서도 차단돼요).</p>
             </div>
@@ -273,7 +267,7 @@
     let myCharacters        = [];
     let mySlots             = [];
     let speciesRulesMap     = {};
-    let isAdminUser         = false; // 이벤트 경매 지정/입찰 시작 시각 필드 노출 여부 (admin 전용)
+    let isAdminUser         = false; // 이벤트 경매 지정 필드 노출 여부 (admin 전용)
     let isAdminLoginIdUser  = false; // 공식 관리자 로그인 ID 계정 전용 — 유료분양/경매 allow_paid_adoption 검증 예외 (서버: is_admin_login_id_user RPC로 확인, 조작 불가)
     let mySpeciesIdSet      = new Set(); // 내가 종족주인 종족 id — 분양 규칙 예외 판정용
 
@@ -371,11 +365,10 @@
       document.getElementById('bidUnitUnit').textContent      = label;
     }
 
-    // admin에게만 이벤트 경매 지정 / 입찰 시작 시각 필드를 보여준다.
-    // (경매 타입일 때만 의미가 있으므로 auctionFields가 열려있을 때만 노출)
+    // admin에게만 이벤트 경매 지정 필드를 보여준다.
+    // (입찰 시작 시각은 모든 사용자 공통 — auctionFields 안에 있어 경매 타입일 때만 보임)
     function refreshAdminAuctionFields() {
       const show = isAdminUser && selectedType === 'auction';
-      document.getElementById('bidOpenAtField').style.display     = show ? 'block' : 'none';
       document.getElementById('eventFeaturedField').style.display = show ? 'block' : 'none';
     }
 
@@ -518,8 +511,8 @@
           if (closeHoursNum > 168) { errorEl.textContent = '마감 시간은 최대 168시간(7일)까지 가능해요.'; return; }
         }
 
-        // admin 전용: 입찰 시작 시각은 마감 시각(날짜 지정)보다 빨라야 함
-        if (isAdminUser) {
+        // 입찰 시작 시각은 마감 시각(날짜 지정)보다 빨라야 함
+        {
           const bidOpenAtRaw = document.getElementById('bidOpenAt').value;
           const closeAtRaw   = document.getElementById('closeAt').value;
           if (bidOpenAtRaw && selectedCloseMethod === 'date' && closeAtRaw &&
@@ -640,7 +633,7 @@
           close_hours:   selectedCloseMethod === 'last_bid'
                             ? (parseInt(document.getElementById('closeHours').value, 10) || null)
                             : null,
-          bid_open_at:   (isAdminUser && document.getElementById('bidOpenAt').value)
+          bid_open_at:   document.getElementById('bidOpenAt').value
                             ? new Date(document.getElementById('bidOpenAt').value).toISOString()
                             : null,
         });

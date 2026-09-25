@@ -188,7 +188,7 @@
 
         if (!myAch?.length) { alert('아직 획득한 업적이 없어요.'); return; }
 
-        const codes = myAch.map(a => a.achievement_code);
+        const codes = myAch.map(a => a.achievement_code).filter(c => !c.startsWith('labber_'));   // LABBER 미공개
         _modalDateMap = Object.fromEntries(myAch.map(a => [a.achievement_code, a.unlocked_at]));
 
         const [{ data: details }, { data: profile }] = await Promise.all([
@@ -326,10 +326,15 @@
 
     async function loadAchievements(userId) {
       try {
-        const [{ data: allAch, error: achErr }, { data: myAch }] = await Promise.all([
+        const [{ data: allAchRaw, error: achErr }, { data: myAchRaw }] = await Promise.all([
           sb.from('achievements').select('*').order('id'),
           sb.from('user_achievements').select('achievement_code, unlocked_at').eq('user_id', userId),
         ]);
+
+        // [2026-09-25] LABBER 업적 미공개 — 목록/달성률에서 LABBER scope 제외(탐험 업적 fallback 로 섞이지 않게)
+        const allAch     = (allAchRaw || []).filter(a => a.scope !== 'labber');
+        const shownCodes = new Set(allAch.map(a => a.code));
+        const myAch      = (myAchRaw || []).filter(a => shownCodes.has(a.achievement_code));
 
         console.log('[업적] 전체:', allAch?.length, achErr || '');
 

@@ -1957,8 +1957,8 @@
         return;
       }
       try {
-        const [{ data: allAch }, { data: myAch }, { data: profileData }] = await Promise.all([
-          sb.from('achievements').select('id, code'),
+        const [{ data: allAchRaw }, { data: myAchRaw }, { data: profileData }] = await Promise.all([
+          sb.from('achievements').select('id, code, scope'),
           sb.from('user_achievements')
             .select('achievement_code, unlocked_at')
             .eq('user_id', userId)
@@ -1969,7 +1969,12 @@
             .single(),
         ]);
 
-        if (!allAch) { document.getElementById('sectionAchievements').style.display = 'none'; return; }
+        if (!allAchRaw) { document.getElementById('sectionAchievements').style.display = 'none'; return; }
+
+        // [2026-09-25] LABBER 업적 미공개 — 프로필 업적 현황은 종족연구소(specieslab) 기준만
+        const allAch     = allAchRaw.filter(a => a.scope !== 'labber');
+        const shownCodes = new Set(allAch.map(a => a.code));
+        const myAch      = (myAchRaw || []).filter(a => shownCodes.has(a.achievement_code));
 
         const earnedCount = myAch?.length || 0;
         const totalCount  = allAch.length;

@@ -94,6 +94,14 @@ async function initPage() {
     // 특성 딥링크(#trait-*) — ?tab= 처리 뒤에 실행해 특성 탭/하위 탭을 확정하고 스크롤
     handleTraitHashDeepLink();
     window.addEventListener('hashchange', handleTraitHashDeepLink);
+    // 같은 #trait-* 링크를 다시 누르면 hashchange 가 안 생기므로 직접 처리 (가이드 → 특성 → 가이드 → 재클릭)
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a[href^="#trait-"]');
+      if (a && location.hash === a.getAttribute('href')) {
+        e.preventDefault();
+        handleTraitHashDeepLink();
+      }
+    });
 
     // 데이터 로드 (디자인 승인 공개 시에만)
     if (DESIGN_APPROVAL_ENABLED) {
@@ -254,6 +262,9 @@ function setupTraitSubtabs() {
 // LABBER 상점 상품 설명의 "적용 특성" 링크 등에서 진입. hash 는 이 페이지에서 다른 용도로
 // 쓰지 않으므로(탭 전환은 ?tab= 쿼리) 충돌 없음. anchor → 하위 탭은 TRAIT_DATA 에서 역산.
 function traitSubtabOfAnchor(anchor) {
+  // 하위 탭 영역 자체(#trait-pod / #trait-subject 등) — 디자인 가이드의 「특성 > SUBJECT」 링크
+  const listKey = LL_TRAIT_SUBTAB_KEYS.find(k => anchor === 'trait-' + k);
+  if (listKey) return listKey;
   if (TRAIT_DATA.pod.some(t => t.anchor === anchor)) return 'pod';
   if (TRAIT_DATA.cartridge.some(t => t.anchor === anchor)) return 'cartridge';
   if ((TRAIT_DATA.ink || []).some(t => t.anchor === anchor)) return 'ink';
@@ -268,7 +279,10 @@ function handleTraitHashDeepLink() {
   if (!sub) return;                 // 알 수 없는 hash → 무시 (기존 동작 유지)
   switchTab('traits');             // ?tab=traits 로 replaceState (hash 는 보존됨)
   activateTraitSubtab(sub);
-  const el = document.getElementById(anchor);
+  // 하위 탭 영역 링크면 하위 탭 버튼 줄(서브젝트 활성 표시)이 보이도록 그 위치로 스크롤
+  const el = anchor === 'trait-' + sub
+    ? (document.getElementById('traitSubtabs') || document.getElementById(anchor))
+    : document.getElementById(anchor);
   if (el) {
     // 탭이 표시(hidden 해제)된 뒤 레이아웃이 잡히도록 다음 프레임에 스크롤
     requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));

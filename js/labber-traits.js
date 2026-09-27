@@ -17,8 +17,8 @@ const LL_TRAIT_DESIGNER = '이상어';   // 포드/카트리지 DESIGN BY (서�
 
 // 획득처 — 링크 목적지(url)는 미리 준비하되, LABBER 상점/조합소/탐험 정식 공개 전까지 enabled:false.
 const LL_ACQ_SHOP    = { label: 'LABBER 상점', url: 'labber-shop.html',        enabled: false };
-const LL_ACQ_CRAFT   = { label: '조합소',      url: 'labber-crafting.html',    enabled: false };
-const LL_ACQ_EXPLORE = { label: '탐험',        url: 'labber-exploration.html', enabled: false };
+const LL_ACQ_CRAFT   = { label: '조합소',      url: '',                        enabled: false };
+const LL_ACQ_EXPLORE = { label: '탐험',        url: '',                        enabled: false };
 
 const TRAIT_DATA = {
   pod: [
@@ -121,34 +121,43 @@ const TRAIT_DATA = {
     { group: '어류', pending: false, items: [
       { code: 'labber_subject_clownfish',   name: '흰동가리', grade: 'standard', artwork: 'subject-clownfish', anchor: 'trait-subject-clownfish',
         image: '../images/labber/trait_subject_fish_clownfish.png',
+        desc: '줄무늬를 가진 물고기 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
       { code: 'labber_subject_sunfish',     name: '개복치', grade: 'standard', artwork: 'subject-sunfish', anchor: 'trait-subject-sunfish',
         image: '../images/labber/trait_subject_fish_sunfish.png',
+        desc: '넓적하고 둥근 몸통을 가진 물고기 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
       { code: 'labber_subject_betta',       name: '베타', grade: 'standard', artwork: 'subject-betta', anchor: 'trait-subject-betta',
         image: '../images/labber/trait_subject_fish_betta.png',
+        desc: '하늘하늘하고 풍성한 지느러미를 가진 물고기 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
     ] },
     { group: '조류', pending: false, items: [
       { code: 'labber_subject_sparrow',     name: '참새', grade: 'standard', artwork: 'subject-sparrow', anchor: 'trait-subject-sparrow',
         image: '../images/labber/trait_subject_bird_sparrow.png',
+        desc: '두 가지 색이 섞인 작은 새 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
       { code: 'labber_subject_crow',        name: '까마귀', grade: 'standard', artwork: 'subject-crow', anchor: 'trait-subject-crow',
         image: '../images/labber/trait_subject_bird_crow.png',
+        desc: '한 가지 어두운 색의 새 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
       { code: 'labber_subject_duck',        name: '오리', grade: 'standard', artwork: 'subject-duck', anchor: 'trait-subject-duck',
         image: '../images/labber/trait_subject_bird_duck.png',
+        desc: '넓은 부리를 가진 새 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
     ] },
     { group: '파충류', pending: false, items: [
       { code: 'labber_subject_ballpython',  name: '볼파이톤', grade: 'standard', artwork: 'subject-ballpython', anchor: 'trait-subject-ballpython',
         image: '../images/labber/trait_subject_reptile_ball_python.png',
+        desc: '무늬를 가진 뱀 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
       { code: 'labber_subject_crestedgecko', name: '크레스티드 게코', grade: 'standard', artwork: 'subject-crestedgecko', anchor: 'trait-subject-crestedgecko',
         image: '../images/labber/trait_subject_reptile_crested_gecko.png',
+        desc: '머리와 등을 따라 돌기가 돋은 도마뱀 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
-      { code: 'labber_subject_cooterturtle', name: '쿠터 거북이', grade: 'standard', artwork: 'subject-cooterturtle', anchor: 'trait-subject-cooterturtle',
+      { code: 'labber_subject_cooterturtle', name: '거북이', grade: 'standard', artwork: 'subject-cooterturtle', anchor: 'trait-subject-cooterturtle',
         image: '../images/labber/trait_subject_reptile_cooter_turtle.png',
+        desc: '등딱지를 가진 거북이 형태의 서브젝트를 만들 수 있습니다.',
         acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
     ] },
     { group: '특이', pending: false, items: [

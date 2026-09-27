@@ -74,6 +74,8 @@
         <div class="shop-tab-row labberlab-tab-row" id="tabRow">
           <button type="button" class="shop-tab-btn active" data-tab="about">ABOUT LABBER</button>
           <button type="button" class="shop-tab-btn" data-tab="traits">특성</button>
+          <button type="button" class="shop-tab-btn" data-tab="guide">디자인 가이드</button>
+          <button type="button" class="shop-tab-btn" data-tab="usage">이용 가이드</button>
           <button type="button" class="shop-tab-btn" data-tab="approval">디자인 승인</button>
         </div>
 
@@ -186,6 +188,150 @@
           <div class="labber-trait-list" id="trait-cartridge" hidden></div>
           <div class="labber-trait-list" id="trait-ink" hidden></div>
           <div class="labber-trait-list" id="trait-subject" hidden></div>
+        </section>
+
+        <!-- ═══ 디자인 가이드 (정적 콘텐츠 — DB 없음) ═══════════════
+             ABOUT LABBER 의 .labberlab-record / .labberlab-record-block 구조를 그대로 재사용.
+             가이드 아트웍 1장이 관련 항목을 묶어 설명 — 그룹(.labberlab-guide-item)당 이미지 1장, 항목은 .labberlab-guide-entry.
+             design_01=HEAD+POD / design_02=CARTRIDGE / design_03=BODY / design_04=LAB COAT+GLOVES -->
+        <section class="labberlab-panel" id="tab-guide" hidden>
+          <article class="labberlab-record">
+            <h2 class="labberlab-record-title"><span class="labberlab-record-title-en">LABBER DESIGN GUIDE</span></h2>
+            <p class="labberlab-record-sub">SPECIES RESEARCH ARCHIVE / DESIGN GUIDE</p>
+            <p>LABBER를 디자인하기 위한 기본 가이드입니다.<br>
+              아래의 기본 구조와 필수 요소를 확인한 후 디자인해 주세요.</p>
+
+            <section class="labberlab-record-block labberlab-guide-item">
+              <div class="labberlab-guide-figure labberlab-guide-figure--d01"><img src="../images/labber/design_01.png" alt="HEAD · POD 디자인 가이드" loading="lazy" decoding="async"></div>
+              <div class="labberlab-guide-entry">
+                <h3>01. HEAD</h3>
+                <p class="labberlab-record-lead">오브젝트형 헤드</p>
+                <p>LABBER는 <strong>오브젝트형 헤드</strong>를 가지고 있습니다.</p>
+                <p>헤드 내부에는 액체가 담겨 있으며, <strong>이 액체가 LABBER의 본체</strong>입니다.
+                  외부의 용기 자체가 LABBER의 본체가 아니며, 액체를 담고 있는 헤드의 외형은 <strong>POD</strong> 모듈을 기반으로 구성됩니다.</p>
+              </div>
+              <div class="labberlab-guide-entry">
+                <h3>02. POD</h3>
+                <p class="labberlab-record-lead">헤드의 기본 형태</p>
+                <p>LABBER의 헤드는 정해진 <strong>POD</strong> 모듈의 형태를 따릅니다.</p>
+                <p>POD는 LABBER의 오브젝트형 헤드를 구성하는 기본 틀이며,
+                  보유하고 있는 POD 모듈을 기반으로 디자인할 수 있습니다.</p>
+                <p>POD의 기본 구조는 유지하면서 <strong>CARTRIDGE</strong>를 통해 형태에 변화를 줄 수 있습니다.</p>
+              </div>
+            </section>
+
+            <section class="labberlab-record-block labberlab-guide-item">
+              <div class="labberlab-guide-figure labberlab-guide-figure--d02"><img src="../images/labber/design_02.png" alt="CARTRIDGE 디자인 가이드" loading="lazy" decoding="async"></div>
+              <div class="labberlab-guide-entry">
+                <h3>03. CARTRIDGE</h3>
+                <p class="labberlab-record-lead">POD 변형</p>
+                <p><strong>CARTRIDGE</strong>는 POD에 장착하여 헤드의 구조나 형태에 변화를 주는 모듈입니다.</p>
+                <p>같은 POD를 사용하더라도 어떤 CARTRIDGE를 장착하느냐에 따라 서로 다른 형태로 구성할 수 있습니다.</p>
+              </div>
+            </section>
+
+            <section class="labberlab-record-block labberlab-guide-item">
+              <div class="labberlab-guide-figure labberlab-guide-figure--d03"><img src="../images/labber/design_03.png" alt="BODY 디자인 가이드" loading="lazy" decoding="async"></div>
+              <div class="labberlab-guide-entry">
+                <h3>04. BODY</h3>
+                <p class="labberlab-record-lead">인간형 신체</p>
+                <p>LABBER의 본체는 액체이기 때문에 신체의 형태를 자유롭게 바꿀 수 있습니다.</p>
+                <p>하지만 연구와 실험을 수행하기에 적합한 형태이기 때문에 LABBER들은 의도적으로 <strong>인간형 신체</strong>를 유지하고 있습니다.</p>
+                <p>외형의 나이대와 체격은 다양하게 표현할 수 있습니다.</p>
+              </div>
+            </section>
+
+            <section class="labberlab-record-block labberlab-guide-item">
+              <div class="labberlab-guide-figure labberlab-guide-figure--d04"><img src="../images/labber/design_04.png" alt="LAB COAT · GLOVES 디자인 가이드" loading="lazy" decoding="async"></div>
+              <div class="labberlab-guide-entry">
+                <h3>05. LAB COAT</h3>
+                <p class="labberlab-record-lead">연구 가운</p>
+                <p>모든 LABBER에게는 종족연구소에서 <strong>흰색 연구 가운</strong>이 지급됩니다.</p>
+                <p>평상시에는 연구 가운을 착용하지 않거나 다른 복장을 착용하고 있어도 괜찮습니다.</p>
+                <p class="labber-lore-conclusion"><strong>단, 마스터리스트 이미지에는 지급된 흰색 연구 가운을 함께 표현해야 합니다.</strong></p>
+                <p>가운 안쪽의 복장과 스타일은 자유롭게 디자인할 수 있습니다.</p>
+              </div>
+              <div class="labberlab-guide-entry">
+                <h3>06. GLOVES</h3>
+                <p class="labberlab-record-lead">장갑</p>
+                <p>모든 LABBER는 <strong>장갑</strong>을 착용합니다.</p>
+                <p>정밀한 연구 및 실험 작업을 위한 LABBER의 공통적인 외형 특징으로,
+                  외형의 나이대나 복장과 관계없이 <strong>장갑은 필수 요소</strong>입니다.</p>
+                <p>장갑의 디자인과 형태는 자유롭게 표현할 수 있으나, <strong>다섯 손가락이 각각 구분되어 보이는 형태</strong>의 장갑이어야 합니다.</p>
+              </div>
+            </section>
+
+            <p class="labberlab-record-foot">THE SPECIES LAB // LABBER DESIGN GUIDE<br>— END OF GUIDE —</p>
+          </article>
+        </section>
+
+        <!-- ═══ 이용 가이드 (정적 콘텐츠 — DB 없음) ═══════════════
+             LABBER 각 메뉴의 역할 안내 + 바로가기. 제목/소개는 .labberlab-record 재사용,
+             카드는 특성 카드(.labber-trait-item) 톤 + 2열(모바일 1열) 그리드.
+             링크는 사이드바 LABBER 메뉴(js/sidebar.js)의 URL 그대로.
+             PUBLIC: 아직 공개 전인 메뉴는 링크 없는 '준비중' 카드(.labberlab-usage-card--soon). -->
+        <section class="labberlab-panel" id="tab-usage" hidden>
+          <article class="labberlab-record">
+            <h2 class="labberlab-record-title"><span class="labberlab-record-title-en">LABBER</span> <span class="labberlab-record-title-ko">이용 가이드</span></h2>
+            <p class="labberlab-record-sub">SPECIES RESEARCH ARCHIVE / FACILITY GUIDE</p>
+            <p>LABBER 연구 활동에 사용되는 주요 시설과 기능을 안내합니다.<br>
+              각 시설에서 무엇을 할 수 있는지 확인해 보세요.</p>
+
+            <div class="labberlab-usage-grid">
+              <a class="labberlab-usage-card" href="labber-lab.html">
+                <span class="labberlab-usage-no">01</span>
+                <h3 class="labberlab-usage-name">관리소</h3>
+                <p class="labberlab-usage-desc">LABBER의 기본 설정과 특성, 디자인 가이드를 확인할 수 있습니다.<br>
+                  완성한 LABBER와 SUBJECT의 승인 신청도 관리소에서 진행합니다.</p>
+                <span class="labberlab-usage-go">바로가기 →</span>
+              </a>
+              <a class="labberlab-usage-card" href="labber-records.html">
+                <span class="labberlab-usage-no">02</span>
+                <h3 class="labberlab-usage-name">개체기록실</h3>
+                <p class="labberlab-usage-desc">등록된 LABBER 개체를 열람할 수 있습니다.<br>
+                  각 개체의 정보와 현재 모습을 확인할 수 있습니다.</p>
+                <span class="labberlab-usage-go">바로가기 →</span>
+              </a>
+              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+                <span class="labberlab-usage-no">03</span>
+                <h3 class="labberlab-usage-name">개인연구실</h3>
+                <p class="labberlab-usage-desc">내가 보유한 LABBER와 SUBJECT를 관리하는 공간입니다.<br>
+                  SUBJECT 보관소와 LABBER의 SUBJECT 등록 및 관리 기능을 이용할 수 있습니다.</p>
+                <span class="labberlab-usage-go">준비중</span>
+              </div>
+              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+                <span class="labberlab-usage-no">04</span>
+                <h3 class="labberlab-usage-name">조합소</h3>
+                <p class="labberlab-usage-desc">탐험 등으로 획득한 재료를 사용해 새로운 연구 물품을 제작할 수 있습니다.<br>
+                  일부 조합법은 직접 발견해야 합니다.</p>
+                <span class="labberlab-usage-go">준비중</span>
+              </div>
+              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+                <span class="labberlab-usage-no">05</span>
+                <h3 class="labberlab-usage-name">탐험</h3>
+                <p class="labberlab-usage-desc">LABBER와 함께 연구소 곳곳을 탐험하고 다양한 아이템을 획득할 수 있습니다.</p>
+                <span class="labberlab-usage-go">준비중</span>
+              </div>
+              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+                <span class="labberlab-usage-no">06</span>
+                <h3 class="labberlab-usage-name">도감</h3>
+                <p class="labberlab-usage-desc">발견한 연구 물품과 SUBJECT를 기록하고 확인할 수 있습니다.</p>
+                <span class="labberlab-usage-go">준비중</span>
+              </div>
+              <a class="labberlab-usage-card" href="labber.html">
+                <span class="labberlab-usage-no">07</span>
+                <h3 class="labberlab-usage-name">수상한 연구실</h3>
+                <p class="labberlab-usage-desc">연구 물품을 납품하거나 연구기록과 열쇠를 교환할 수 있습니다.</p>
+                <span class="labberlab-usage-go">바로가기 →</span>
+              </a>
+              <a class="labberlab-usage-card" href="labber-amplification.html">
+                <span class="labberlab-usage-no">08</span>
+                <h3 class="labberlab-usage-name">기록 증폭 실험</h3>
+                <p class="labberlab-usage-desc">연구기록을 사용하여 기록 증폭 실험에 참여할 수 있습니다.</p>
+                <span class="labberlab-usage-go">바로가기 →</span>
+              </a>
+            </div>
+          </article>
         </section>
 
         <!-- ═══ 디자인 승인 (신청 폼 + 내 신청 내역 + admin 관리) ═══ -->

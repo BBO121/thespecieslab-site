@@ -84,12 +84,12 @@ async function initPage() {
     document.getElementById('pageLoading').style.display = 'none';
     document.getElementById('pageContent').style.display = '';
 
-    // 딥링크: ?tab=about|traits|approval , ?app=<id>
+    // 딥링크: ?tab=about|traits|guide|usage|approval , ?app=<id>
     // 구 링크(?tab=my)는 '디자인 승인' 탭으로 매핑 (MY APPLICATIONS 통합됨)
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
     if (tab === 'my') switchTab('approval');
-    else if (['about', 'traits', 'approval'].includes(tab)) switchTab(tab);
+    else if (['about', 'traits', 'guide', 'usage', 'approval'].includes(tab)) switchTab(tab);
 
     // 특성 딥링크(#trait-*) — ?tab= 처리 뒤에 실행해 특성 탭/하위 탭을 확정하고 스크롤
     handleTraitHashDeepLink();
@@ -279,7 +279,7 @@ function switchTab(tab) {
   document.querySelectorAll('#tabRow .shop-tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
-  ['about', 'traits', 'approval'].forEach(t => {
+  ['about', 'traits', 'guide', 'usage', 'approval'].forEach(t => {
     document.getElementById('tab-' + t).hidden = (t !== tab);
   });
   const url = new URL(location.href);

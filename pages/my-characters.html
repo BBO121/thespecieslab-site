@@ -338,7 +338,19 @@
     let isInitialLoad       = true;
     let currentSort         = 'species';
     let nameDisplayMode     = 'registered'; // 'registered'(등록명) | 'owner'(소유주 설정 개체명) — 계정 설정(user_settings)에 저장
-    const pager = createPager(renderCards, 'paginationWrap', 'page', 32);
+    // 페이지당 칸 수 — #charGrid 열 수(4열 / ≤1023px 3열 / ≤767px 2열)의 공배수여야
+    // 어느 화면 크기(회전·리사이즈 포함)에서도 마지막 페이지 외에는 줄이 꽉 찬다.
+    // 폴더 보기는 매 페이지 끝에 "개체 추가" 카드가 1칸 붙으므로 개체는 1개 덜 담는다.
+    const CHAR_PAGE_SLOTS = 36;
+    let pagerSize = CHAR_PAGE_SLOTS;
+    let pager = createPager(renderCards, 'paginationWrap', 'page', pagerSize);
+
+    function ensurePagerSize() {
+      const size = typeof activeFolder === 'number' ? CHAR_PAGE_SLOTS - 1 : CHAR_PAGE_SLOTS;
+      if (size === pagerSize) return;
+      pagerSize = size;
+      pager = createPager(renderCards, 'paginationWrap', 'page', pagerSize);
+    }
 
     // 카드에 표시할 이름 계산 — owner 모드인데 owner_custom_name이 없으면 등록명으로 폴백(빈칸 방지)
     function displayCharName(c) {
@@ -656,6 +668,7 @@
         document.getElementById('noResult').style.display = 'block';
         return;
       }
+      ensurePagerSize();
       if (isInitialLoad) {
         isInitialLoad = false;
         pager.init(sortChars(filtered));

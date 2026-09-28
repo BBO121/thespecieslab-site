@@ -33,6 +33,21 @@
       cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap;
     }
     .folder-chip-manage:hover { background:var(--sky-pale); }
+    .folder-chip-shared { margin-left:3px; font-size:11px; }
+
+    /* 폴더 공유 — 폴더 칩 선택 시에만 칩 아래 한 줄로 노출 */
+    .folder-share-bar { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px; margin:-6px 0 16px; }
+    .folder-share-state { font-size:12px; color:var(--text-mute); margin-right:auto; }
+    .folder-share-state.is-on { color:var(--sky-deep); font-weight:600; }
+    .folder-share-btn {
+      padding:5px 12px; border:1.5px solid var(--sky-dark); border-radius:9px;
+      background:#fff; font-size:12px; font-weight:600; color:var(--sky-dark);
+      cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap;
+    }
+    .folder-share-btn:hover    { background:var(--sky-pale); }
+    .folder-share-btn:disabled { opacity:0.5; cursor:default; }
+    .folder-share-btn.is-stop  { border-color:var(--border); color:var(--text-sub); }
+    .folder-share-btn.is-stop:hover { border-color:#ef4444; color:#ef4444; background:#fff5f5; }
 
     /* 이름 표시 설정 — 검색/필터 행과 별개로, 검색바 바로 위에서 목록 표시 옵션으로 독립된 행 */
     .name-mode-row { display:flex; justify-content:flex-end; flex-wrap:wrap; margin-bottom:12px; }
@@ -233,6 +248,7 @@
         </div>
 
         <div class="folder-chips" id="folderChips"></div>
+        <div class="folder-share-bar" id="folderShareBar" style="display:none;"></div>
 
         <!-- 이름 표시 설정 — 검색/필터와 성격이 달라 별도 행(검색바 바로 위, 우측 정렬)으로 분리 -->
         <div class="name-mode-row">
@@ -447,11 +463,64 @@
         ${allFolders.map(f => {
           const cnt = allChars.filter(c => c.folder_id === f.id).length;
           return `<button class="folder-chip ${activeFolder === f.id ? 'active' : ''}" onclick="setFolderFilter(${f.id})">
-            ${escHtml(f.name)}<span class="folder-chip-count">${cnt}</span>
+            ${escHtml(f.name)}${f.is_public ? '<span class="folder-chip-shared" title="공유 중">🔗</span>' : ''}<span class="folder-chip-count">${cnt}</span>
           </button>`;
         }).join('')}
         <button class="folder-chip-manage" onclick="openFolderModal()">폴더 관리</button>
       `;
+      renderFolderShareBar();
+    }
+
+    // ── 폴더 공유 ─────────────────────────────────────
+    // is_public 토글만 한다(기존 본인 UPDATE 정책). share_id는 폴더 생성 시 DB가 자동 발급하고
+    // 공유 중지/재공유해도 바뀌지 않는다. share_id가 없으면(SQL 미적용) 공유 UI를 숨긴다.
+    function renderFolderShareBar() {
+      const bar    = document.getElementById('folderShareBar');
+      const folder = typeof activeFolder === 'number' ? allFolders.find(f => f.id === activeFolder) : null;
+      if (!folder || !folder.share_id) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+      bar.innerHTML = folder.is_public
+        ? `<span class="folder-share-state is-on">🔗 공유 중인 폴더예요</span>
+           <button type="button" class="folder-share-btn" onclick="copyFolderShareLink(${folder.id})">링크 복사</button>
+           <button type="button" class="folder-share-btn is-stop" onclick="setFolderPublic(${folder.id}, false)">공유 중지</button>`
+        : `<button type="button" class="folder-share-btn" onclick="setFolderPublic(${folder.id}, true)">공유</button>`;
+      bar.style.display = 'flex';
+    }
+
+    function folderShareUrl(folder) {
+      return `${window.location.origin}/pages/shared-character-folder.html?id=${encodeURIComponent(folder.share_id)}`;
+    }
+
+    async function setFolderPublic(id, isPublic) {
+      const folder = allFolders.find(f => f.id === id);
+      if (!folder) return;
+      if (!isPublic && !confirm(`"${folder.name}" 폴더 공유를 중지할까요?\n공유 링크로 더 이상 볼 수 없게 됩니다.`)) return;
+      document.querySelectorAll('#folderShareBar button').forEach(b => { b.disabled = true; });
+      const { data, error } = await sb.from('character_folders')
+        .update({ is_public: isPublic }).eq('id', id).eq('user_id', currentUser.id)
+        .select('id, is_public, share_id');
+      if (error || !data || !data.length) {
+        console.error('[my-characters] 폴더 공유 상태 변경 실패:', error);
+        alert(isPublic ? '폴더 공유에 실패했어요. 다시 시도해주세요.' : '공유 중지에 실패했어요. 다시 시도해주세요.');
+        renderFolderShareBar();
+        return;
+      }
+      folder.is_public = data[0].is_public;
+      folder.share_id  = data[0].share_id;
+      renderFolderChips();
+      if (isPublic) await copyFolderShareLink(id);
+    }
+
+    async function copyFolderShareLink(id) {
+      const folder = allFolders.find(f => f.id === id);
+      if (!folder || !folder.share_id) return;
+      const url = folderShareUrl(folder);
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('공유 링크를 복사했어요.\n링크를 받은 사람은 로그인 없이 이 폴더를 볼 수 있어요.');
+      } catch {
+        // 클립보드 권한이 없는 환경(일부 인앱 브라우저 등) — 직접 복사할 수 있게 링크를 보여준다
+        prompt('아래 링크를 복사해주세요.', url);
+      }
     }
 
     function setFolderFilter(val) {

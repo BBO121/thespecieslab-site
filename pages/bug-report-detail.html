@@ -81,6 +81,8 @@
 
           <div id="detailContent" class="notice-detail-content"></div>
 
+          <div id="attachSection" hidden></div>
+
         </article>
 
         <!-- 댓글 목록 -->
@@ -130,6 +132,7 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js?v=20260607"></script>
+  <script src="../js/support-attachments.js"></script>
   <script>
     const STATUS_STYLE = {
       '접수됨': 'background:#f1f5f9;color:#64748b',
@@ -188,7 +191,7 @@
         });
       }
       if (Array.isArray(data.comments)) {
-        data.comments.forEach((c, idx) => allComments.push({ ...c, _comments_idx: idx }));
+        data.comments.forEach(c => allComments.push(c));
       }
 
       if (allComments.length === 0) {
@@ -196,25 +199,30 @@
         return;
       }
 
+      // 수정/삭제 권한 표시는 서버 RPC(update/delete_bug_report_comment) 판정과 동일하게:
+      //  - 본인이 쓴 댓글(author_user_id = 나)만 수정·삭제
+      //  - author_user_id 없는 레거시 댓글은 작성자명이 내 닉네임과 같을 때 삭제만 — 운영진 댓글은 제외
+      //  - 댓글 식별은 배열 index 가 아니라 comment id (합성 레거시 항목은 id 없음 → 대상 아님)
       const myId   = currentUser?.id;
       const myNick = currentUser?.user_metadata?.display_name || currentUser?.user_metadata?.nickname;
       document.getElementById('commentList').innerHTML = allComments.map(c => {
-        const hasIdx         = c._comments_idx !== undefined;
-        const canEdit        = hasIdx && !!c.author_user_id && c.author_user_id === myId;
-        const canDeleteLegacy = hasIdx && !c.author_user_id && myNick && (c.author === myNick || c.nickname === myNick);
+        const cid            = c.id ? escHtml(String(c.id)) : '';
+        const isOpComment    = c.is_admin === true || c.role === 'admin' || c.role === 'staff';
+        const canEdit        = !!cid && !!c.author_user_id && c.author_user_id === myId;
+        const canDeleteLegacy = !!cid && !c.author_user_id && !isOpComment && myNick && (c.author === myNick || c.nickname === myNick);
         const editedMark     = c.updated_at ? ' <span style="font-size:11px;color:var(--text-mute);font-weight:400;">(수정됨)</span>' : '';
         const actionsBtns    = canEdit
           ? `<div class="thread-actions">
-               <button class="thread-action-btn" onclick="editComment(${c._comments_idx})">수정</button>
-               <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment(${c._comments_idx})">삭제</button>
+               <button class="thread-action-btn" onclick="editComment('${cid}')">수정</button>
+               <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment('${cid}')">삭제</button>
              </div>`
           : canDeleteLegacy
             ? `<div class="thread-actions">
-                 <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment(${c._comments_idx})">삭제</button>
+                 <button class="thread-action-btn thread-action-btn--delete" onclick="deleteComment('${cid}')">삭제</button>
                </div>`
             : '';
         return `
-        <div class="thread-item${c.is_admin ? ' thread-item--admin' : ''}" data-comment-idx="${c._comments_idx ?? ''}">
+        <div class="thread-item${c.is_admin ? ' thread-item--admin' : ''}" data-comment-id="${cid}">
           <div class="thread-header">
             <span class="thread-author">${escHtml(c.author)}${roleBadge(c)}</span>
             <span class="thread-date">${fmtDate(c.created_at)}${editedMark}</span>
@@ -225,60 +233,65 @@
       }).join('');
     }
 
-    function editComment(idx) {
-      const item = document.querySelector(`.thread-item[data-comment-idx="${idx}"]`);
-      if (!item) return;
+    function findComment(commentId) {
+      return (currentData?.comments || []).find(c => c && String(c.id) === String(commentId));
+    }
+
+    function editComment(commentId) {
+      const item = document.querySelector(`.thread-item[data-comment-id="${CSS.escape(commentId)}"]`);
+      const target = findComment(commentId);
+      if (!item || !target) return;
       const contentEl = item.querySelector('.thread-content');
-      const original  = currentData.comments[idx].content;
 
       const editArea = document.createElement('div');
       editArea.className = 'thread-edit-area';
       editArea.innerHTML = `
-        <textarea class="inquiry-textarea" rows="3" id="editTextarea_${idx}">${escHtml(original)}</textarea>
+        <textarea class="inquiry-textarea" rows="3" id="editTextarea_${escHtml(commentId)}">${escHtml(target.content)}</textarea>
         <div class="thread-edit-btns">
           <button class="btn-ghost" style="font-size:13px;padding:4px 12px;" onclick="cancelEditComment()">취소</button>
-          <button class="btn-secondary" style="font-size:13px;padding:4px 12px;" onclick="saveEditComment(${idx})">저장</button>
+          <button class="btn-secondary" style="font-size:13px;padding:4px 12px;" onclick="saveEditComment('${escHtml(commentId)}')">저장</button>
         </div>`;
       contentEl.replaceWith(editArea);
 
       const actionsEl = item.querySelector('.thread-actions');
       if (actionsEl) actionsEl.style.display = 'none';
 
-      document.getElementById(`editTextarea_${idx}`).focus();
+      document.getElementById(`editTextarea_${commentId}`).focus();
     }
 
     function cancelEditComment() {
       renderComments(currentData, pageAuthorNick);
     }
 
-    async function saveEditComment(idx) {
-      const textarea = document.getElementById(`editTextarea_${idx}`);
+    async function saveEditComment(commentId) {
+      const textarea = document.getElementById(`editTextarea_${commentId}`);
       if (!textarea) return;
       const newContent = textarea.value.trim();
       if (!newContent) { alert('내용을 입력해주세요.'); return; }
 
-      currentData.comments[idx].content    = newContent;
-      currentData.comments[idx].updated_at = new Date().toISOString();
+      const { data, error } = await sb.rpc('update_bug_report_comment', {
+        p_bug_report_id: currentId, p_comment_id: commentId, p_content: newContent,
+      });
+      if (error || !data) { alert(`수정에 실패했어요.${error ? ` (${error.message})` : ''}`); return; }
 
-      const { error } = await sb.from('bug_reports').update({ comments: currentData.comments }).eq('id', currentId);
-      if (error) { alert('수정에 실패했어요.'); return; }
-
+      currentData = data;
       if (isAdminUser) {
-        logAdminAction('bug_comment_edit', 'bug_report', currentId, pageAuthorNick, { bug_report_id: currentId, target_author: pageAuthorNick }).catch(() => {});
+        logAdminAction('bug_comment_edit', 'bug_report', currentId, pageAuthorNick, { bug_report_id: currentId, target_author: pageAuthorNick, comment_id: commentId }).catch(() => {});
       }
       renderComments(currentData, pageAuthorNick);
     }
 
-    async function deleteComment(idx) {
+    async function deleteComment(commentId) {
       if (!confirm('댓글을 삭제할까요?')) return;
 
-      currentData.comments = currentData.comments.filter((_, i) => i !== idx);
+      const { data, error } = await sb.rpc('delete_bug_report_comment', {
+        p_bug_report_id: currentId, p_comment_id: commentId,
+      });
+      if (error || !data) { alert(`삭제에 실패했어요.${error ? ` (${error.message})` : ''}`); return; }
 
-      const { error } = await sb.from('bug_reports').update({ comments: currentData.comments }).eq('id', currentId);
-      if (error) { alert('삭제에 실패했어요.'); return; }
-
+      currentData = data;
       if (isAdminUser) {
-        logAdminAction('bug_comment_delete', 'bug_report', currentId, pageAuthorNick, { bug_report_id: currentId, target_author: pageAuthorNick }).catch(() => {});
+        logAdminAction('bug_comment_delete', 'bug_report', currentId, pageAuthorNick, { bug_report_id: currentId, target_author: pageAuthorNick, comment_id: commentId }).catch(() => {});
       }
       renderComments(currentData, pageAuthorNick);
     }
@@ -291,7 +304,8 @@
       const user = await getUser();
       if (!user) { window.location.href = 'login.html'; return; }
       currentUser = user;
-      isAdminUser = isAdminOrStaff(user.user_metadata?.role);
+      // 운영진 = app_metadata.role admin/staff — RLS/RPC 판정 기준과 동일 (user_metadata 는 본인이 수정 가능하므로 사용 금지)
+      isAdminUser = isAdminOrStaff(user.app_metadata?.role);
 
       const [{ data, error }, { data: userList }] = await Promise.all([
         sb.from('bug_reports').select('*').eq('id', currentId).single(),
@@ -319,7 +333,13 @@
       document.getElementById('detailTitle').textContent = data.title;
       document.getElementById('detailNickname').textContent = authorNick;
       document.getElementById('detailDate').textContent = fmtDate(data.created_at);
-      document.getElementById('detailContent').innerHTML = data.content.replace(/\n/g, '<br>');
+      // 본문은 텍스트로만 표시 (innerHTML 금지 — 작성자 입력 HTML/스크립트가 운영진 화면에서 실행되는 XSS 방지)
+      const detailContentEl = document.getElementById('detailContent');
+      detailContentEl.style.whiteSpace = 'pre-wrap';
+      detailContentEl.textContent = data.content;
+
+      // 첨부 이미지 — support_attachments RLS(본인 OR admin/staff) + private 버킷 signed URL
+      renderSupportAttachments(document.getElementById('attachSection'), 'bug', currentId);
 
       renderComments(data, authorNick);
 
@@ -337,7 +357,8 @@
         }
       }
 
-      const hasContent = data.answer || (data.comments?.length);
+      // 서버 "버그리포트 삭제" 정책과 동일: 작성자는 답변/댓글/상태 변경이 전혀 없을 때만, 운영진은 항상
+      const hasContent = !!data.answer || !!(data.comments?.length) || (data.status && data.status !== '접수됨');
       if (isAdminUser) {
         document.getElementById('deleteBtn').style.display = 'inline-flex';
       } else if (isOwner && !hasContent) {
@@ -361,33 +382,17 @@
       submitBtn.textContent = '등록 중...';
 
       const nickname = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname;
-      const role = currentUser.user_metadata?.role || null;
-      const newComment = {
-        author: nickname,
-        author_user_id: currentUser.id,
-        is_admin: isAdminUser,
-        role: isAdminUser ? (role || 'admin') : null,
-        content,
-        created_at: new Date().toISOString(),
-      };
 
-      const existing = Array.isArray(currentData?.comments) ? currentData.comments : [];
-      const updateData = { comments: [...existing, newComment] };
-
-      if (isAdminUser) {
-        const newStatus = document.getElementById('statusSelect').value;
-        updateData.status = newStatus;
-        if (!currentData?.answer) {
-          updateData.answer      = content;
-          updateData.answered_at = newComment.created_at;
-          updateData.answered_by = nickname;
-        }
-      }
-
+      // 댓글 추가는 add_bug_report_comment RPC 로만 — 작성자 정보/운영진 여부/answer 는 서버가 결정,
+      // 상태 변경은 운영진(app_metadata admin/staff)일 때만 서버가 반영한다.
       const prevStatus = currentData.status;
-      const { error } = await sb.from('bug_reports').update(updateData).eq('id', currentId);
-      if (error) {
-        errorEl.textContent = `등록에 실패했어요. (${error.message})`;
+      const { data: updated, error } = await sb.rpc('add_bug_report_comment', {
+        p_bug_report_id: currentId,
+        p_content:       content,
+        p_status:        isAdminUser ? document.getElementById('statusSelect').value : null,
+      });
+      if (error || !updated) {
+        errorEl.textContent = `등록에 실패했어요.${error ? ` (${error.message})` : ''}`;
         submitBtn.disabled = false;
         submitBtn.textContent = '등록';
         return;
@@ -395,22 +400,18 @@
 
       if (isAdminUser) {
         const logDetails = { bug_report_id: currentId, target_author: pageAuthorNick };
-        if (updateData.status && updateData.status !== prevStatus) {
+        if (updated.status !== prevStatus) {
           logDetails.status_from = prevStatus;
-          logDetails.status_to   = updateData.status;
+          logDetails.status_to   = updated.status;
         }
         logAdminAction('bug_comment_create', 'bug_report', currentId, pageAuthorNick, logDetails).catch(() => {});
       }
 
-      // 로컬 상태 업데이트
-      currentData.comments = [...existing, newComment];
-      if (isAdminUser) {
-        currentData.status = updateData.status;
-        if (updateData.answer) currentData.answer = updateData.answer;
-        const statusEl = document.getElementById('detailStatus');
-        statusEl.textContent = updateData.status;
-        statusEl.style.cssText = STATUS_STYLE[updateData.status] || STATUS_STYLE['접수됨'];
-      }
+      // 서버가 돌려준 최신 행 기준으로 다시 그림
+      currentData = updated;
+      const statusEl = document.getElementById('detailStatus');
+      statusEl.textContent = updated.status || '접수됨';
+      statusEl.style.cssText = STATUS_STYLE[updated.status] || STATUS_STYLE['접수됨'];
 
       renderComments(currentData, pageAuthorNick);
       inputEl.value = '';
@@ -484,8 +485,17 @@
 
     async function deleteBugReport() {
       if (!confirm('정말 삭제할까요?')) return;
-      const { error } = await sb.from('bug_reports').delete().eq('id', currentId);
-      if (error) { alert('삭제에 실패했어요.'); return; }
+      // RLS 가 막으면 error 없이 0건 삭제로 끝나므로 count 로 실제 삭제 여부 확인 (문의 삭제와 동일)
+      const { error, count } = await sb.from('bug_reports').delete({ count: 'exact' }).eq('id', currentId);
+      if (error || !count) {
+        const msg = isAdminUser
+          ? `삭제하지 못했어요. 잠시 후 다시 시도해주세요.${error ? ` (${error.message})` : ''}`
+          : `삭제할 수 없어요. 이미 운영진이 답변/처리를 시작한 버그리포트는 삭제할 수 없습니다.${error ? ` (${error.message})` : ''}`;
+        alert(msg);
+        return;
+      }
+      // 글 삭제(DB)가 확정된 뒤에만 Storage 파일 정리 — 실패해도 삭제 대기열에 남아 추후 정리 가능
+      await purgeSupportAttachments(currentId);
       window.location.href = 'bug-report.html';
     }
 

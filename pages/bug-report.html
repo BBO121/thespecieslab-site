@@ -91,7 +91,7 @@
         return;
       }
 
-      isAdminUser = isAdminOrStaff(user.user_metadata?.role);
+      isAdminUser = isAdminOrStaff(user.app_metadata?.role); // RLS 조회 판정(app_metadata admin/staff)과 동일 기준
 
       let query = sb.from('bug_reports').select('*').order('created_at', { ascending: false });
       if (!isAdminUser) {

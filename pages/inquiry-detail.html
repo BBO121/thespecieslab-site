@@ -82,6 +82,8 @@
 
           <div id="detailContent" class="notice-detail-content"></div>
 
+          <div id="attachSection" hidden></div>
+
         </article>
 
         <!-- 댓글 목록 -->
@@ -130,6 +132,7 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js?v=20260607"></script>
+  <script src="../js/support-attachments.js"></script>
   <script>
     const STATUS_STYLE = {
       '접수됨': 'background:#f1f5f9;color:#64748b',
@@ -262,6 +265,9 @@
       const detailContentEl = document.getElementById('detailContent');
       detailContentEl.style.whiteSpace = 'pre-wrap';
       detailContentEl.textContent = data.content;
+
+      // 첨부 이미지 — support_attachments RLS(본인 OR admin/staff) + private 버킷 signed URL
+      renderSupportAttachments(document.getElementById('attachSection'), 'inquiry', currentId);
 
       renderComments(data, authorNick);
 
@@ -516,6 +522,8 @@
         alert(msg);
         return;
       }
+      // 글 삭제(DB)가 확정된 뒤에만 Storage 파일 정리 — 실패해도 삭제 대기열에 남아 추후 정리 가능
+      await purgeSupportAttachments(currentId);
       window.location.href = 'inquiry.html';
     }
 

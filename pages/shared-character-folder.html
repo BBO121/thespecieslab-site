@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>공유 폴더 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .shared-folder-owner { font-size:13px; color:var(--text-sub); margin-top:4px; }
+    .shared-folder-owner strong { color:var(--text); font-weight:700; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <section class="section">
+
+        <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+        <!-- 공유 폴더 (읽기 전용 — 편집/이동/삭제/정렬 등 관리 기능 없음) -->
+        <div id="pageContent" style="display:none;">
+          <div class="list-page-header">
+            <div>
+              <h1 class="list-page-title" id="folderTitle"></h1>
+              <p class="shared-folder-owner" id="folderOwner"></p>
+              <p class="list-page-count"><span id="charCount">0</span>개의 개체</p>
+            </div>
+          </div>
+
+          <div class="character-grid" id="characterGrid"></div>
+          <div id="paginationWrap"></div>
+
+          <div id="emptyState" class="empty-state-wrap" style="display:none;">
+            <div class="empty-state-icon">📁</div>
+            <p class="empty-state-title">폴더가 비어 있어요</p>
+            <p class="empty-state-desc">아직 이 폴더에 담긴 개체가 없어요.</p>
+          </div>
+        </div>
+
+        <!-- 잘못된 링크 / 없는 폴더 / 공유 중지 / 삭제된 폴더 — 모두 같은 화면 -->
+        <div id="notFound" class="empty-state-wrap" style="display:none;">
+          <div class="empty-state-icon">🔒</div>
+          <p class="empty-state-title">공유 중인 폴더를 찾을 수 없습니다</p>
+          <p class="empty-state-desc">링크가 잘못되었거나 공유가 중지된 폴더예요.</p>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js?v=20260919"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    const SHARE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const pager = createPager(renderCards, 'paginationWrap', 'page', 28);
+
+    // style="background-image:url('...')" 안에 넣는 값 — 따옴표/괄호가 속성·url()을 깨지 않게 인코딩
+    function cssUrl(u) {
+      return String(u).replace(/["'()\\\s]/g, ch => '%' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'));
+    }
+
+    function showNotFound() {
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'none';
+      document.getElementById('notFound').style.display = 'flex';
+    }
+
+    // 카드 — profile.html 의 관리 메뉴 없는 읽기 전용 카드와 동일 구조
+    function renderCards(list) {
+      document.getElementById('characterGrid').innerHTML = list.map(c => {
+        const imgHtml = c.is_sensitive && characterHasVisibleRealImage(c, { thumb: false })
+          ? `<div style="position:relative; overflow:hidden; border-radius:var(--radius);">
+               <div class="character-img blurred" style="background-image:url('${cssUrl(c.thumbnail_url || c.image_url)}');background-size:cover;background-position:center;"></div>
+               <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + escapeHtml(c.sensitive_note) + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+             </div>`
+          : `<div class="character-img" style="background-image:url('${cssUrl(resolveCharacterImage(c))}');background-size:cover;background-position:center;"></div>`;
+        return `
+          <a href="character.html?id=${encodeURIComponent(c.id)}" class="character-card">
+            ${imgHtml}
+            <div class="character-info">
+              <p class="character-name">${escapeHtml(c.name || '')}</p>
+              <p class="character-species" ${c.species_name === '(알 수 없음)' ? 'style="color:#999;font-weight:400;"' : ''}>${escapeHtml(c.species_name || '')}</p>
+            </div>
+          </a>`;
+      }).join('');
+    }
+
+    function revealSensitive(overlayEl, e) {
+      e.stopPropagation(); e.preventDefault();
+      overlayEl.parentElement.querySelectorAll('.blurred').forEach(el => el.classList.remove('blurred'));
+      overlayEl.remove();
+    }
+
+    async function initPage() {
+      const shareId = (new URLSearchParams(window.location.search).get('id') || '').trim();
+      if (!SHARE_ID_RE.test(shareId)) { showNotFound(); return; }
+
+      // 없는 share_id / 비공개 / 삭제된 폴더 모두 RPC 가 null 을 준다 → 같은 화면
+      const { data, error } = await sb.rpc('get_shared_character_folder', { p_share_id: shareId });
+      if (error || !data) {
+        if (error) console.error('[shared-character-folder] 조회 실패:', error);
+        showNotFound();
+        return;
+      }
+
+      const chars = Array.isArray(data.characters) ? data.characters : [];
+      document.title = `${data.folder_name} — 공유 폴더 — 종족연구소`;
+      document.getElementById('folderTitle').textContent = data.folder_name || '';
+      document.getElementById('folderOwner').innerHTML = data.owner_nickname
+        ? `<strong>${escapeHtml(data.owner_nickname)}</strong> 님이 공유한 폴더`
+        : '공유된 폴더';
+      document.getElementById('charCount').textContent = chars.length;
+
+      document.getElementById('pageLoading').style.display = 'none';
+      document.getElementById('pageContent').style.display = 'block';
+
+      if (!chars.length) {
+        document.getElementById('emptyState').style.display = 'flex';
+        return;
+      }
+      pager.init(chars);
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

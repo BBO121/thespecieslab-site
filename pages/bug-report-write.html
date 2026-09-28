@@ -58,6 +58,8 @@
             <textarea id="bugContent" class="form-textarea" rows="8" placeholder="어떤 버그가 발생했는지 자세히 설명해주세요"></textarea>
           </div>
 
+          <div class="form-group" id="attachPicker"></div>
+
 <p class="auth-error" id="formError"></p>
 
           <div class="register-actions">
@@ -83,7 +85,10 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
+  <script src="../js/support-attachments.js"></script>
   <script>
+    const attachPicker = createSupportAttachPicker(document.getElementById('attachPicker'));
+
     async function initPage() {
       const user = await getUser();
       if (!user) {
@@ -111,21 +116,19 @@ const errorEl = document.getElementById('formError');
       const user = await getUser();
       if (!user) { window.location.href = 'login.html'; return; }
 
-      const nickname = user.user_metadata?.display_name || user.user_metadata?.nickname;
-
-      const { error } = await sb.from('bug_reports').insert({
-        title,
-        content,
-        nickname,
-        user_id: user.id,
-        status: '접수됨',
+      // 글 + 첨부를 create_support_post RPC 한 번으로 생성 (작성자/닉네임/상태는 서버가 결정)
+      attachPicker.setDisabled(true);
+      const { error } = await submitSupportPost({
+        kind: 'bug', title, content, picker: attachPicker,
+        onProgress: (msg) => { btn.textContent = msg; },
       });
 
       if (error) {
-        console.error('[bug_report insert error]', error);
+        console.error('[bug_report submit error]', error);
         errorEl.textContent = `제출에 실패했어요. (${error.message})`;
         btn.textContent = '신고하기';
         btn.disabled = false;
+        attachPicker.setDisabled(false);
         return;
       }
 

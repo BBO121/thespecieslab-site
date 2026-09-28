@@ -35,6 +35,8 @@
       box-sizing: border-box; font-family: inherit;
     }
     .search-input:focus { border-color: var(--sky-dark); }
+    /* 배지가 3개([경매][재화거래][상태])일 때 좁은 모바일 카드에서 넘치지 않도록 줄바꿈 */
+    .adoption-card-badges { flex-wrap: wrap; row-gap: 4px; }
   </style>
 </head>
 <body>
@@ -122,6 +124,9 @@
     const OPEN_STATUSES = ['분양중', '확인 대기중', '즉분 대기중'];
 
     let rawData     = [];
+    // 연구기록을 사용하는 경매(auction_details.auction_currency='research_records')의 adoption id
+    // — 카드에 [재화거래] 배지만 추가. 「재화거래」 필터는 기존대로 adoption_type='currency' 만 대상.
+    let researchAuctionIds = new Set();
     let activeStatus = 'open';
     let activeType   = 'all';
     let searchQuery  = '';
@@ -223,6 +228,7 @@
           <div class="adoption-card-info">
             <div class="adoption-card-badges">
               <span class="adoption-type-badge ${typeClass}">${typeLabel}</span>
+              ${a.adoption_type === 'auction' && researchAuctionIds.has(a.id) ? '<span class="adoption-type-badge adoption-type--currency">재화거래</span>' : ''}
               <span class="adoption-status ${closed ? 'adoption-status--closed' : ''}">${a.status || '분양중'}</span>
             </div>
             <p class="adoption-card-charname">${a.character_name || '—'}</p>
@@ -277,10 +283,15 @@
       const user = await getUser();
       if (user) document.getElementById('writeBtn').style.display = 'inline-flex';
 
-      const { data, error } = await sb
-        .from('adoptions')
-        .select('*, characters(is_sensitive, sensitive_note)')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: researchAuctions }] = await Promise.all([
+        sb.from('adoptions')
+          .select('*, characters(is_sensitive, sensitive_note)')
+          .order('created_at', { ascending: false }),
+        sb.from('auction_details')
+          .select('adoption_id')
+          .eq('auction_currency', 'research_records'),
+      ]);
+      researchAuctionIds = new Set((researchAuctions || []).map(d => d.adoption_id));
 
       if (error || !data || data.length === 0) {
         document.getElementById('emptyState').style.display = 'flex';

@@ -34,6 +34,10 @@
   <meta name="twitter:image" content="https://thespecieslab.com/images/og-thumbnail.jpg">
 
   <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* 배지가 3개([경매][재화거래][상태])일 때 좁은 모바일 카드에서 넘치지 않도록 줄바꿈 */
+    .adoption-card-badges { flex-wrap: wrap; row-gap: 4px; }
+  </style>
 </head>
 <body class="page-index">
 
@@ -286,6 +290,16 @@
       // 분양 렌더
       document.getElementById('adoptionLoading').remove();
 
+      // 연구기록을 사용하는 경매 — 카드에 [재화거래] 배지 추가 (기존 재화거래 배지 스타일 재사용)
+      let researchAuctionIds = new Set();
+      const auctionIds = [...(adoptionList || []), ...(eventAdoptionList || [])]
+        .filter(a => a.adoption_type === 'auction').map(a => a.id);
+      if (auctionIds.length) {
+        const { data: ad } = await sb.from('auction_details')
+          .select('adoption_id').in('adoption_id', auctionIds).eq('auction_currency', 'research_records');
+        researchAuctionIds = new Set((ad || []).map(d => d.adoption_id));
+      }
+
       function buildAdoptionCard(a) {
         const isSensitive   = a.characters?.is_sensitive === true;
         const sensitiveNote = a.characters?.sensitive_note || null;
@@ -310,6 +324,7 @@
             <div class="adoption-card-info">
               <div class="adoption-card-badges">
                 <span class="adoption-type-badge ${typeClass}">${typeLabel}</span>
+                ${a.adoption_type === 'auction' && researchAuctionIds.has(a.id) ? '<span class="adoption-type-badge adoption-type--currency">재화거래</span>' : ''}
                 <span class="adoption-status ${closed ? 'adoption-status--closed' : ''}">${a.status || '분양중'}</span>
               </div>
               <p class="adoption-card-charname">${a.character_name || '—'}</p>

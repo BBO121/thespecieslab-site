@@ -53,14 +53,16 @@ async function getLabberSpeciesName() {
 /**
  * 개체 검색
  * @param {string} query
- * @param {{ speciesName?, ownerUserId?, ownerNickname?, sort?: 'recent'|'name',
+ * @param {{ speciesName?, ownerUserId?, ownerNickname?, specialBadge?, sort?: 'recent'|'name',
  *           limit?, offset?, signal?, minLength? }} options
+ *   specialBadge: special_badge key (예: 'specieslab_collab') — 개체 상세의 특별 분류 뱃지와 동일 기준(characters_public)
  */
 async function searchCharacters(query, options = {}) {
   const {
     speciesName = null,
     ownerUserId = null,
     ownerNickname = null,
+    specialBadge = null,
     sort = 'recent',
     limit = 30,
     offset = 0,
@@ -92,6 +94,17 @@ async function searchCharacters(query, options = {}) {
     if (speciesName)                    builder = builder.eq('species_name', speciesName);
     if (ownerUserId)                     builder = builder.eq('owner_user_id', ownerUserId);
     else if (ownerNickname)              builder = builder.eq('owner_nickname', ownerNickname);
+    if (specialBadge) {
+      // special_badge는 원본 characters에 컬럼 SELECT 권한이 없어(privacy_fix_patch2.sql),
+      // 개체 상세 뱃지와 같은 공개 뷰 characters_public에서 해당 개체 id만 먼저 받아 거른다.
+      let badgeQuery = sb.from('characters_public').select('id').eq('special_badge', specialBadge);
+      if (signal) badgeQuery = badgeQuery.abortSignal(signal);
+      const { data: badgeRows, error: badgeErr } = await badgeQuery;
+      if (badgeErr) throw badgeErr;
+      const badgeIds = (badgeRows || []).map(r => r.id);
+      if (!badgeIds.length) return { data: [], error: null, count: 0 };
+      builder = builder.in('id', badgeIds);
+    }
 
     builder = sort === 'name'
       ? builder.order('name', { ascending: true })

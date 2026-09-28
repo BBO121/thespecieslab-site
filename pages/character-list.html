@@ -42,6 +42,12 @@
           </div>
         </div>
 
+        <!-- 특별 분류 뱃지 필터 — 개체 상세 "종족연구소 콜라보" 뱃지(.special-classification-badge) 재사용 -->
+        <div class="char-badge-filter" id="badgeFilter" role="group" aria-label="개체 분류 필터">
+          <button type="button" class="special-classification-badge char-badge-filter-btn is-all is-active" data-badge="" aria-pressed="true">전체</button>
+          <button type="button" class="special-classification-badge collaboration char-badge-filter-btn" data-badge="specieslab_collab" aria-pressed="false">종족연구소 콜라보</button>
+        </div>
+
         <!-- 검색 + 필터 + 정렬 -->
         <div class="list-controls">
           <input type="text" class="list-search" id="searchInput" placeholder="개체 이름으로 검색">
@@ -90,6 +96,19 @@
     const ownerParam   = _qs.get('owner');
     const ownerIdParam = _qs.get('owner_id'); // UUID 기준 조회
     const pager = createPager(render, 'paginationWrap', 'page', 28);
+    // 특별 분류 뱃지 필터 — special_badge key ('' = 전체). 개체 상세 SPECIAL_BADGE_MAP과 같은 key를 쓴다.
+    let badgeFilter = '';
+
+    function setBadgeFilter(key) {
+      const btns = document.querySelectorAll('#badgeFilter .char-badge-filter-btn');
+      if (![...btns].some(b => b.dataset.badge === key)) key = ''; // 알 수 없는 값(URL 조작 등)은 전체로
+      badgeFilter = key;
+      btns.forEach(b => {
+        const on = b.dataset.badge === key;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
 
     // 전체 개체를 미리 캐싱해 브라우저에서 필터링하는 대신, 검색어/필터가
     // 바뀔 때마다 searchCharacters()로 서버에 직접 요청한다.
@@ -121,6 +140,7 @@
       if (urlQ) document.getElementById('searchInput').value  = urlQ;
       if (sp)   document.getElementById('speciesFilter').value = sp;
       if (sort) document.getElementById('sortSelect').value    = sort;
+      setBadgeFilter(p.get('badge') || '');
 
       // 종족 필터 옵션 생성 (species 테이블 기준 — 개체 데이터 전체를 불러올 필요 없음)
       if (!speciesErr && speciesRows) {
@@ -141,6 +161,7 @@
       const q    = normalizeSearchQuery(document.getElementById('searchInput').value);
       const sp   = document.getElementById('speciesFilter').value;
       const sort = document.getElementById('sortSelect').value;
+      const badge = badgeFilter;
 
       if (searchController) searchController.abort();
       searchController = new AbortController();
@@ -150,6 +171,7 @@
         speciesName: sp || null,
         ownerUserId: (ownerIdParam && ownerParamId) ? ownerParamId : null,
         ownerNickname: (!ownerIdParam && ownerParam) ? ownerParam : null,
+        specialBadge: badge || null,
         sort,
         limit: 5000,
         signal: searchController.signal,
@@ -189,6 +211,7 @@
         if (q)    url.searchParams.set('q', q);           else url.searchParams.delete('q');
         if (sp)   url.searchParams.set('species', sp);    else url.searchParams.delete('species');
         if (sort) url.searchParams.set('sort', sort);     else url.searchParams.delete('sort');
+        if (badge) url.searchParams.set('badge', badge);  else url.searchParams.delete('badge');
         url.searchParams.delete('page');
         history.replaceState(null, '', url);
         pager.load(list);
@@ -229,6 +252,12 @@
     document.getElementById('searchInput').addEventListener('input', debouncedApplyFilter);
     document.getElementById('speciesFilter').addEventListener('change', applyFilter);
     document.getElementById('sortSelect').addEventListener('change', applyFilter);
+    document.getElementById('badgeFilter').addEventListener('click', e => {
+      const btn = e.target.closest('.char-badge-filter-btn');
+      if (!btn || btn.dataset.badge === badgeFilter) return;
+      setBadgeFilter(btn.dataset.badge);
+      applyFilter(); // 검색어/종족/정렬 입력값은 그대로 유지된 채 재조회
+    });
 
     loadCharacters();
   </script>

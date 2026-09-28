@@ -115,6 +115,29 @@
       object-fit:contain !important;
       border-radius:10px;
     }
+    /* 제시하기 — 입찰 목록(.adoption-bid-*) 디자인 재사용, 내용이 여러 줄이라 행만 세로 배치 */
+    .offer-period { font-size:13px; color:var(--text-sub); margin:0 0 8px; line-height:1.5; }
+    .offer-row { flex-direction:column; align-items:stretch; gap:6px; }
+    .offer-row-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .offer-row-head .adoption-bid-name a { color:inherit; text-decoration:none; }
+    .offer-order {
+      display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px;
+      border-radius:11px; background:var(--sky-pale); color:var(--sky-deep); font-size:12px; font-weight:700;
+    }
+    .offer-actions { margin-left:auto; display:inline-flex; align-items:center; gap:10px; }
+    .offer-delete { border:none; background:none; font-size:12px; color:var(--text-mute); cursor:pointer; padding:0; font-family:inherit; }
+    .offer-delete:hover { color:#ef4444; }
+    .offer-content { font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word; margin:0; color:var(--text); }
+    .offer-closed-notice {
+      background:#f3f4f6; border:1px solid #d1d5db; border-radius:var(--radius);
+      padding:12px 16px; margin:0 0 12px; font-size:14px; font-weight:700; color:#374151; text-align:center;
+    }
+    .offer-input-wrap { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+    .offer-input-foot { display:flex; align-items:center; justify-content:flex-end; gap:10px; }
+    .offer-char-count { font-size:12px; color:var(--text-mute); }
+    .offer-textarea:disabled { background:var(--bg); cursor:not-allowed; }
+    /* 작성자 영역 — 수정 / 삭제 / 분양 마감 */
+    .author-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .img-modal-close {
       position:absolute; top:-13px; right:-13px;
       width:30px; height:30px; background:#fff; border:none; border-radius:50%;
@@ -271,6 +294,34 @@
           </div>
         </div>
 
+        <!-- 제시하기 섹션 (일반분양 + 제시 받기 ON 전용, 경매 입찰 UI 재사용) -->
+        <div id="offerSection" style="display:none; margin-top:32px;">
+          <div class="adoption-bids-wrap">
+            <div class="adoption-bids-header">
+              <h2 class="adoption-section-title">제시하기</h2>
+              <span id="offerCount" class="adoption-bid-count"></span>
+            </div>
+            <div id="offerConfirmNotice" class="adoption-notice">💬 댓글 또는 다른 연락수단으로 소통 후 분양받는 분이 정해지면, 해당 제시의 <strong>분양확정</strong> 버튼을 눌러 주세요. 분양확정 버튼을 눌러야 분양이 닫힙니다.</div>
+            <p id="offerPeriod" class="offer-period"></p>
+            <p id="offerNotice" style="font-size:13px; color:var(--text-sub); margin:0 0 12px; line-height:1.5;">
+              제시는 현재 분양 조건으로 구매·인수를 원한다는 의사 표시예요. 먼저 등록된 제시가 위에 표시돼요.<br>
+              등록한 제시는 수정하거나 삭제할 수 없어요. 분양 확정은 작성자가 직접 진행해요.
+            </p>
+            <div id="offerList" class="adoption-bid-list"></div>
+            <p id="offerLockedNotice" class="first-come-countdown" style="display:none; margin:0 0 12px;"></p>
+            <p id="offerClosedNotice" class="offer-closed-notice" style="display:none;">제시가 마감되었습니다.</p>
+            <p id="offerInfoNotice" style="display:none; font-size:13px; color:var(--text-mute); margin:0 0 12px;"></p>
+            <div id="offerInputWrap" class="offer-input-wrap" style="display:none;">
+              <textarea id="offerTextarea" class="comment-textarea offer-textarea" rows="3" maxlength="1000" placeholder="원하는 조건을 자유롭게 제시해주세요."></textarea>
+              <div class="offer-input-foot">
+                <span id="offerCharCount" class="offer-char-count">0 / 1000</span>
+                <button id="offerSubmitBtn" onclick="submitOffer()" class="btn-secondary" style="padding:8px 20px; font-size:13px;">제시하기</button>
+              </div>
+            </div>
+            <p class="auth-error" id="offerError"></p>
+          </div>
+        </div>
+
         <!-- 신청자 목록 섹션 (free/random 전용) -->
         <div class="comments-section" id="applicantSection" style="display:none;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
@@ -284,8 +335,6 @@
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
             <h2 style="margin:0;">댓글</h2>
           </div>
-          <!-- 유료/기타 안내문 -->
-          <div id="commentNotice" class="adoption-notice" style="display:none;"></div>
           <div id="commentList"><p class="page-loading">불러오는 중...</p></div>
           <div id="commentInputArea" class="comment-input-area" style="display:none;">
             <p style="font-size:12px; color:var(--text-mute); margin:0 0 4px;">@닉네임으로 유저를 언급하면 해당 유저에게 알림이 전송됩니다.</p>
@@ -303,8 +352,12 @@
 
         <div class="notice-detail-bottom" style="justify-content:space-between;">
           <a href="adoption.html" class="btn-ghost">← 목록으로</a>
-          <button id="closePostBtn" class="btn-ghost" style="display:none;" onclick="closePost()">분양 마감</button>
-          <span id="closedPostLabel" style="display:none; padding:8px 16px; font-size:13px; font-weight:600; color:#999; background:#f1f5f9; border-radius:8px; align-items:center;">분양 마감됨</span>
+          <div class="author-actions">
+            <a id="editPostBtn" class="btn-ghost" style="display:none;" href="#">수정</a>
+            <button id="deletePostBtn" class="btn-ghost" style="display:none;" onclick="openDeleteModal()">삭제</button>
+            <button id="closePostBtn" class="btn-ghost" style="display:none;" onclick="closePost()">분양 마감</button>
+            <span id="closedPostLabel" style="display:none; padding:8px 16px; font-size:13px; font-weight:600; color:#999; background:#f1f5f9; border-radius:8px; align-items:center;">분양 마감됨</span>
+          </div>
         </div>
 
       </div>
@@ -352,6 +405,19 @@
     </div>
   </div>
 
+  <!-- 분양글 삭제 확인 모달 -->
+  <div class="modal-overlay" id="deleteModal" style="display:none;">
+    <div class="modal-card">
+      <h3 class="modal-title">분양글 삭제</h3>
+      <p class="modal-desc">분양글을 삭제하면 해당 개체는 <strong>30일 동안 다시 분양 등록할 수 없습니다.</strong><br>삭제하시겠습니까?<br><br>이 글의 댓글·신청·제시 기록도 함께 삭제되며 되돌릴 수 없어요.</p>
+      <p class="auth-error" id="deleteError"></p>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn-ghost" onclick="closeDeleteModal()">취소</button>
+        <button class="btn-secondary" id="confirmDeleteBtn" onclick="confirmDeletePost()">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
   </footer>
@@ -391,6 +457,7 @@
     let auctionClosed       = false; // 서버시간 기준 종료 경과 여부 (UI 표시용 — 최종 판정은 서버 트리거)
     let serverClockOffsetMs = 0;     // 서버 now() - 클라 now() (클라 PC 시계 오차 보정)
     let _auctionCountdownTimer = null;
+    let auctionBidCount     = 0;     // 현재 입찰 수 — 작성자 삭제 가능 여부 / 마감 시 30일 제한 안내용
     let idToNick        = {};
     let allNicknames    = [];
     let auctionCurrencyUnit = '원';
@@ -428,15 +495,17 @@
       renderMain(adoption);
       loadAdSense();
 
-      if (adoption.adoption_type === 'auction') {
-        document.getElementById('auctionSection').style.display = 'block';
-
-        // 서버 시계 동기화 — 남은시간/마감 판정에 클라이언트 PC 시계 오차가 끼지 않도록.
-        // (최종 입찰 가능 여부는 서버 트리거가 판정하고, 이건 표시/선제안내용)
+      // 서버 시계 동기화 — 경매 남은시간 / 제시 기간 판정에 클라이언트 PC 시계 오차가 끼지 않도록.
+      // (최종 입찰·제시 가능 여부는 서버 트리거가 판정하고, 이건 표시/선제안내용)
+      if (adoption.adoption_type === 'auction' || isOfferEligibleAdoption(adoption)) {
         try {
           const { data: st } = await sb.rpc('get_server_time');
           if (st) serverClockOffsetMs = new Date(st).getTime() - Date.now();
-        } catch (e) { console.warn('[경매] 서버 시계 동기화 실패, 클라 시계 사용', e); }
+        } catch (e) { console.warn('[분양 상세] 서버 시계 동기화 실패, 클라 시계 사용', e); }
+      }
+
+      if (adoption.adoption_type === 'auction') {
+        document.getElementById('auctionSection').style.display = 'block';
 
         const [{ data: details }, { data: bids }] = await Promise.all([
           sb.from('auction_details').select('*').eq('adoption_id', adoptionId).single(),
@@ -460,8 +529,261 @@
         loadComments();
       }
 
+      if (isOfferEligibleAdoption(adoption)) {
+        await initOffers();
+      }
+
+      refreshAuthorActions();
+
       document.getElementById('pageLoading').style.display = 'none';
       document.getElementById('pageContent').style.display = 'block';
+    }
+
+    // ── 작성자 영역: 수정 / 삭제 (분양중일 때만, DB 가드와 같은 기준) ──────────
+    function refreshAuthorActions() {
+      const a = currentAdoption;
+      if (!a) return;
+      const isAuthor = !!(currentUser?.id && a.user_id && currentUser.id === a.user_id);
+      const isOpen   = (a.status || '분양중') === '분양중';
+      const editBtn  = document.getElementById('editPostBtn');
+      const delBtn   = document.getElementById('deletePostBtn');
+      editBtn.style.display = 'none';
+      delBtn.style.display  = 'none';
+      if (!isAuthor || !isOpen) return;
+
+      editBtn.href = `adoption-write.html?id=${encodeURIComponent(a.id)}`;
+      editBtn.style.display = 'inline-flex';
+      // 입찰이 1건이라도 있는 경매는 삭제 불가
+      if (!(a.adoption_type === 'auction' && auctionBidCount > 0)) {
+        delBtn.style.display = 'inline-flex';
+      }
+    }
+
+    // 작성자가 낙찰자 없이 직접 마감할 때 30일 재등록 제한이 생기는지 (DB 규칙과 동일):
+    // 경매 유찰(마감 시각 경과 + 입찰 0건)만 제외
+    function closeWillLockRelist() {
+      const a = currentAdoption;
+      return !(a?.adoption_type === 'auction' && auctionClosed && auctionBidCount === 0);
+    }
+
+    function openDeleteModal() {
+      document.getElementById('deleteError').textContent = '';
+      const btn = document.getElementById('confirmDeleteBtn');
+      btn.disabled = false; btn.textContent = '삭제';
+      document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').style.display = 'none';
+    }
+
+    async function confirmDeletePost() {
+      const btn   = document.getElementById('confirmDeleteBtn');
+      const errEl = document.getElementById('deleteError');
+      errEl.textContent = '';
+      btn.disabled = true; btn.textContent = '삭제 중...';
+
+      const { data, error } = await sb.from('adoptions').delete().eq('id', adoptionId).select('id');
+      if (error || !data || data.length === 0) {
+        console.error('[분양글 삭제 실패]', error);
+        errEl.textContent = error?.message
+          || '삭제하지 못했어요. 분양 상태가 바뀌었거나 입찰이 생겼을 수 있어요. 새로고침 후 확인해주세요.';
+        btn.disabled = false; btn.textContent = '삭제';
+        return;
+      }
+
+      alert('분양글을 삭제했어요.');
+      window.location.href = 'my-adoptions.html';
+    }
+
+    // ── 제시하기 ───────────────────────────────────────
+    // 대상: 유료 / 재화거래 / 기타 / 무료-일반 — 설정 없이 항상 사용 (DB _adoption_offer_eligible 과 동일).
+    // offer_open_at(없으면 등록 즉시)부터 분양중인 동안 제시 가능. 판정 원천은 서버 트리거.
+    let offerList   = [];
+    let offerPhase  = null;   // 'before' | 'open' | 'closed'
+    let _offerTimer = null;
+
+    function isOfferEligibleAdoption(a) {
+      return ['paid', 'currency', 'etc'].includes(a?.adoption_type)
+        || (a?.adoption_type === 'free' && (!a.free_type || a.free_type === 'normal'));
+    }
+
+    function getOfferPhase() {
+      const a = currentAdoption;
+      if ((a.status || '분양중') !== '분양중') return 'closed';
+      if (a.offer_open_at && serverNow() < new Date(a.offer_open_at).getTime()) return 'before';
+      return 'open';
+    }
+
+    // 절대시각 → 'YYYY.MM.DD HH:mm' (KST)
+    function fmtKST(d) {
+      const parts = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      }).formatToParts(new Date(d));
+      const g = t => parts.find(p => p.type === t)?.value || '';
+      return `${g('year')}.${g('month')}.${g('day')} ${g('hour')}:${g('minute')}`;
+    }
+
+    function escText(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function initOffers() {
+      const a = currentAdoption;
+      document.getElementById('offerSection').style.display = 'block';
+      const periodEl = document.getElementById('offerPeriod');
+      if (a.offer_open_at) {
+        periodEl.textContent = `제시 시작: ${fmtKST(a.offer_open_at)} (KST)`;
+      } else {
+        periodEl.style.display = 'none';
+      }
+
+      const ta = document.getElementById('offerTextarea');
+      ta.addEventListener('input', () => {
+        document.getElementById('offerCharCount').textContent = `${ta.value.length} / 1000`;
+      });
+
+      await loadOffers();
+
+      // 시작 시각 도달 시 새로고침 없이 입력 활성화 (15초 주기 — 경매 카운트다운과 동일)
+      if (offerPhase === 'before' && !_offerTimer) {
+        _offerTimer = setInterval(() => {
+          if (getOfferPhase() !== offerPhase) renderOffers();
+          if (offerPhase !== 'before') { clearInterval(_offerTimer); _offerTimer = null; }
+        }, 15000);
+      }
+    }
+
+    // 먼저 등록된 제시가 위 — 서버가 기록한 created_at, 같으면 id (결정적 순서)
+    async function loadOffers() {
+      const { data, error } = await sb.from('adoption_offers')
+        .select('id, user_id, author_nickname, content, created_at')
+        .eq('adoption_id', adoptionId)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) console.error('[제시 목록 조회 실패]', error);
+      offerList = data || [];
+      renderOffers();
+    }
+
+    function renderOffers() {
+      const a          = currentAdoption;
+      const phase      = getOfferPhase();
+      offerPhase       = phase;
+      const isAuthor   = !!(currentUser?.id && a.user_id && currentUser.id === a.user_id);
+      const isOperator = isAdminOrStaff(currentUser?.app_metadata?.role);
+
+      document.getElementById('offerCount').textContent = `${offerList.length}건`;
+
+      const listEl = document.getElementById('offerList');
+      if (offerList.length === 0) {
+        listEl.innerHTML = '<p class="adoption-no-bids">아직 제시가 없어요</p>';
+      } else {
+        // 분양글 작성자만, 분양중일 때 원하는 제시를 골라 분양확정 (자동 확정 없음)
+        const canConfirm = isAuthor && phase !== 'closed';
+        listEl.innerHTML = offerList.map((o, i) => {
+          const name = (o.user_id && idToNick[o.user_id]) || o.author_nickname || '익명';
+          // 제시는 작성자·분양자 모두 삭제 불가 — admin/staff 만 (DB 정책과 동일)
+          const canDelete = !!currentUser && isOperator;
+          return `
+            <div class="adoption-bid-row offer-row">
+              <div class="offer-row-head">
+                <span class="offer-order">${i + 1}</span>
+                <span class="adoption-bid-name">${o.user_id ? `<a href="profile.html?user=${encodeURIComponent(o.user_id)}">${escText(name)}</a>` : escText(name)}</span>
+                <span class="adoption-bid-time">${fmtKST(o.created_at)}</span>
+                ${canConfirm || canDelete ? `<span class="offer-actions">
+                  ${canConfirm ? `<button class="comment-confirm-btn" onclick="openOfferComplete(${i})">분양확정</button>` : ''}
+                  ${canDelete ? `<button class="offer-delete" onclick="deleteOffer(${Number(o.id)})">삭제</button>` : ''}
+                </span>` : ''}
+              </div>
+              <p class="offer-content">${escText(o.content)}</p>
+            </div>`;
+        }).join('');
+      }
+
+      // 입력 영역 상태
+      const lockedEl = document.getElementById('offerLockedNotice');
+      const closedEl = document.getElementById('offerClosedNotice');
+      const infoEl   = document.getElementById('offerInfoNotice');
+      const inputEl  = document.getElementById('offerInputWrap');
+      const ta       = document.getElementById('offerTextarea');
+      const btn      = document.getElementById('offerSubmitBtn');
+      [lockedEl, closedEl, infoEl, inputEl].forEach(el => { el.style.display = 'none'; });
+
+      if (phase === 'closed') {
+        closedEl.style.display = 'block';
+        return;
+      }
+      if (!currentUser) {
+        infoEl.textContent = '로그인 후 제시할 수 있어요.';
+        infoEl.style.display = 'block';
+        return;
+      }
+      if (isAuthor) {
+        infoEl.textContent = '본인 분양글에는 제시할 수 없어요.';
+        infoEl.style.display = 'block';
+        return;
+      }
+
+      inputEl.style.display = 'flex';
+      const enabled = phase === 'open';
+      ta.disabled  = !enabled;
+      btn.disabled = !enabled;
+      if (phase === 'before') {
+        lockedEl.textContent = `🕐 ${fmtKST(a.offer_open_at)}부터 제시할 수 있어요.`;
+        lockedEl.style.display = 'block';
+      }
+    }
+
+    async function submitOffer() {
+      const ta      = document.getElementById('offerTextarea');
+      const btn     = document.getElementById('offerSubmitBtn');
+      const errorEl = document.getElementById('offerError');
+      const content = ta.value.trim();
+      errorEl.textContent = '';
+
+      if (!currentUser) { errorEl.textContent = '로그인 후 제시할 수 있어요.'; return; }
+      if (!content)     { errorEl.textContent = '제시 내용을 입력해주세요.'; return; }
+      if (getOfferPhase() !== 'open') {
+        errorEl.textContent = '지금은 제시할 수 없어요.';
+        renderOffers();
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = '제시 중...';
+      const { error } = await sb.from('adoption_offers').insert({
+        adoption_id:     Number(adoptionId),
+        user_id:         currentUser.id,
+        author_nickname: myNick || '익명',
+        content,
+      });
+      btn.textContent = '제시하기';
+
+      if (error) {
+        console.error('[제시 등록 실패]', error);
+        errorEl.textContent = error.message || '제시에 실패했어요. 다시 시도해주세요.';
+        // 마감/분양 종료로 거부된 경우 최신 상태로 다시 그림
+        const { data: fresh } = await sb.from('adoptions').select('status, offer_open_at').eq('id', adoptionId).single();
+        if (fresh) Object.assign(currentAdoption, fresh);
+        renderOffers();
+        return;
+      }
+
+      ta.value = '';
+      document.getElementById('offerCharCount').textContent = '0 / 1000';
+      await loadOffers();
+    }
+
+    // 운영진(admin/staff) 전용 — 문제 제시 관리용
+    async function deleteOffer(id) {
+      if (!confirm('운영진 권한으로 이 제시를 삭제할까요?\n삭제한 제시는 되돌릴 수 없어요.')) return;
+      const { data, error } = await sb.from('adoption_offers').delete().eq('id', id).select('id');
+      if (error || !data || data.length === 0) {
+        console.error('[제시 삭제 실패]', error);
+        alert(error?.message || '삭제하지 못했어요.');
+      }
+      await loadOffers();
     }
 
     function revealSensitive(overlayEl, e) {
@@ -677,15 +999,6 @@
         document.getElementById('closePostBtn').style.display = 'inline-flex';
       } else if (isAuthor && a.status === '완료') {
         document.getElementById('closedPostLabel').style.display = 'inline-flex';
-      }
-
-      // 댓글 섹션 안내문
-      const isCommentConfirmable = a.adoption_type === 'paid' || a.adoption_type === 'etc' || a.adoption_type === 'currency' ||
-        (a.adoption_type === 'free' && (!a.free_type || a.free_type === 'normal'));
-      if (isCommentConfirmable) {
-        const notice = document.getElementById('commentNotice');
-        notice.innerHTML = '💬 댓글 또는 다른 연락수단으로 소통 후 분양받는 분이 정해지면, 해당 댓글의 <strong>분양확정</strong> 버튼을 눌러 주세요. 분양확정 버튼을 눌러야 분양이 닫힙니다.';
-        notice.style.display = 'block';
       }
     }
 
@@ -1058,6 +1371,7 @@
       // 종료시각이 지났으면(auctionClosed) 입찰·분양확정(임의지정)·안내문 등 진행중 UI는 모두 닫는다.
       const isOpen   = adoption.status === '분양중' && !auctionClosed;
 
+      auctionBidCount = bids.length;
       document.getElementById('bidCount').textContent = `${bids.length}건`;
 
       // 작성자에게 분양확정 버튼 표시
@@ -1673,7 +1987,10 @@
     }
 
     async function closeAuction() {
-      if (!confirm('낙찰자 없이 경매를 마감할까요?')) return;
+      const lockMsg = closeWillLockRelist()
+        ? '\n\n⚠ 경매 마감 전에 낙찰자 없이 직접 마감하면 해당 개체는 30일 동안 다시 분양 등록할 수 없습니다.'
+        : '';
+      if (!confirm(`낙찰자 없이 경매를 마감할까요?${lockMsg}`)) return;
       await sb.from('adoptions').update({ status: '완료' }).eq('id', adoptionId);
       try {
         if (!window.incrementAchCounter) throw new Error('incrementAchCounter 없음');
@@ -1706,10 +2023,21 @@
     }
 
     // ── 분양확정 모달 ──────────────────────────────────
-    let _pendingRecipient = null;
+    let _pendingRecipient   = null;
+    let _pendingRecipientId = null;   // 제시에서 연 경우 제시자 uid (닉네임 재조회 없이 그대로 사용)
 
-    function openCompleteModal(prefilledNick) {
-      _pendingRecipient = prefilledNick || null;
+    // 제시 카드의 [분양확정] — 선택한 제시의 작성자를 인수자로 기존 분양확정 모달 사용
+    function openOfferComplete(index) {
+      const o = offerList[index];
+      if (!o) return;
+      const nick = (o.user_id && idToNick[o.user_id]) || o.author_nickname;
+      if (!nick) return;
+      openCompleteModal(nick, o.user_id || null);
+    }
+
+    function openCompleteModal(prefilledNick, prefilledUserId = null) {
+      _pendingRecipient   = prefilledNick || null;
+      _pendingRecipientId = prefilledNick ? (prefilledUserId || null) : null;
       const input = document.getElementById('recipientInput');
       const desc  = document.getElementById('completeModalDesc');
       input.value    = prefilledNick || '';
@@ -1727,7 +2055,8 @@
 
     function closeCompleteModal() {
       document.getElementById('completeModal').style.display = 'none';
-      _pendingRecipient = null;
+      _pendingRecipient   = null;
+      _pendingRecipientId = null;
     }
 
     async function confirmComplete() {
@@ -1749,10 +2078,15 @@
                    : a.adoption_type === 'etc'      ? '기타분양'
                    : '경매';
 
-      // recipient uid 조회
-      const { data: recipientUserList } = await sb.rpc('get_all_users');
-      const recipientUser   = (recipientUserList || []).find(u => u.nickname === recipient);
-      const recipientUserId = recipientUser?.id || null;
+      // recipient uid — 제시에서 연 경우 제시자 uid 그대로, 그 외에는 닉네임으로 조회 (기존)
+      let recipientUserId = null;
+      if (_pendingRecipientId && recipient === _pendingRecipient) {
+        recipientUserId = _pendingRecipientId;
+      } else {
+        const { data: recipientUserList } = await sb.rpc('get_all_users');
+        const recipientUser = (recipientUserList || []).find(u => u.nickname === recipient);
+        recipientUserId = recipientUser?.id || null;
+      }
 
       // winner_user_id 선행 저장 (RPC가 status를 완료로 처리하기 전에)
       await sb.from('adoptions').update({
@@ -2159,7 +2493,10 @@
     }
 
     async function closePost() {
-      if (!confirm('이 분양을 마감하시겠습니까?\n\n마감된 분양은 다시 진행할 수 없으며,\n분양 기록은 보존됩니다.')) return;
+      const lockMsg = closeWillLockRelist()
+        ? '\n\n⚠ 낙찰자 없이 직접 마감하면 해당 개체는 30일 동안 다시 분양 등록할 수 없습니다.'
+        : '';
+      if (!confirm(`이 분양을 마감하시겠습니까?\n\n마감된 분양은 다시 진행할 수 없으며,\n분양 기록은 보존됩니다.${lockMsg}`)) return;
 
       const btn = document.getElementById('closePostBtn');
       btn.textContent = '마감 중...';

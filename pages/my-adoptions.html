@@ -156,6 +156,7 @@
     let _pendingAdoptionId = null;
     let _allCreatedAts   = []; // 전체 adoptions.created_at (ms) — 끌올 조건(내 글보다 최신 20개 이상) 계산용
     let idToNick         = {}; // winner_user_id(uuid) → 현재 닉네임 (resolveUsersByIds, js/utils.js)
+    let researchAuctionIds = new Set(); // 연구기록 경매 — [재화거래] 배지 추가용
 
     // 분양 목록 페이지와 동일하게 상태/타입 무관 전체 기준으로 계산 (use_bump_ticket RPC와 동일 기준)
     function getAheadCount(adoption) {
@@ -206,6 +207,13 @@
       if (adoptionsRes.error || !data || data.length === 0) {
         document.getElementById('emptyState').style.display = 'flex';
         return;
+      }
+
+      const myAuctionIds = data.filter(a => a.adoption_type === 'auction').map(a => a.id);
+      if (myAuctionIds.length) {
+        const { data: ad } = await sb.from('auction_details')
+          .select('adoption_id').in('adoption_id', myAuctionIds).eq('auction_currency', 'research_records');
+        researchAuctionIds = new Set((ad || []).map(d => d.adoption_id));
       }
 
       _ongoingList = data.filter(a => a.status !== '완료');
@@ -282,6 +290,7 @@
             <div style="flex:1; min-width:0;">
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
                 <span class="adoption-type-badge ${typeClass}" style="font-size:11px; padding:2px 8px;">${typeLabel}${freeSub ? ' · ' + freeSub : ''}</span>
+                ${a.adoption_type === 'auction' && researchAuctionIds.has(a.id) ? '<span class="adoption-type-badge adoption-type--currency" style="font-size:11px; padding:2px 8px;">재화거래</span>' : ''}
                 <span class="adoption-status${isClosed ? ' adoption-status--closed' : a.status === '확인 대기중' ? ' adoption-status--pending' : ''}" style="font-size:11px;">${a.status || '분양중'}</span>
               </div>
               <p style="font-size:14px; font-weight:600; color:var(--text); margin:0 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${a.character_name || '—'}</p>

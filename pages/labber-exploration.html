@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LABBER 탐험 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="labber-theme">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="labberlab-hero">
+          <div class="list-page-header" style="margin-bottom:0;">
+            <div>
+              <div class="breadcrumb" style="margin-bottom:8px;">
+                <a href="index.html">홈</a>
+                <span>/</span>
+                <span>LABBER</span>
+                <span>/</span>
+                <span>탐험</span>
+              </div>
+              <div class="labber-page-title">
+                <h1 class="list-page-title">LABBER 탐험</h1>
+                <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+              </div>
+              <p class="labberlab-intro">
+                수상한 연구실 곳곳을 탐험해 연구기록과 재료를 수집한다.<br>
+                탐험에는 LABBER가 필요하다. 개인 LABBER가 없다면 기본 LABBER <span class="labberlab-intro-accent">NPC B</span>가 동행한다.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 1. 탐험 LABBER 선택 ───────────────────────────── -->
+        <section class="labexp-section">
+          <h2 class="labexp-section-title">탐험 LABBER</h2>
+          <div class="labexp-explorer" id="explorerRow"></div>
+        </section>
+
+        <!-- ── 2. 오늘 남은 탐험 ─────────────────────────────── -->
+        <section class="labexp-section">
+          <h2 class="labexp-section-title">오늘 남은 탐험</h2>
+          <div class="labexp-daily" id="dailyStatus"></div>
+        </section>
+
+        <!-- ── 3. 탐험구역 (구역 카드 grid) ──────────────────── -->
+        <section class="labexp-section">
+          <h2 class="labexp-section-title">탐험구역</h2>
+          <div class="labexp-area-grid" id="areaGrid"></div>
+        </section>
+
+        <!-- ── 4. 결과 (구역 카드 클릭 → 모달 → 탐험 → 여기 표시) ─ -->
+        <section class="labexp-result" id="exploreResult" hidden>
+          <h2 class="labexp-result-title">탐험 완료</h2>
+          <div id="exploreResultBody"></div>
+          <button type="button" class="labexp-result-close" id="resultCloseBtn">닫기</button>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <!-- ── 스테이지 선택 모달 (구역 카드 클릭 시 열림) ────────────── -->
+  <div class="labexp-modal-backdrop" id="stageModalBackdrop" hidden>
+    <div class="labexp-modal" id="stageModal" role="dialog" aria-modal="true" aria-labelledby="stageModalTitle">
+      <div class="labexp-modal-header">
+        <h2 class="labexp-modal-title" id="stageModalTitle">연구실</h2>
+        <button type="button" class="labexp-modal-close" id="stageModalClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="labexp-modal-body">
+        <p class="labexp-modal-eyebrow">SELECT STAGE</p>
+        <div class="labexp-carousel">
+          <button type="button" class="labexp-carousel-nav" id="stagePrev" aria-label="이전 스테이지">&#8249;</button>
+          <div class="labexp-stage-card-wrap" id="stageCardWrap"></div>
+          <button type="button" class="labexp-carousel-nav" id="stageNext" aria-label="다음 스테이지">&#8250;</button>
+        </div>
+        <p class="labexp-stage-count" id="stageCount"></p>
+        <button type="button" class="labexp-prob-toggle" id="probToggleBtn" aria-expanded="false" aria-controls="probPanel">획득 확률 보기</button>
+        <div class="labexp-prob-panel" id="probPanel" hidden></div>
+        <div class="labexp-action">
+          <button type="button" class="labexp-explore-btn" id="exploreBtn">탐험하기</button>
+          <p class="labexp-action-note" id="exploreNote"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/labber-exploration.js"></script>
+</body>
+</html>

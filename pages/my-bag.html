@@ -107,52 +107,78 @@
         </div>
         <p class="shop-detail-desc" id="bagItemInfoDesc"></p>
 
-        <div class="bag-iteminfo-meta">
-          <div class="bag-iteminfo-block">
-            <p class="bag-iteminfo-label">판매 가격</p>
-            <p class="bag-iteminfo-value" id="bagItemInfoPrice">-</p>
-          </div>
-          <div class="bag-iteminfo-block">
-            <p class="bag-iteminfo-label">획득처</p>
-            <p class="bag-iteminfo-value" id="bagItemInfoAcq">-</p>
-          </div>
-        </div>
-
-        <div class="shop-detail-footer">
-          <span class="shop-detail-price" id="bagItemInfoQty"></span>
-          <div id="bagItemInfoAction"></div>
-        </div>
-
-        <!-- ── 아이템 전송 ────────────────────────────── -->
-        <div class="bag-transfer" id="bagTransferSection">
-          <p class="bag-transfer-title">아이템 전송</p>
-
-          <!-- 전송 불가 아이템 -->
-          <p class="bag-transfer-blocked" id="bagTransferBlocked" hidden>전송 불가 아이템</p>
-
-          <!-- 전송 가능할 때만 -->
-          <div id="bagTransferForm" hidden>
-            <div class="bag-usersearch">
-              <input type="text" id="bagTransferUserInput" class="bag-usersearch-input"
-                     placeholder="유저 닉네임 검색" autocomplete="off" spellcheck="false">
-              <div class="bag-usersearch-dropdown" id="bagTransferUserDropdown" hidden></div>
+        <div id="bagItemNormalView">
+          <div class="bag-iteminfo-meta">
+            <div class="bag-iteminfo-block">
+              <p class="bag-iteminfo-label">판매 가격</p>
+              <p class="bag-iteminfo-value" id="bagItemInfoPrice">-</p>
             </div>
-            <div class="bag-transfer-picked" id="bagTransferPicked" hidden>
-              <span id="bagTransferPickedName"></span>
-              <button type="button" class="bag-transfer-picked-clear" onclick="bagTransferClearUser()" aria-label="선택 해제">×</button>
+            <div class="bag-iteminfo-block">
+              <p class="bag-iteminfo-label">획득처</p>
+              <p class="bag-iteminfo-value" id="bagItemInfoAcq">-</p>
             </div>
+          </div>
 
-            <!-- 수량 + 전송하기 같은 행 (왼쪽: 수량 그룹 / 오른쪽: 전송 버튼) -->
-            <div class="bag-transfer-action-row">
-              <div class="bag-transfer-qty" id="bagTransferQtyRow" hidden>
-                <span class="bag-transfer-qty-label">수량</span>
-                <button type="button" class="bag-qty-btn" onclick="bagTransferQtyStep(-1)" aria-label="수량 감소">−</button>
-                <span class="bag-qty-value" id="bagTransferQtyValue">1</span>
-                <button type="button" class="bag-qty-btn" onclick="bagTransferQtyStep(1)" aria-label="수량 증가">+</button>
+          <div class="shop-detail-footer">
+            <span class="shop-detail-price" id="bagItemInfoQty"></span>
+            <div id="bagItemInfoAction"></div>
+          </div>
+
+          <!-- ── 아이템 전송 ────────────────────────────── -->
+          <div class="bag-transfer" id="bagTransferSection">
+            <p class="bag-transfer-title">아이템 전송</p>
+
+            <!-- 전송 불가 아이템 -->
+            <p class="bag-transfer-blocked" id="bagTransferBlocked" hidden>전송 불가 아이템</p>
+
+            <!-- 전송 가능할 때만 -->
+            <div id="bagTransferForm" hidden>
+              <div class="bag-usersearch">
+                <input type="text" id="bagTransferUserInput" class="bag-usersearch-input"
+                       placeholder="유저 닉네임 검색" autocomplete="off" spellcheck="false">
+                <div class="bag-usersearch-dropdown" id="bagTransferUserDropdown" hidden></div>
               </div>
-              <button type="button" class="shop-buy-btn-lg bag-transfer-btn" id="bagTransferBtn"
-                      onclick="onBagItemTransfer()" disabled>전송하기</button>
+              <div class="bag-transfer-picked" id="bagTransferPicked" hidden>
+                <span id="bagTransferPickedName"></span>
+                <button type="button" class="bag-transfer-picked-clear" onclick="bagTransferClearUser()" aria-label="선택 해제">×</button>
+              </div>
+
+              <!-- 수량 + 전송하기 같은 행 (왼쪽: 수량 그룹 / 오른쪽: 전송 버튼) -->
+              <div class="bag-transfer-action-row">
+                <div class="bag-transfer-qty" id="bagTransferQtyRow" hidden>
+                  <span class="bag-transfer-qty-label">수량</span>
+                  <button type="button" class="bag-qty-btn" onclick="bagTransferQtyStep(-1)" aria-label="수량 감소">−</button>
+                  <span class="bag-qty-value" id="bagTransferQtyValue">1</span>
+                  <button type="button" class="bag-qty-btn" onclick="bagTransferQtyStep(1)" aria-label="수량 증가">+</button>
+                </div>
+                <button type="button" class="shop-buy-btn-lg bag-transfer-btn" id="bagTransferBtn"
+                        onclick="onBagItemTransfer()" disabled>전송하기</button>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <!-- ── SUBJECT 등록 — SUBJECT 아이템일 때만 진입 가능. "SUBJECT 등록" 버튼을 누르면
+             이 모달 내부가(위 bagItemNormalView 를 숨기고) 이 등록 화면으로 전환된다. ── -->
+        <div id="bagSubjectRegisterForm" hidden>
+          <!-- 2026-09-30 정책: 신청 단계에는 이미지 업로드·디자이너/아티스트 입력이 없다.
+               승인된 SUBJECT 의 이름·이미지·크레딧은 개인연구실 > SUBJECT 보관소에서 편집한다. -->
+          <p class="form-label" style="margin-bottom:4px;">신청할 SUBJECT</p>
+          <p class="shop-detail-name" id="bagSubjectRegisterType" style="margin:0 0 10px;"></p>
+          <p class="form-hint">등록 신청하면 SUBJECT 아이템 1개가 예약되며, 운영진 승인 시 아이템이 소비되고<br>개인연구실 SUBJECT 보관소에 등록됩니다. 이름·이미지·크레딧은 등록 후 보관소에서 편집할 수 있어요.</p>
+
+          <!-- 연결 종족 — 종족형 SUBJECT("특이: 종족")일 때만 표시. 내가 종족주인 종족만(LABBER 제외), 필수.
+               서버(submit_labber_subject_bag_registration)가 종족주 여부를 다시 검증한다. -->
+          <div class="form-group" id="bagSubjectSpeciesGroup" hidden>
+            <label class="form-label" for="bagSubjectSpeciesSelect">연결 종족 <span class="required">*</span></label>
+            <select id="bagSubjectSpeciesSelect" class="form-input"></select>
+            <p class="form-hint" id="bagSubjectSpeciesHint">내가 종족주인 종족만 선택할 수 있어요. 승인 후 개체 페이지의 SUBJECT 카드에서 이 종족으로 바로 이동할 수 있어요.</p>
+          </div>
+
+          <p class="auth-error" id="bagSubjectRegisterError"></p>
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" onclick="closeSubjectRegisterPanel()">취소</button>
+            <button type="button" class="shop-buy-btn-lg" id="bagSubjectRegisterSubmitBtn" onclick="onSubjectRegisterSubmit()">등록 신청</button>
           </div>
         </div>
       </div>
@@ -167,6 +193,19 @@
       <div class="modal-actions">
         <button class="btn-ghost" onclick="bagCloseConfirm()">취소</button>
         <button class="btn-secondary" id="bagConfirmOkBtn" onclick="bagConfirmProceed()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 랜덤 SUBJECT 개봉 결과 -->
+  <div class="modal-overlay" id="bagOpenResultModal" style="display:none;" onclick="if(event.target===this)closeBagOpenResult()">
+    <div class="modal-card" style="text-align:center;">
+      <h3 class="modal-title">개봉 결과</h3>
+      <div class="shop-detail-preview" id="bagOpenResultImg" style="display:none;width:120px;height:120px;margin:8px auto;"></div>
+      <p class="shop-detail-name" id="bagOpenResultName" style="margin:4px 0;"></p>
+      <p class="modal-desc" id="bagOpenResultDesc"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeBagOpenResult()">확인</button>
       </div>
     </div>
   </div>

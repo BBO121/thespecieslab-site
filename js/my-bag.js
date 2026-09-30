@@ -48,10 +48,13 @@ const BAG_SECTION_BY_CODE = {
   labber_cartridge_protrude: 'trait',
   labber_cartridge_attach:   'trait',
   labber_cartridge_split:    'trait',
-  random_subject:            'trait',
-  random_fish_subject:       'trait',
-  random_reptile_subject:    'trait',
-  random_bird_subject:       'trait',
+  // 개봉형(랜덤박스) — 실제 분류는 bagSectionOf 의 labber_type 판정이 우선. 아래는 flags 조회 실패 시 폴백.
+  random_subject:            'randombox',
+  random_fish_subject:       'randombox',
+  random_reptile_subject:    'randombox',
+  random_bird_subject:       'randombox',
+  random_snack_sticker:      'randombox',
+  random_record:             'randombox',
   suspicious_embryo_sample:  'exploration',
   suspicious_scale:          'exploration',
   suspicious_feather:        'exploration',
@@ -63,6 +66,7 @@ const BAG_SECTION_ORDER = [
   { key: 'myo',         label: 'MYO' },
   { key: 'exploration', label: '탐험물' },
   { key: 'trait',       label: '특성 아이템' },
+  { key: 'randombox',   label: '랜덤박스' },   // 개봉형(열어서 다른 아이템을 얻는) 아이템 — 2026-09-26
   { key: 'etc',         label: '기타' },
 ];
 
@@ -89,6 +93,9 @@ let _bagAcqByCode = {};
 let _bagDogamCategoryByCode = {};
 // code -> [부모 소분류 sort_order(없으면 자기 sort_order), 자기 sort_order]. bagGroupRank() 참고.
 let _bagGroupRankByCode = {};
+// item_id -> 내가 제출해서 현재 승인 대기 중인(labber_subject_bag_registrations.status='submitted') SUBJECT 등록 신청 수.
+//   등록 가능 수량 = quantity - 이 값. 서버(submit_labber_subject_bag_registration)도 동일 기준으로 다시 검증한다 — 이건 표시용.
+let _bagSubjectPendingByItemId = {};
 
 const BAG_SELL_RATE = 0.2;   // 판매가 = 상점가 × 20% (서버 정책과 동일, 표시용)
 
@@ -111,6 +118,9 @@ function bagAvatarColor(seed) {
 }
 
 function bagSectionOf(row) {
+  // 개봉형(items.metadata.labber_type 이 BAG_OPEN_RPC_BY_TYPE 에 있는 아이템)은 code 와 무관하게 랜덤박스.
+  //   → 새 개봉형 아이템은 DB metadata 만 맞추면 코드 수정 없이 여기로 모인다.
+  if (bagCanOpen(row.code)) return 'randombox';
   if (BAG_SECTION_BY_CODE[row.code]) return BAG_SECTION_BY_CODE[row.code];
   if (row.category === 'material')   return 'exploration';
   if (row.category === 'consumable') return 'trait';
@@ -146,6 +156,14 @@ async function initPage() {
   try {
     _user = await getUser();
     if (!_user) { window.location.href = 'login.html'; return; }
+
+    // 딥링크 ?tab=item — 예) SUBJECT 반려 신청의 [다시 등록하기]. 없으면 기본 탭(꾸미기) 그대로 유지.
+    if (new URLSearchParams(location.search).get('tab') === 'item') {
+      _activeTab = 'item';
+      document.querySelectorAll('#bagTabRow .shop-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === 'item');
+      });
+    }
 
     await Promise.all([loadData(), loadBagItems()]);
     renderBag();
@@ -243,6 +261,7 @@ async function loadBagItems() {
   _bagAcqByCode = {};
   _bagDogamCategoryByCode = {};
   _bagGroupRankByCode = {};
+  _bagSubjectPendingByItemId = {};
   try {
     const { data, error } = await sb
       .from('my_item_collection')
@@ -263,15 +282,38 @@ async function loadBagItems() {
   try {
     const { data, error } = await sb
       .from('items')
-      .select('code, is_sellable, is_transferable, sell_price')
+      .select('code, is_sellable, is_transferable, sell_price, metadata')
       .in('code', codes);
     if (error) throw error;
     (data || []).forEach(r => {
-      _bagItemFlags[r.code] = { is_sellable: r.is_sellable, is_transferable: r.is_transferable, sell_price: r.sell_price };
+      _bagItemFlags[r.code] = {
+        is_sellable: r.is_sellable, is_transferable: r.is_transferable, sell_price: r.sell_price,
+        // 개봉형 — 표시용. 실제 개봉 가능 여부는 서버 RPC(BAG_OPEN_RPC_BY_TYPE)가 다시 검증한다.
+        openable: !!(r.metadata && BAG_OPEN_RPC_BY_TYPE[r.metadata.labber_type]),
+        openType: (r.metadata && r.metadata.labber_type) || null,
+        // 실제 SUBJECT 아이템(개봉형 랜덤 SUBJECT와는 다름) — [SUBJECT 등록] 진입 가능 여부. 실제 소비/생성은 서버 RPC가 다시 검증한다.
+        isSubjectItem: !!(r.metadata && r.metadata.kind === 'subject'),
+        subjectCode: (r.metadata && r.metadata.subject_code) || null,   // 'labber_subject_species' = 특이: 종족 → 연결 종족 필수
+      };
       if (r.sell_price != null) _bagSellPrice[r.code] = r.sell_price;   // 수동가 우선
     });
   } catch (e) {
     console.warn('[my-bag] items 플래그 조회 실패:', e.message || e);
+  }
+
+  // 승인 대기 중인 SUBJECT 등록 신청 수 (item_id 별) — RLS로 본인 것만 조회됨
+  try {
+    const { data, error } = await sb
+      .from('labber_subject_bag_registrations')
+      .select('item_id')
+      .eq('user_id', _user.id)
+      .eq('status', 'submitted');
+    if (error) throw error;
+    (data || []).forEach(r => {
+      _bagSubjectPendingByItemId[r.item_id] = (_bagSubjectPendingByItemId[r.item_id] || 0) + 1;
+    });
+  } catch (e) {
+    console.warn('[my-bag] SUBJECT 승인 대기 수 조회 실패:', e.message || e);
   }
 
   // 표시용 판매가(수동가 없는 아이템) — 활성 research_records 상점가 중 최저가 → 20% 5단위 반올림
@@ -357,6 +399,33 @@ function bagCanSell(code) {
 function bagCanTransfer(code) {
   const f = _bagItemFlags[code];
   return !!(f && f.is_transferable === true);
+}
+
+// 개봉형 아이템 labber_type → 개봉 RPC. 두 RPC 모두 반환 형식 동일(result:{item_code,item_name,image_url,quantity}).
+//   random_subject : 랜덤 SUBJECT 4종 (SUBJECT 풀)
+//   random_item    : 띠부씰 랜덤/기록물 랜덤 등 (items.metadata.random_pool) — 2026-09-26
+const BAG_OPEN_RPC_BY_TYPE = {
+  random_subject: 'open_random_subject',
+  random_item:    'open_random_item',
+};
+
+// 개봉형 아이템인지 — items.metadata.labber_type 이 BAG_OPEN_RPC_BY_TYPE 에 있는지
+function bagCanOpen(code) {
+  const f = _bagItemFlags[code];
+  return !!(f && f.openable === true);
+}
+
+// 실제 SUBJECT 아이템인지 — items.metadata.kind === 'subject' ([SUBJECT 등록] 진입 가능 여부)
+function bagIsSubjectItem(code) {
+  const f = _bagItemFlags[code];
+  return !!(f && f.isSubjectItem === true);
+}
+
+// 등록 가능 수량 = 보유 수량 - 이 아이템에 대해 현재 승인 대기 중인 신청 수.
+// 0이면 더 신청할 수 없다(서버 submit RPC 도 동일 기준으로 다시 막는다 — 이건 표시/선반영용).
+function bagSubjectAvailable(row) {
+  const pending = _bagSubjectPendingByItemId[row.item_id] || 0;
+  return Math.max(0, (row.quantity || 0) - pending);
 }
 
 // ── 착용 프레임 미리보기 렌더 ────────────────────────────
@@ -492,7 +561,7 @@ function renderBag() {
 }
 
 // ── 아이템 탭: 세로형 섹션 렌더 ──────────────────────────
-// 티켓(기존 시스템) → MYO → 탐험물 → 특성 아이템 → 기타 순.
+// 티켓(기존 시스템) → MYO → 탐험물 → 특성 아이템 → 랜덤박스 → 기타 순.
 // MYO 이후는 전부 my_item_collection (quantity > 0) 실데이터. 아이템 없는 섹션은 렌더 안 함.
 function renderItemSections() {
   const wrap = document.getElementById('bagSections');
@@ -589,15 +658,37 @@ function openBagItemInfo(code) {
   // 획득처 — 아이템 대장(item_dogam_links.source_note) 값 그대로. 없으면 "-".
   document.getElementById('bagItemInfoAcq').textContent = _bagAcqByCode[code] || '-';
 
-  // 보유 수량 + 판매하기
-  document.getElementById('bagItemInfoQty').textContent = `보유 ${row.quantity}개`;
+  // 보유 수량(+ SUBJECT 아이템이면 승인 대기 수량도 함께) + 판매하기
+  const subjectPending = bagIsSubjectItem(code) ? (_bagSubjectPendingByItemId[row.item_id] || 0) : 0;
+  document.getElementById('bagItemInfoQty').textContent = subjectPending > 0
+    ? `보유 ${row.quantity}개 · 승인 대기 ${subjectPending}개`
+    : `보유 ${row.quantity}개`;
   const sellActionEl = document.getElementById('bagItemInfoAction');
-  if (bagCanSell(code)) {
-    sellActionEl.innerHTML =
-      `<button type="button" class="shop-buy-btn-lg" id="bagItemSellBtn" onclick="onBagItemSell()">판매하기</button>`;
+  const sellHtml = bagCanSell(code)
+    ? `<button type="button" class="shop-buy-btn-lg" id="bagItemSellBtn" onclick="onBagItemSell()">판매하기</button>`
+    : `<span class="shop-detail-status shop-status--coming">판매 불가</span>`;
+  // 개봉형(랜덤 SUBJECT)이면 [열기] 를 판매 버튼 앞에 함께 배치 (보유 1개 이상인 아이템만 이 모달에 뜬다)
+  // 실제 SUBJECT 아이템이면 [SUBJECT 등록] 을 판매 버튼 앞에 함께 배치 — 단, 등록 가능 수량
+  // (보유 - 승인 대기)이 0이면 버튼을 막고 "승인 대기 중"으로 표시한다(재신청 방지, 서버도 동일 기준으로 다시 막는다).
+  if (bagCanOpen(code) && row.quantity >= 1) {
+    sellActionEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;">
+         <button type="button" class="shop-buy-btn-lg" id="bagItemOpenBtn" onclick="onBagItemOpen()">열기</button>
+         ${sellHtml}
+       </div>`;
+  } else if (bagIsSubjectItem(code) && row.quantity >= 1) {
+    const registerBtnHtml = bagSubjectAvailable(row) > 0
+      ? `<button type="button" class="shop-buy-btn-lg" id="bagSubjectRegisterEntryBtn" onclick="openSubjectRegisterPanel()">SUBJECT 등록</button>`
+      : `<button type="button" class="shop-buy-btn-lg" id="bagSubjectRegisterEntryBtn" disabled>승인 대기 중</button>`;
+    sellActionEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;">
+         ${registerBtnHtml}
+         ${sellHtml}
+       </div>`;
   } else {
-    sellActionEl.innerHTML = `<span class="shop-detail-status shop-status--coming">판매 불가</span>`;
+    sellActionEl.innerHTML = sellHtml;
   }
+
+  // 모달을 새로 열 때는 항상 일반 보기부터 시작(SUBJECT 등록 화면이 열려 있던 채로 남지 않게)
+  resetSubjectRegisterPanel();
 
   // ── 전송 영역 ──
   const blockedEl = document.getElementById('bagTransferBlocked');
@@ -650,6 +741,212 @@ function onBagItemSell() {
       return true;
     },
   });
+}
+
+// ── 개봉 (랜덤 SUBJECT / 랜덤 아이템) ──────────────────
+//   결과 추첨/차감/지급은 전부 서버 개봉 RPC(open_random_subject / open_random_item, 단일 트랜잭션). 프론트는 요청 + 결과 표시만.
+//   요청 중에는 _bagActionBusy 로 열기/판매/전송 중복 클릭을 막고, 열기 버튼도 disabled.
+async function onBagItemOpen() {
+  if (_bagActionBusy) return;
+  const code = _bagInfoCode;
+  const row = _bagItems.find(x => x.code === code);
+  if (!row || !bagCanOpen(code) || row.quantity < 1) return;
+
+  _bagActionBusy = true;
+  const openBtn = document.getElementById('bagItemOpenBtn');
+  if (openBtn) { openBtn.disabled = true; openBtn.textContent = '여는 중...'; }
+  bagSyncTransferBtn();
+
+  let result = null;
+  try {
+    const rpcName = BAG_OPEN_RPC_BY_TYPE[_bagItemFlags[code].openType];
+    const { data, error } = await sb.rpc(rpcName, { p_item_code: code });
+    if (error || !data || data.success !== true) {
+      alert(bagRpcErrorMsg(data && data.error, '개봉'));
+    } else {
+      result = data.result;
+    }
+  } catch (e) {
+    console.error('[my-bag] 개봉 오류:', e);
+    alert('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+  }
+
+  try {
+    // 성공/실패 모두 서버 기준 최신 수량으로 갱신 (모달이 열려 있으면 남은 수량으로 다시 그려진다)
+    await refreshAfterBagAction();
+  } finally {
+    _bagActionBusy = false;
+    bagSyncTransferBtn();
+    const btn = document.getElementById('bagItemOpenBtn');
+    if (btn) { btn.disabled = false; btn.textContent = '열기'; }
+  }
+  if (result) bagShowOpenResult(result);
+}
+
+let _bagOpenResultSeq = 0;   // 결과 표시 회차 — 늦게 도착한 이전 이미지의 load/error 가 다음 결과를 건드리지 않게
+
+function bagShowOpenResult(res) {
+  const seq  = ++_bagOpenResultSeq;
+  const wrap = document.getElementById('bagOpenResultImg');
+  // 매번 초기화부터 — 이전 결과의 이미지/숨김 상태를 남기지 않는다.
+  //   (.shop-detail-preview 가 display:flex 라 hidden 속성이 안 먹으므로 style.display 로 제어)
+  wrap.innerHTML = '';
+  wrap.style.display = 'none';
+
+  const url = String(resolveBagItemImage({ code: res.item_code, image_url: res.image_url, image_path: res.image_path }) || '').trim();
+  if (url) {
+    // 로드에 성공한 뒤에만 영역을 보여준다 → 깨진 이미지 아이콘/빈 회색 박스가 잠깐도 안 보인다.
+    const im = new Image();
+    im.alt = res.item_name || '';
+    im.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+    im.onload  = () => { if (seq !== _bagOpenResultSeq) return; wrap.appendChild(im); wrap.style.display = 'flex'; };
+    im.onerror = () => { if (seq !== _bagOpenResultSeq) return; wrap.innerHTML = ''; wrap.style.display = 'none'; };
+    im.src = url;
+  }
+  document.getElementById('bagOpenResultName').textContent = res.item_name;
+  document.getElementById('bagOpenResultDesc').textContent = `${res.item_name}을(를) 획득했습니다! (보유 ${res.quantity}개)`;
+  document.getElementById('bagOpenResultModal').style.display = 'flex';
+}
+
+function closeBagOpenResult() {
+  document.getElementById('bagOpenResultModal').style.display = 'none';
+}
+
+// ── SUBJECT 등록 신청 (2026-09-24 승인형 · 2026-09-30 이미지/제작자 입력 제거) ──────────────
+// 가방의 실제 SUBJECT 아이템(items.metadata.kind==='subject') → 신청 RPC로 "아이템 1개 예약 + 신청서 생성"만
+// 처리된다(submit_labber_subject_bag_registration). 신청 단계에서는 이미지 업로드·디자이너/아티스트 입력이 없다
+// (뽀 확정 정책 2026-09-30 — supabase/labber_subject_bag_no_image_creator_0930.sql). 일반 SUBJECT 는 종류만으로,
+// 종족형("특이: 종족")은 연결 종족 선택이 필요하다. 아이템 소비 + SUBJECT instance 생성은 운영진이
+// 관리소 > 디자인 승인 > [SUBJECT 승인] 탭에서 승인할 때(approve_labber_subject_bag_registration) 일어나고,
+// 승인된 instance 의 이름·이미지·크레딧은 개인연구실 > SUBJECT 보관소에서 따로 편집한다.
+let _bagSubjectRegisterBusy = false;
+
+// ── 연결 종족 (종족형 SUBJECT "특이: 종족" 전용, 0921 labber-lab.js 신청서 폼에서 옮겨옴) ──
+// 내가 종족주인 종족(LABBER 제외)만 후보. 서버(submit RPC)가 종족주 여부를 다시 검증한다.
+const BAG_SPECIES_SUBJECT_CODE = 'labber_subject_species';
+let _bagMySpecies = null;   // [{id,name}] — 첫 사용 시 1회 조회
+
+function bagIsSpeciesSubjectItem(code) {
+  const f = _bagItemFlags[code];
+  return !!(f && f.isSubjectItem === true && f.subjectCode === BAG_SPECIES_SUBJECT_CODE);
+}
+
+async function bagLoadMySpecies() {
+  if (_bagMySpecies) return _bagMySpecies;
+  try {
+    const { data, error } = await sb.from('species').select('id, name')
+      .eq('owner_user_id', _user.id).neq('id', LABBER_SPECIES_ID).order('name');
+    if (error) throw error;
+    _bagMySpecies = data || [];
+  } catch (e) {
+    console.warn('[my-bag] 내 종족 조회 실패:', e.message || e);
+    return [];   // 실패는 캐시하지 않는다(다음에 다시 시도)
+  }
+  return _bagMySpecies;
+}
+
+// 등록 화면을 열 때 — 종족형이면 연결 종족 영역을 보이고 후보를 채운다. 그 외 종류는 숨기고 값을 비운다.
+async function bagSyncSubjectSpeciesGroup(code) {
+  const group = document.getElementById('bagSubjectSpeciesGroup');
+  const sel   = document.getElementById('bagSubjectSpeciesSelect');
+  if (!group || !sel) return;
+  const on = bagIsSpeciesSubjectItem(code);
+  group.hidden = !on;
+  group.style.display = on ? '' : 'none';
+  sel.innerHTML = '';
+  sel.value = '';
+  if (!on) return;
+
+  const list = await bagLoadMySpecies();
+  if (_bagInfoCode !== code) return;   // 로딩 중에 다른 아이템으로 바뀐 경우
+  sel.innerHTML = `<option value="">— 종족 선택 —</option>` +
+    list.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  sel.disabled = list.length === 0;
+  const hint = document.getElementById('bagSubjectSpeciesHint');
+  if (hint) {
+    hint.textContent = list.length
+      ? '내가 종족주인 종족만 선택할 수 있어요. 승인 후 개체 페이지의 SUBJECT 카드에서 이 종족으로 바로 이동할 수 있어요.'
+      : '종족형 SUBJECT 는 내가 종족주인 종족이 있어야 등록할 수 있어요. (소유한 종족이 없어요)';
+  }
+}
+
+// 모달을 새로 열거나 등록 화면을 닫을 때 — 일반 보기로 복귀
+function resetSubjectRegisterPanel() {
+  const err = document.getElementById('bagSubjectRegisterError');
+  if (err) err.textContent = '';
+  const btn = document.getElementById('bagSubjectRegisterSubmitBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '등록 신청'; }
+  // 연결 종족 — 이전 아이템에서 고른 값이 다음 신청에 섞이지 않도록 항상 비우고 숨긴다(열 때 다시 판정).
+  const spGroup = document.getElementById('bagSubjectSpeciesGroup');
+  const spSel   = document.getElementById('bagSubjectSpeciesSelect');
+  if (spSel)   { spSel.innerHTML = ''; spSel.value = ''; }
+  if (spGroup) { spGroup.hidden = true; spGroup.style.display = 'none'; }
+
+  const normal = document.getElementById('bagItemNormalView');
+  const form   = document.getElementById('bagSubjectRegisterForm');
+  if (normal) normal.hidden = false;
+  if (form)   form.hidden = true;
+}
+
+// 상세 모달 내부를 SUBJECT 등록 화면으로 전환(같은 모달, 별도 모달을 겹치지 않는다)
+function openSubjectRegisterPanel() {
+  resetSubjectRegisterPanel();
+  const row = _bagItems.find(x => x.code === _bagInfoCode);
+  const typeEl = document.getElementById('bagSubjectRegisterType');
+  if (typeEl) typeEl.textContent = row ? (row.name || '') : '';
+  document.getElementById('bagItemNormalView').hidden = true;
+  document.getElementById('bagSubjectRegisterForm').hidden = false;
+  bagSyncSubjectSpeciesGroup(_bagInfoCode);
+}
+
+function closeSubjectRegisterPanel() {
+  resetSubjectRegisterPanel();
+}
+
+// 신청 실행: 신청 RPC(아이템 예약만, 소비는 승인 시). 처리 중 버튼을 disabled 처리해 중복 클릭을 막는다
+// (서버도 보유 - 승인 대기 수량 < 1 이면 INSUFFICIENT_QUANTITY 로 다시 막는다).
+async function onSubjectRegisterSubmit() {
+  if (_bagSubjectRegisterBusy) return;
+  const code = _bagInfoCode;
+  const row = _bagItems.find(x => x.code === code);
+  if (!row || !bagIsSubjectItem(code)) return;
+  if (bagSubjectAvailable(row) < 1) return;   // 서버(submit RPC)도 동일 기준으로 다시 막는다 — 이건 선반영 방어
+
+  const err = document.getElementById('bagSubjectRegisterError');
+  const btn = document.getElementById('bagSubjectRegisterSubmitBtn');
+  if (err) err.textContent = '';
+
+  // 연결 종족 — 종족형 SUBJECT 만 필수. 그 외 종류는 아예 보내지 않는다(서버도 NULL 로 강제).
+  const isSpeciesSubject = bagIsSpeciesSubjectItem(code);
+  const spVal = isSpeciesSubject ? (document.getElementById('bagSubjectSpeciesSelect').value || '') : '';
+  if (isSpeciesSubject && !spVal) {
+    err.textContent = (_bagMySpecies && !_bagMySpecies.length)
+      ? '종족형 SUBJECT 는 내가 종족주인 종족이 있어야 등록할 수 있어요.'
+      : '연결 종족을 선택해주세요.';
+    return;
+  }
+  _bagSubjectRegisterBusy = true;
+  btn.disabled = true;
+  btn.textContent = '신청 중...';
+
+  try {
+    const params = { p_item_id: row.item_id };
+    if (isSpeciesSubject) params.p_species_id = Number(spVal);
+    const { data, error } = await sb.rpc('submit_labber_subject_bag_registration', params);
+    if (error) throw new Error(`신청에 실패했어요. (${error.message})`);
+    if (!data || data.success !== true) throw new Error(bagRpcErrorMsg(data && data.error, 'SUBJECT 등록 신청'));
+
+    closeBagItemInfo();
+    await refreshAfterBagAction();
+    alert('SUBJECT 등록 신청이 완료되었습니다.\n운영진 승인 후 개인연구실에 등록됩니다.\n신청 상태는 관리소 > 디자인 승인에서 확인할 수 있어요.');
+  } catch (e) {
+    console.error('[my-bag] SUBJECT 등록 신청 오류:', e);
+    if (err) err.textContent = e.message || '신청 중 오류가 발생했어요.';
+  } finally {
+    _bagSubjectRegisterBusy = false;
+    btn.disabled = false;
+    btn.textContent = '등록 신청';
+  }
 }
 
 // ── 전송: 유저 검색 ────────────────────────────────────
@@ -839,10 +1136,25 @@ function bagRpcErrorMsg(code, action) {
     ITEM_NOT_FOUND:       '존재하지 않는 아이템입니다.',
     NOT_SELLABLE:         '판매할 수 없는 아이템입니다.',
     NOT_TRANSFERABLE:     '전송할 수 없는 아이템입니다.',
+    NOT_OPENABLE:         '열 수 없는 아이템입니다.',
+    POOL_EMPTY:           '현재 나올 수 있는 결과물이 없습니다. 운영진에게 문의해주세요.',
     INSUFFICIENT_QUANTITY:'보유 수량이 부족합니다.',
     SELF_TRANSFER:        '본인에게는 전송할 수 없습니다.',
     RECEIVER_NOT_FOUND:   '받는 유저를 찾을 수 없습니다.',
     WALLET_NOT_FOUND:     '지갑 정보를 찾을 수 없습니다.',
+    NOT_A_SUBJECT_ITEM:   'SUBJECT 아이템이 아닙니다.',
+    INVALID_SUBJECT:      '선택한 SUBJECT에 문제가 있어요. 운영진에게 문의해주세요.',
+    INVALID_IMAGE_URL:    '이미지 정보가 올바르지 않아요. 이미지를 다시 업로드해주세요.',
+    INVALID_IMAGE_PATH:   '이미지 정보가 올바르지 않아요. 이미지를 다시 업로드해주세요.',
+    IMAGE_NOT_UPLOADED:   '이미지 업로드가 완료되지 않았어요. 잠시 후 다시 시도해주세요.',
+    CONSUME_FAILED:       '아이템 소비에 실패했어요. 보유 수량을 확인해주세요.',
+    DESIGNER_REQUIRED:    'SUBJECT 디자이너를 1명 이상 추가해주세요.',
+    ARTIST_REQUIRED:      'SUBJECT 아티스트를 1명 이상 추가해주세요.',
+    SUBJECT_SPECIES_REQUIRED:  '종족형 SUBJECT 의 연결 종족을 선택해주세요.',
+    INVALID_SUBJECT_SPECIES:   '선택한 종족을 찾을 수 없어요. 다시 선택해주세요.',
+    SUBJECT_SPECIES_IS_LABBER: 'LABBER 는 연결 종족으로 선택할 수 없어요.',
+    SUBJECT_SPECIES_NOT_OWNED: '내가 종족주인 종족만 선택할 수 있어요. (종족주가 바뀌었다면 다른 종족을 선택해주세요)',
+    INVALID_CREATOR:      'SUBJECT 디자이너/아티스트 정보가 올바르지 않아요. (연구소 유저는 실제 존재하는 유저여야 하고, 이름은 40자, 연락처는 100자 이하예요)',
   };
   return M[code] || `${action} 중 오류가 발생했습니다.${code ? `\n[${code}]` : ''}`;
 }

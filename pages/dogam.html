@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>도감 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* ── 도감 전용 — 신규 규칙은 레이아웃(grid/크기)만.
+       색/보더/텍스트 스타일은 전부 기존 LABBER 컴포넌트 클래스를 그대로 재사용한다
+       (labber-trait-item 패널 공식 / labber-trait-acquisition* / shop-detail-* 상세모달 /
+        labberlab-traits-title / labber-trait-group / labber-trait-artwork-ph).
+       색상 값은 전부 body.labber-theme 가 재정의한 CSS 변수(--text/--border/--sky 등)뿐,
+       새 팔레트 없음. 이 블록 앞부분(.ic-*)은 옛 pages/item-collection.html 전용 스타일을 그대로
+       옮긴 것이고, SUBJECT 탭 전용 가로형 카드(.subj-*)는 별도 블록으로 아래에 있다. ────────── */
+    .ic-summary { margin-top: 6px; font-size: 13px; color: var(--text-sub); }
+
+    .ic-section-title { margin-top: 28px; }
+    .ic-section-title:first-child { margin-top: 0; }
+    /* .labberlab-traits-title(공용 클래스) 는 $ll-mono(DepartureMono, 영문 픽셀 폰트) 지정이라
+       한글 glyph 가 없어 시스템 기본폰트로 fallback → 사이트 전역 폰트(Paperlogy)와 달라 보였다.
+       도감 섹션 제목은 전부 한글이므로 이 페이지에서만 명시적으로 되돌린다(공용 scss 파일 무수정). */
+    .ic-section-title { font-family: 'Paperlogy', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+
+    /* 2차 탭(소분류) — 1차 탭보다 한 단계 작은 위계로만 구분(새 색/보더 없음, 크기만 축소). */
+    .ic-subtab-row { margin-top: 6px; }
+    .ic-subtab-row .shop-tab-btn { font-size: 12px; padding: 6px 14px; }
+
+    .ic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    /* 카드 패널 — .labber-trait-item 과 동일한 다크 패널 공식(배경/보더/라운드) */
+    .ic-card {
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      background: rgba(15, 22, 21, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    /* 미획득: "얻은 것/못 얻은 것"이 목록에서 즉시 구분되도록 큰 폭으로 opacity 차등.
+       (이름은 그대로 실명 표시, 클릭·모달은 동일하게 동작 — opacity 만 다름.
+       단 SUBJECT 탭의 ???/비밀 카드처럼 실명 자체를 안 주는 경우는 예외 — 아래 참고.) */
+    .ic-card--locked { opacity: 0.4; }
+    /* hover 로 미획득 카드가 획득 카드처럼 밝아 보이지 않도록 명시적으로 고정 */
+    .ic-card--locked:hover { opacity: 0.4; }
+    /* ── SUBJECT 탭 전용 카드(가로형 프로필 카드) — 2026-09-22 개편.
+       아이템 도감의 정사각 수집 카드(.ic-card)와는 완전히 다른 레이아웃이라 별도 클래스로 분리했다.
+       색/보더/라운드 "공식"은 .ic-card와 동일한 값을 그대로 재사용(새 팔레트 없음, 다크 반투명 패널 +
+       var(--border)) — 방향만 세로(column) 대신 가로(row)로 바꾼 것. 이 블록의 클래스는 전부
+       .subj- 로 스코프돼 있어 다른 페이지 CSS에는 영향이 없다.
+       이미지 없을 때 placeholder는 기존 .labber-trait-artwork-ph(관리소에서 쓰는 희미한 텍스트
+       placeholder, 크기/위치 고정값 없이 순수 텍스트 스타일이라 이 카드 어디에 넣어도 그대로 맞는다)를
+       그대로 재사용 — 새 placeholder 컴포넌트를 만들지 않았다. ────────────────────────────── */
+    .subj-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .subj-card {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(15, 22, 21, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    /* 미발견 — 2026-09-24: 아이템 도감과 동일한 opacity(0.4)로 통일. 이제 미발견 카드도
+       관리소 특성 SUBJECT 아트웍을 실제로 보여주므로(숨김 아님, 흐리게만) 아이템 도감과
+       같은 수치를 그대로 재사용한다(임의 수치 아님, .ic-card--locked 값 재사용). */
+    .subj-card--locked { opacity: 0.4; }
+
+    .subj-card-thumb {
+      flex: 0 0 84px;
+      width: 84px;
+      height: 84px;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .subj-card-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* 비율 훼손 금지 */
+    }
+
+    .subj-card-body {
+      flex: 1 1 auto;
+      min-width: 0; /* 긴 이름이 flex 아이템을 밀어내지 않도록 */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    /* 이름 줄 — justify-content:space-between 으로 비워둔 이유는 향후 우측에 "Lv.7" 배지를
+       붙일 자리(요청사항 8번, 지금은 아무것도 렌더하지 않음)를 미리 마련해두기 위함. */
+    .subj-card-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .subj-card-name {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+    .subj-card-group {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--text-mute);
+    }
+    /* 보유수량/미발견 문구 영역 — 향후 이 밑에 EXP progress bar(요청사항 8번)를 형제 엘리먼트로
+       추가하기만 하면 되도록 별도 wrapper로 비워뒀다(지금은 텍스트 한 줄만). */
+    .subj-card-meta { margin-top: 6px; }
+    .subj-card-qty, .subj-card-status {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    .subj-card-status { color: var(--text-mute); }
+
+    @media (max-width: 767px) {
+      .subj-grid { grid-template-columns: 1fr; }
+      /* 좁은 화면에서 이미지가 텍스트 영역을 침범하지 않도록 살짝 축소 */
+      .subj-card-thumb { flex-basis: 64px; width: 64px; height: 64px; }
+      .subj-card-name { font-size: 14px; }
+    }
+
+    /* ── hidden 안전장치 ─────────────────────────────────────────────────
+       .subj-grid가 display:grid를 "직접" 지정하는 author 규칙이라, 브라우저 기본
+       [hidden]{display:none}과 specificity가 같아도 author 스타일시트가 우선 적용된다.
+       #dogam-tab-items/#dogam-tab-subject 같은 hidden 토글은 display를 직접 지정하는
+       author 규칙이 없어서 문제없지만, 이 요소는 명시적으로 우선순위를 고정해둔다. */
+    #subjGrid[hidden] {
+      display: none !important;
+    }
+
+    /* 썸네일 — .labber-trait-artwork 처럼 시각적 박스 없이 레이아웃 공간만 유지 */
+    .ic-thumb {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+    .ic-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform: scale(1.05);
+      transform-origin: center;
+    }
+
+    .ic-name {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.35;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    .ic-qty { margin-top: 4px; font-size: 11px; color: var(--text-mute); }
+
+    /* labber-trait-acquisition 은 카드 안에서 여백만 살짝 조정 */
+    .ic-card .labber-trait-acquisition { font-size: 11px; margin-top: 6px; }
+
+    /* 상세 모달 — 연구소 상점 #shopDetailModal(.shop-detail-*) 구조 그대로,
+       별도 노드(#icDetailModal)라 shop.js/labber-shop.js 에는 전혀 영향 없음.
+       하드코딩된 라이트 미리보기 배경(#f1f5f9)만 LABBER 다크로 override (labber-shop과 동일 원리). */
+    #icDetailModal .shop-detail-preview { background: var(--sky-pale); }
+    #icDetailRarity { font-size: 12px; color: var(--text-mute); }
+    /* 미획득 아이템 상세 — 목록 카드(.ic-card--locked, opacity 0.4)보다 이미지만 훨씬 크게 낮춘다.
+       이름/설명/획득처 텍스트는 그대로 다 보여준다(카드와 동일 원칙) — 이미지만 대상. */
+    #icDetailModal.is-locked #icDetailPreview { opacity: 0.12; }
+
+    /* 상위 [아이템 도감]/[SUBJECT] 탭 — 대분류 탭(#icTabRow)과 같은 컴포넌트, 위치 구분용 여백만. */
+    #dogamTabRow { margin-top: 14px; }
+
+    @media (max-width: 767px) {
+      /* style.scss 의 #shopDetailModal/#labberShopDetailModal 등과 동일한 모바일 중앙정렬 규칙 */
+      #icDetailModal { align-items: center; }
+    }
+
+    /* ── 모바일 아이템 카드 밀도 (2026-09-26) — 프로젝트 모바일 기준(max-width:767px) 안에서만.
+       430px 이상 4열 / 429px 이하 3열. 데스크탑(768px~)은 위 auto-fill 128px 그대로. ── */
+    @media (max-width: 767px) {
+      .ic-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+      .ic-card { padding: 8px 6px; min-width: 0; }
+      .ic-thumb { margin-bottom: 6px; }
+      /* 이름은 크기를 크게 줄이지 않고 최대 2줄 — 넘치면 말줄임(카드 밖/옆 카드 침범 방지) */
+      .ic-name {
+        font-size: 12px;
+        line-height: 1.3;
+        margin-bottom: 2px;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+      }
+      /* 획득처/보유수량 — 이름보다 작은 보조정보 */
+      .ic-card .labber-trait-acquisition { font-size: 10px; margin-top: 3px; line-height: 1.3; word-break: keep-all; overflow-wrap: anywhere; }
+      .ic-qty { font-size: 10px; margin-top: 2px; }
+    }
+    @media (max-width: 429px) {
+      .ic-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body class="labber-theme">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span>도감</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">도감</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+          </div>
+        </div>
+
+        <!-- 상위 탭 — [아이템 도감] / [SUBJECT]. 기본 진입 탭 = 아이템 도감.
+             관리소(labber-lab.html)와 동일한 #tabRow 패턴(.shop-tab-row.labberlab-tab-row +
+             data-tab + js/dogam.js switchDogamTab)을 그대로 재사용. -->
+        <div class="shop-tab-row labberlab-tab-row" id="dogamTabRow">
+          <button type="button" class="shop-tab-btn active" data-tab="items">아이템 도감</button>
+          <button type="button" class="shop-tab-btn" data-tab="subject">SUBJECT</button>
+        </div>
+
+        <!-- ── [아이템 도감] 탭 — 옛 pages/item-collection.html 의 #pageContent 내부를 그대로 이관. ── -->
+        <section id="dogam-tab-items">
+
+          <p class="ic-summary" id="icSummary"></p>
+
+          <!-- 필터 탭 — 2026-09-06 대분류/소분류 2단 탭 구조. data-major 값은 DB item_dogam_categories
+               code 그대로(표시 텍스트만 변경 — code rename 없음). 2차 탭은 연구자료/연구소 물품
+               선택 시에만 js에서 동적으로 채워진다(#icSubTabRow). -->
+          <div class="shop-tab-row labberlab-tab-row" id="icTabRow">
+            <button class="shop-tab-btn active" data-major="all">전체</button>
+            <button class="shop-tab-btn" data-major="research_material">연구자료</button>
+            <button class="shop-tab-btn" data-major="lab_goods">연구소 물품</button>
+            <button class="shop-tab-btn" data-major="trait_item">특성 아이템</button>
+            <button class="shop-tab-btn" data-major="rare">???</button>
+          </div>
+          <div class="shop-tab-row labberlab-tab-row ic-subtab-row" id="icSubTabRow" hidden></div>
+
+          <div id="icSections"></div>
+
+        </section>
+
+        <!-- ── [SUBJECT] 탭 — 종류(type) 발견 여부 도감. 개체(instance) 보관/관리는
+             여기서 하지 않는다 — 개인연구실(labber-records.html)로 이관됐다(2026-09-24).
+             js/dogam-subject.js(SubjectDogam). -->
+        <section id="dogam-tab-subject" hidden>
+
+          <p class="ic-summary" id="subjSummary"></p>
+
+          <!-- 필터 — [전체][어류][조류][파충류][특이]. group_name은 하드코딩 없이 js가
+               실제 데이터 기준으로 채운다. -->
+          <div class="shop-tab-row labberlab-tab-row" id="subjTabRow"></div>
+
+          <div class="subj-grid" id="subjGrid"></div>
+
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <!-- 아이템 상세 모달(아이템 도감 탭 전용) — 연구소 상점 #shopDetailModal 과 동일 구조/클래스(.shop-detail-*).
+       별도 노드라 shop.js 에 영향 없음 (labber-shop.html #labberShopDetailModal 과 동일 패턴).
+       onclick 은 js/item-collection.js 가 window.ItemDogam 모듈로 감싸져 있어 ItemDogam.closeDetail() 을 쓴다. -->
+  <div class="modal-overlay" id="icDetailModal" style="display:none;" onclick="if(event.target===this) ItemDogam.closeDetail()">
+    <div class="shop-detail-card">
+      <button class="shop-detail-close" onclick="ItemDogam.closeDetail()">×</button>
+      <div class="shop-detail-preview" id="icDetailPreview"></div>
+      <div class="shop-detail-info">
+        <div class="shop-detail-name-row">
+          <p class="shop-detail-name" id="icDetailName"></p>
+          <span class="shop-detail-credit" id="icDetailCredit"></span>
+        </div>
+        <p class="shop-detail-desc" id="icDetailDesc"></p>
+        <p class="labber-trait-acquisition" id="icDetailAcquisition"></p>
+        <p id="icDetailRarity" style="display:none;"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/item-collection.js"></script>
+  <script src="../js/labber-traits.js"></script>
+  <script src="../js/dogam-subject.js"></script>
+  <script src="../js/dogam.js"></script>
+</body>
+</html>

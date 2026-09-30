@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LABBER 조합소 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="labber-theme labbercraft-page">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <!-- ── 상단: breadcrumb + 제목 + LABBER 로고 + 소개 (LABBER 상점/탐험과 동일 구조) ── -->
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span>LABBER</span>
+              <span>/</span>
+              <span>조합소</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">LABBER 조합소</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+            <!-- 소개 문구: 임시 1문장 (JS LABBER_CRAFT_INTRO 로 교체 가능) -->
+            <p class="labber-intro" id="labberCraftIntro">
+              LABBER의 연구 재료를 조합해 새로운 물건을 만들어내는 조합소.
+            </p>
+          </div>
+        </div>
+
+        <!-- ── NPC 대화 씬: 대화창(왼쪽) + NPC D(오른쪽) — 수상한 연구실/상점과 동일 마크업/클래스 ── -->
+        <section class="labber-dialogue-scene">
+          <div class="labber-speech-bubble">
+            <p class="labber-npc-name" id="labberCraftNpcName">E</p>
+            <p class="labber-npc-line" id="labberCraftNpcLine" aria-live="polite"></p>
+          </div>
+          <div class="labber-npc-image-wrap">
+            <img id="labberCraftNpcImage" class="labber-npc-image" src="../images/labber/labber_e.png" alt="E">
+          </div>
+        </section>
+
+        <!-- ── 조합 영역 ──────────────────────────────────────────────
+             조합식 7종(재료 → 결과 → 조합하기)을 카테고리 탭으로 필터링해 세로로 나열.
+             탭/카드 마크업은 js/labber-crafting.js renderCraftTabs()/renderCraftRecipes() 가 채운다
+             (재료명/이미지/보유수량은 my_item_collection 뷰 기준, 조합 판정은 서버 RPC).
+             탭은 카테고리가 2개 이상일 때만 노출(하나면 자동 숨김) — .shop-tab-row/.shop-tab-btn 재사용.
+             .labcraft-panel 은 NPC 타이핑 완료 후 .show 로 등장(상점/교환소 패널과 동일 동작). -->
+        <section class="labcraft-panel" id="labberCraftPanel">
+          <div class="shop-tab-row labberlab-tab-row labcraft-tabs" id="labberCraftTabs" hidden></div>
+          <div class="labcraft-board" id="labberCraftBoard">
+            <p class="labcraft-placeholder">불러오는 중...</p>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <!-- ── 조합 결과 모달 ──────────────────────────────────────────
+       획득한 "랜덤 서브젝트 아이템" 만 표시. 실제 Subject 추첨/공개는 하지 않음. -->
+  <div class="modal-overlay" id="labberCraftResultModal" style="display:none;" onclick="if(event.target===this)closeCraftResult()">
+    <div class="labcraft-result-card">
+      <button type="button" class="labcraft-result-close" onclick="closeCraftResult()" aria-label="닫기">&times;</button>
+      <p class="labcraft-result-eyebrow">COMBINATION COMPLETE</p>
+      <div class="labcraft-result-preview" id="craftResultPreview"></div>
+      <p class="labcraft-result-name" id="craftResultName"></p>
+      <p class="labcraft-result-qty" id="craftResultQty"></p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/labber-crafting.js"></script>
+</body>
+</html>

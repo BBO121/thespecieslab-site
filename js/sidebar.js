@@ -1,3 +1,87 @@
+// ── LABBER 10/1 런칭 공개 전환 (사이드바 메뉴 + 관리소 이용 가이드 바로가기 공용) ──────────
+// 런칭 시각 = 2026-10-01 00:00:00 KST. 로컬 타임존과 무관하게 절대 시각(UTC epoch)으로만 비교한다.
+// 표시 전환 전용 — URL 직접 접근은 막지 않는다(페이지·DB 권한 판정에 쓰지 않는다).
+// 대상 요소는 data-labber-launch 속성으로 표시하고 applyLabberLaunchState() 가 일괄 처리한다.
+//   "show" : 런칭 후에만 보임 (개인연구실/조합소/탐험/도감, LABBER 쪽 수상한 연구실)
+//   "hide" : 런칭 전에만 보임 (상점 쪽 수상한 연구실)
+//   "soon" : 런칭 전엔 '준비중' 카드, 후엔 data-href 로 바로가기 링크 (이용 가이드 카드)
+const LABBER_LAUNCH_AT = '2026-09-30T15:00:00Z';
+const LABBER_LAUNCH_MS = Date.parse(LABBER_LAUNCH_AT);
+
+// ① 환경 판정 — 개발/검수 호스트 허용 목록(모르는 호스트는 전부 PUBLIC 취급, fail-closed)
+const LABBER_DEV_HOSTS = ['localhost', '127.0.0.1', 'thespecieslab-dev.pages.dev'];
+const IS_LABBER_DEV_ENV = LABBER_DEV_HOSTS.includes(window.location.hostname);
+
+// ② DEV 전용 테스트 시각: ?labberNow=2026-09-30T14:59:59Z (탭 sessionStorage 에 유지, ?labberNow=off 로 해제).
+// 모킹 시각에서 실제 시계와 같이 흘러가도록 오프셋으로 저장한다. PUBLIC 에서는 읽지도 저장하지도 않는다.
+// 반환: 오프셋(ms) | null(테스트 시각 없음)
+const _labberNowOffsetMs = (() => {
+  if (!IS_LABBER_DEV_ENV) return null;
+  try {
+    const q = new URLSearchParams(window.location.search).get('labberNow');
+    if (q === 'off') sessionStorage.removeItem('labberNowMock');
+    else if (q && !isNaN(Date.parse(q))) sessionStorage.setItem('labberNowMock', JSON.stringify({ at: Date.parse(q), set: Date.now() }));
+    const m = JSON.parse(sessionStorage.getItem('labberNowMock') || 'null');
+    return m ? m.at - m.set : null;
+  } catch (e) { return null; }
+})();
+
+// ③ 시각 판정
+//   PUBLIC : 실제 절대 시각 >= 런칭 시각
+//   DEV    : 테스트 시각이 있으면 그 시각으로 판정, 없으면 항상 런칭 후(개발/검수 서버는 전체 기능 노출)
+function labberNowMs() { return Date.now() + (_labberNowOffsetMs ?? 0); }
+function isLabberLaunched() {
+  if (IS_LABBER_DEV_ENV && _labberNowOffsetMs === null) return true;
+  return labberNowMs() >= LABBER_LAUNCH_MS;
+}
+
+function applyLabberLaunchState(root = document) {
+  const launched = isLabberLaunched();
+  root.querySelectorAll('[data-labber-launch]').forEach(el => {
+    const mode = el.dataset.labberLaunch;
+    if (mode === 'show' || mode === 'hide') {
+      el.style.display = (mode === 'show') === launched ? '' : 'none';
+    } else if (mode === 'soon') {
+      const go = el.querySelector('.labberlab-usage-go');
+      el.classList.toggle('labberlab-usage-card--soon', !launched);
+      if (launched) {
+        el.setAttribute('href', el.dataset.href);
+        el.removeAttribute('aria-disabled');
+        if (go) go.textContent = '바로가기 →';
+      } else {
+        el.removeAttribute('href');
+        el.setAttribute('aria-disabled', 'true');
+        if (go) go.textContent = '준비중';
+      }
+    }
+  });
+}
+
+// 페이지를 열어둔 채 런칭 시각을 지나도 새로고침 없이 한 번 재적용한다.
+// (setTimeout 최대 지연 약 24.8일 초과면 예약하지 않음 → 새로고침 시 반영)
+let _labberLaunchTimer = null;
+function scheduleLabberLaunchRefresh() {
+  if (_labberLaunchTimer || isLabberLaunched()) return;
+  const wait = LABBER_LAUNCH_MS - labberNowMs();
+  if (wait > 2147483647) return;
+  _labberLaunchTimer = setTimeout(() => {
+    applyLabberLaunchState();
+    // 수상한 연구실 페이지에 있으면 사이드바에서 열린 아코디언도 상점 → LABBER 로 옮긴다.
+    if (window.location.pathname.split('/').pop() === 'labber.html') {
+      document.getElementById('bodyLabber')?.classList.add('open');
+      const arr = document.getElementById('arrLabber');
+      if (arr) arr.style.transform = 'rotate(180deg)';
+    }
+  }, wait + 50);
+}
+
+// 사이드바가 없는 영역(관리소 이용 가이드 카드)도 DOM 준비 시 한 번 적용
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { applyLabberLaunchState(); scheduleLabberLaunchRefresh(); });
+} else {
+  applyLabberLaunchState(); scheduleLabberLaunchRefresh();
+}
+
 async function initSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
@@ -77,6 +161,12 @@ async function initSidebar() {
       <div class="sidebar-accordion-body" id="bodyLabber">
         <a href="labber-lab.html" class="sidebar-subitem ${path === 'labber-lab.html' ? 'active' : ''}">관리소</a>
         <a href="labber-records.html"     class="sidebar-subitem ${path === 'labber-records.html'     ? 'active' : ''}">개체기록실</a>
+        <!-- 아래 5개는 LABBER 런칭(LABBER_LAUNCH_AT) 이후에만 표시 -->
+        <a href="labber-personal-lab.html" data-labber-launch="show" class="sidebar-subitem ${path === 'labber-personal-lab.html' ? 'active' : ''}">개인연구실</a>
+        <a href="labber-crafting.html"    data-labber-launch="show" class="sidebar-subitem ${path === 'labber-crafting.html'    ? 'active' : ''}">조합소</a>
+        <a href="labber-exploration.html" data-labber-launch="show" class="sidebar-subitem ${path === 'labber-exploration.html' ? 'active' : ''}">탐험</a>
+        <a href="dogam.html"              data-labber-launch="show" class="sidebar-subitem ${path === 'dogam.html'              ? 'active' : ''}">도감</a>
+        <a href="labber.html"             data-labber-launch="show" class="sidebar-subitem ${path === 'labber.html'             ? 'active' : ''}">수상한 연구실</a>
         <a href="labber-amplification.html" class="sidebar-subitem ${path === 'labber-amplification.html' ? 'active' : ''}">기록 증폭 실험</a>
       </div>
     </div>
@@ -92,7 +182,8 @@ async function initSidebar() {
           <span>LABBER 상점</span>
           <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-menu-logo">
         </a>
-        <a href="labber.html"      class="sidebar-subitem labber-menu-link ${path === 'labber.html'      ? 'active' : ''}">
+        <!-- 수상한 연구실: LABBER 런칭 전까지만 상점에 표시(런칭 후 LABBER 메뉴로 이동) -->
+        <a href="labber.html"      data-labber-launch="hide" class="sidebar-subitem labber-menu-link ${path === 'labber.html'      ? 'active' : ''}">
           <span>수상한 연구실</span>
           <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-menu-logo">
         </a>
@@ -141,8 +232,14 @@ async function initSidebar() {
   const supportPages = ['inquiry.html','inquiry-write.html','inquiry-detail.html',
                         'bug-report.html','bug-report-write.html','bug-report-detail.html',
                         'species-apply.html','species-apply-write.html','species-apply-detail.html'];
-  const shopPages     = ['shop.html','labber-shop.html','labber.html'];
-  const labberPages   = ['labber-lab.html','labber-records.html','labber-amplification.html'];
+  // 사이드바 DOM 이 그려진 직후(첫 페인트 전) 런칭 여부 반영
+  applyLabberLaunchState(sidebar);
+  scheduleLabberLaunchRefresh();
+
+  // 수상한 연구실은 런칭 전 상점, 런칭 후 LABBER 아코디언에 속한다
+  const suspiciousLab = isLabberLaunched() ? 'labberPages' : 'shopPages';
+  const shopPages     = ['shop.html','labber-shop.html', ...(suspiciousLab === 'shopPages' ? ['labber.html'] : [])];
+  const labberPages   = [...(suspiciousLab === 'labberPages' ? ['labber.html'] : []),'labber-lab.html','labber-records.html','labber-personal-lab.html','labber-crafting.html','labber-exploration.html','labber-amplification.html','dogam.html'];
 
   const isUserProfile = path === 'profile.html' && new URLSearchParams(window.location.search).get('user');
   const isMyProfile   = path === 'profile.html' && !new URLSearchParams(window.location.search).get('user');

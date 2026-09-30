@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개인연구실 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* ── [SUBJECT] 탭(2026-09-24, SUBJECT 개체화) ─────────────────────────
+       카드 뼈대(.labber-subject-card/-img/-body/-head/-name/-lv/-type/-exp-*)는
+       pages/character.html의 SUBJECT 육성 카드 CSS를 그대로 복사했다(그 파일 자체는
+       무수정). 여기는 "개체 1장 = 카드 1장" 목록이라 도감(pages/dogam.html)의 좁은
+       .subj-storage-grid 방식이 아니라, 캐릭터 그리드(.character-grid)와 나란한 넓은
+       1~2열 카드 그리드로 새로 짰다. */
+    .personal-lab-subject-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .labber-subject-card {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--white);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .labber-subject-card:hover { border-color: var(--sky-deep); }
+    .labber-subject-img {
+      position: relative;
+      flex: 0 0 auto;
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: transparent;
+    }
+    .labber-subject-img img { width: 100%; height: 100%; object-fit: cover; display: block; background: transparent; }
+    .labber-subject-img.is-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-style: dashed;
+      background: var(--sky-pale);
+    }
+    .labber-subject-img-empty { font-size: 11px; color: var(--text-mute); text-align: center; line-height: 1.4; padding: 4px; }
+    .labber-subject-body { flex: 1; min-width: 0; }
+    .labber-subject-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .labber-subject-name { margin: 0; min-width: 0; font-size: 16px; font-weight: 700; color: var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+    .labber-subject-lv { flex: 0 0 auto; margin: 0; font-size: 13px; font-weight: 600; color: var(--text-sub); white-space: nowrap; }
+    .labber-subject-type { margin: 1px 0 0; font-size: 12px; color: var(--text-mute); }
+    .labber-subject-exp-text { margin: 8px 0 0; font-size: 12px; color: var(--text-mute); }
+    .labber-subject-exp-bar {
+      margin-top: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--sky-light);
+      overflow: hidden;
+    }
+    .labber-subject-exp-bar.is-max { margin-top: 10px; }
+    .labber-subject-exp-fill { height: 100%; border-radius: 999px; background: var(--sky-deep); }
+
+    /* 배정 상태 + 함께한 기간 — 개체화 신규 정보 */
+    .labber-subject-assign-line { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--border); }
+    .labber-subject-assign-status { margin: 0; font-size: 12px; font-weight: 600; }
+    .labber-subject-assign-status.is-assigned { color: var(--sky-deep); }
+    .labber-subject-assign-status.is-unassigned { color: var(--text-mute); }
+    .labber-subject-assign-period { margin: 2px 0 0; font-size: 11px; color: var(--text-mute); }
+
+    /* 빈 상태/불러오는 중 문구 — 그리드(.character-grid 4열 / .personal-lab-subject-grid 2열)
+       안에 들어가므로 첫 칸만 차지해 왼쪽에 붙어 보였다. 전체 열을 가로지르게 해서
+       목록 컨테이너 폭 기준 중앙에 오도록 한다. LABBER/SUBJECT 탭 공통. */
+    .personal-lab-empty {
+      grid-column: 1 / -1;
+      margin: 0;
+      padding: 64px 16px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-mute);
+    }
+
+    @media (max-width: 767px) {
+      .personal-lab-empty { padding: 48px 16px; }
+      .personal-lab-subject-grid { grid-template-columns: 1fr; }
+      .labber-subject-img { width: 84px; height: 84px; }
+    }
+
+    /* 상세 모달 — 종족연구소 표준 .modal-overlay/.shop-detail-card/-close 재사용.
+       닫기 X는 이 모달 안에서만 카드 border와 안 겹치도록 여백을 더 준다(전역 .shop-detail-close
+       는 무수정 — 다른 모달에 영향 없음). 상단 패딩을 넉넉히 줘서 카드가 X 아래로 확실히 내려온다. */
+    #labberSubjectDetailModal .shop-detail-close,
+    #labberSubjectAssignModal .shop-detail-close { top: 14px; right: 14px; }
+    #labberSubjectDetailModal .subj-detail-body,
+    #labberSubjectAssignModal .subj-detail-body {
+      /* 배정 모달도 상세 모달과 같은 .subj-detail-body 래퍼를 쓰는데, 이 패딩 규칙이
+         #labberSubjectDetailModal 로만 스코프돼 있어서 배정 모달 쪽은 패딩이 전혀 없이
+         제목/안내문이 모달 가장자리에 그대로 붙어 있었다(폰트 수정 때와 같은 원인). 새
+         여백 값을 만들지 않고 이 기존 규칙이 적용되는 범위만 넓혔다.
+      */
+      padding: 36px 16px 16px;
+    }
+    /* 상세 모달 안의 SUBJECT 카드는 목록 카드가 아니라 클릭 불가 정보 표시일 뿐이므로
+       목록용 hover(민트 border)를 끈다 — 기본 border만 유지. 목록(.personal-lab-subject-grid)
+       안의 실제 카드는 이 규칙의 영향을 받지 않는다(선택자가 모달 안으로 스코프됨). */
+    #labberSubjectDetailModal .labber-subject-card:hover { border-color: var(--border); }
+    /* 개체명(개별 이름) 수정 — 2026-09-24 */
+    #labberSubjectNameEditBox { margin-top: 14px; }
+    .subj-name-edit-row { display: flex; gap: 8px; }
+    .subj-name-edit-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .subj-name-edit-row input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .subj-name-edit-row button {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--sky-deep);
+      background: var(--sky-deep);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .subj-name-edit-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* 아트웍/크레딧 편집 — 2026-09-30 (소유자/admin/staff, 서버 RPC 가 권한 검사) */
+    #labberSubjectEditBox { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+    .subj-edit-section { padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .subj-edit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .subj-edit-title { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--text-sub); letter-spacing: .5px; }
+    .subj-edit-head .subj-edit-title { margin-bottom: 0; }
+    .subj-edit-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .subj-edit-row button, .subj-edit-toggle {
+      padding: 8px 14px; border-radius: 8px; border: 1px solid var(--sky-deep); background: var(--sky-deep);
+      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    .subj-edit-row button.is-ghost, .subj-edit-toggle { background: transparent; color: var(--sky-dark); }
+    .subj-edit-toggle { padding: 4px 10px; font-size: 12px; }
+    .subj-edit-row button:disabled { opacity: .5; cursor: not-allowed; }
+    .subj-credit-summary { margin: 8px 0 0; font-size: 12px; line-height: 1.7; color: var(--text); word-break: break-all; }
+    .subj-credit-summary span { display: inline-block; min-width: 64px; color: var(--text-mute); }
+    .subj-credit-summary em { font-style: normal; color: var(--text-mute); }
+    #labberSubjectCreditEditor { margin-top: 12px; }
+    #labberSubjectCreditEditor[hidden] { display: none; }
+    #labberSubjectCreditEditor .auth-error:empty { display: none; }
+    .subj-name-edit-note { margin: 6px 0 0; font-size: 11px; color: var(--text-mute); }
+
+    #labberSubjectDetailModal .subj-detail-actions { margin-top: 14px; display: flex; gap: 8px; }
+    #labberSubjectDetailModal .subj-detail-actions button {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #labberSubjectDetailModal .subj-detail-actions button.is-primary {
+      background: var(--sky-deep);
+      border-color: var(--sky-deep);
+      color: #fff;
+    }
+    #labberSubjectDetailModal .subj-holders-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    #labberSubjectDetailModal .subj-holders-title,
+    #labberSubjectAssignModal .subj-holders-title {
+      /* 배정 모달의 제목(<p class="subj-holders-title">배정할 LABBER 선택</p>)이 이 규칙을
+         상속하지 못했던 원인 — 이 선택자가 #labberSubjectDetailModal 로만 스코프돼 있어서,
+         같은 클래스를 쓰는 #labberSubjectAssignModal 쪽엔 전혀 적용되지 않고 브라우저 기본
+         <p> 스타일(다른 font-size/font-weight/색)로 떨어졌다. 새 폰트를 추가한 게 아니라
+         이 규칙이 적용되는 범위만 넓혔다.
+      */
+      margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--text);
+    }
+    #labberSubjectDetailModal .subj-holders-empty { margin: 0; font-size: 12px; color: var(--text-mute); }
+    .subj-holder-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+    }
+    .subj-holder-row + .subj-holder-row { border-top: 1px solid var(--border); }
+    .subj-holder-info { min-width: 0; }
+    .subj-holder-name { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+    .subj-holder-number { font-weight: 400; color: var(--text-mute); }
+    .subj-holder-indiv { margin: 2px 0 0; font-size: 11px; color: var(--text-mute); }
+    .subj-holder-link {
+      flex: 0 0 auto;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sky-deep);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .subj-holder-link:hover { text-decoration: underline; }
+    .subj-holders-toggle {
+      display: block;
+      width: 100%;
+      margin-top: 4px;
+      padding: 8px 0;
+      background: none;
+      border: none;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sky-deep);
+      cursor: pointer;
+      text-align: center;
+    }
+    .subj-holders-toggle:hover { text-decoration: underline; }
+
+    /* LABBER 선택(배정) 모달 — 표준 모달 재사용, 목록만 간단한 라디오형 리스트 */
+    #labberSubjectAssignModal .subj-assign-list { max-height: 320px; overflow-y: auto; margin-top: 10px; }
+    .subj-assign-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      background: var(--white);
+    }
+    .subj-assign-row:hover { border-color: var(--sky-deep); }
+    .subj-assign-row-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .subj-assign-empty { margin: 12px 0; font-size: 12.5px; color: var(--text-mute); text-align: center; }
+
+    @media (max-width: 767px) {
+      #labberSubjectDetailModal,
+      #labberSubjectAssignModal { align-items: center; }
+    }
+  </style>
+</head>
+<body class="labber-theme labber-personal-lab-page">
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <a href="labber-lab.html">LABBER</a>
+              <span>/</span>
+              <span>개인연구실</span>
+            </div>
+            <div class="labber-page-title">
+              <h1 class="list-page-title">개인연구실</h1>
+              <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-page-logo">
+            </div>
+          </div>
+        </div>
+
+        <!-- 상위 탭 — [LABBER] / [SUBJECT]. dogam.html의 #dogamTabRow와 동일 패턴
+             (.shop-tab-row.labberlab-tab-row + data-tab + js switchPersonalLabTab). -->
+        <div class="shop-tab-row labberlab-tab-row" id="personalLabTabRow" style="margin-top:14px;">
+          <button type="button" class="shop-tab-btn active" data-tab="labber">LABBER</button>
+          <button type="button" class="shop-tab-btn" data-tab="subject">SUBJECT</button>
+        </div>
+
+        <!-- ── [LABBER] 탭 — 내가 소유한 LABBER 개체 기본 목록(1차 구현, 확장 예정).
+             .character-grid/.character-card는 사이트 전역 카드 컴포넌트(css/style.css) 재사용. -->
+        <section class="section" id="personalLabLabberSection">
+          <div class="section-header">
+            <h2>내 LABBER <span class="count-badge" id="personalLabLabberCount">0</span></h2>
+          </div>
+          <div class="character-grid" id="personalLabLabberGrid"></div>
+        </section>
+
+        <!-- ── [SUBJECT] 탭 — 개체(instance) 보관/관리. 1장 = unique SUBJECT 개체.
+             js/labber-personal-lab-subject.js(PersonalLabSubject). 기본 hidden. -->
+        <section class="section" id="personalLabSubjectSection" style="display:none;">
+          <div class="section-header">
+            <h2>SUBJECT 보관소 <span class="count-badge" id="subjInstCount">0</span></h2>
+          </div>
+          <div class="personal-lab-subject-grid" id="personalLabSubjectGrid"></div>
+        </section>
+
+        <p id="personalLabError" class="page-loading" style="display:none;"></p>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- SUBJECT 개체 상세 모달 — 표준 .modal-overlay/.shop-detail-card/-close 재사용.
+       육성 카드 + 배정 상태/함께한 기간 + [분리]/[LABBER에 배정] 액션 + "함께한 LABBER" 이력. -->
+  <div class="modal-overlay" id="labberSubjectDetailModal" style="display:none;" onclick="if(event.target===this) PersonalLabSubject.closeDetail()">
+    <div class="shop-detail-card">
+      <button class="shop-detail-close" onclick="PersonalLabSubject.closeDetail()">×</button>
+      <div class="subj-detail-body">
+        <div class="labber-subject-card" id="labberSubjectDetailCard" style="cursor:default;"></div>
+        <div id="labberSubjectNameEditBox"></div>
+        <div id="labberSubjectEditBox"></div>
+        <div class="subj-detail-actions" id="labberSubjectDetailActions"></div>
+        <div class="subj-holders-section">
+          <p class="subj-holders-title">함께한 LABBER</p>
+          <div id="labberSubjectHoldersList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LABBER 선택(배정) 모달 — 본인 소유 LABBER 중 현재 SUBJECT가 없는 개체만 목록에 나온다. -->
+  <div class="modal-overlay" id="labberSubjectAssignModal" style="display:none;" onclick="if(event.target===this) PersonalLabSubject.closeAssignModal()">
+    <div class="shop-detail-card">
+      <button class="shop-detail-close" onclick="PersonalLabSubject.closeAssignModal()">×</button>
+      <div class="subj-detail-body">
+        <p class="subj-holders-title" style="margin:0;">배정할 LABBER 선택</p>
+        <div class="subj-assign-list" id="labberSubjectAssignList"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/creator-picker.js"></script>
+  <script src="../js/labber-personal-lab-subject.js"></script>
+  <script src="../js/labber-personal-lab.js"></script>
+</body>
+</html>

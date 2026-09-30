@@ -15,6 +15,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LABBER 관리소 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
 </head>
 <body class="labber-theme">
 
@@ -76,7 +77,7 @@
           <button type="button" class="shop-tab-btn" data-tab="traits">특성</button>
           <button type="button" class="shop-tab-btn" data-tab="guide">디자인 가이드</button>
           <button type="button" class="shop-tab-btn" data-tab="usage">이용 가이드</button>
-          <button type="button" class="shop-tab-btn" data-tab="approval">디자인 승인</button>
+          <button type="button" class="shop-tab-btn labberlab-tab-btn--apply" data-tab="approval">디자인 승인</button>
         </div>
 
         <!-- ═══ ABOUT LABBER (세계관/설정 기록) ═════════════════ -->
@@ -278,7 +279,8 @@
              LABBER 각 메뉴의 역할 안내 + 바로가기. 제목/소개는 .labberlab-record 재사용,
              카드는 특성 카드(.labber-trait-item) 톤 + 2열(모바일 1열) 그리드.
              링크는 사이드바 LABBER 메뉴(js/sidebar.js)의 URL 그대로.
-             PUBLIC: 아직 공개 전인 메뉴는 링크 없는 '준비중' 카드(.labberlab-usage-card--soon). -->
+             data-labber-launch="soon" 카드는 기본(런칭 전) '준비중' 상태 — LABBER 런칭 시각 이후
+             js/sidebar.js applyLabberLaunchState() 가 data-href 로 바로가기 링크를 활성화한다. -->
         <section class="labberlab-panel" id="tab-usage" hidden>
           <article class="labberlab-record">
             <h2 class="labberlab-record-title"><span class="labberlab-record-title-en">LABBER</span> <span class="labberlab-record-title-ko">이용 가이드</span></h2>
@@ -301,32 +303,32 @@
                   각 개체의 정보와 현재 모습을 확인할 수 있습니다.</p>
                 <span class="labberlab-usage-go">바로가기 →</span>
               </a>
-              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+              <a class="labberlab-usage-card labberlab-usage-card--soon" data-labber-launch="soon" data-href="labber-personal-lab.html" aria-disabled="true">
                 <span class="labberlab-usage-no">03</span>
                 <h3 class="labberlab-usage-name">개인연구실</h3>
                 <p class="labberlab-usage-desc">내가 보유한 LABBER와 SUBJECT를 관리하는 공간입니다.<br>
                   SUBJECT 보관소와 LABBER의 SUBJECT 등록 및 관리 기능을 이용할 수 있습니다.</p>
                 <span class="labberlab-usage-go">준비중</span>
-              </div>
-              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+              </a>
+              <a class="labberlab-usage-card labberlab-usage-card--soon" data-labber-launch="soon" data-href="labber-crafting.html" aria-disabled="true">
                 <span class="labberlab-usage-no">04</span>
                 <h3 class="labberlab-usage-name">조합소</h3>
                 <p class="labberlab-usage-desc">탐험 등으로 획득한 재료를 사용해 새로운 연구 물품을 제작할 수 있습니다.<br>
                   일부 조합법은 직접 발견해야 합니다.</p>
                 <span class="labberlab-usage-go">준비중</span>
-              </div>
-              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+              </a>
+              <a class="labberlab-usage-card labberlab-usage-card--soon" data-labber-launch="soon" data-href="labber-exploration.html" aria-disabled="true">
                 <span class="labberlab-usage-no">05</span>
                 <h3 class="labberlab-usage-name">탐험</h3>
                 <p class="labberlab-usage-desc">LABBER와 함께 연구소 곳곳을 탐험하고 다양한 아이템을 획득할 수 있습니다.</p>
                 <span class="labberlab-usage-go">준비중</span>
-              </div>
-              <div class="labberlab-usage-card labberlab-usage-card--soon" aria-disabled="true">
+              </a>
+              <a class="labberlab-usage-card labberlab-usage-card--soon" data-labber-launch="soon" data-href="dogam.html" aria-disabled="true">
                 <span class="labberlab-usage-no">06</span>
                 <h3 class="labberlab-usage-name">도감</h3>
                 <p class="labberlab-usage-desc">발견한 연구 물품과 SUBJECT를 기록하고 확인할 수 있습니다.</p>
                 <span class="labberlab-usage-go">준비중</span>
-              </div>
+              </a>
               <a class="labberlab-usage-card" href="labber.html">
                 <span class="labberlab-usage-no">07</span>
                 <h3 class="labberlab-usage-name">수상한 연구실</h3>
@@ -343,76 +345,122 @@
           </article>
         </section>
 
-        <!-- ═══ 디자인 승인 (신청 폼 + 내 신청 내역 + admin 관리) ═══ -->
+        <!-- ═══ 디자인 승인 (DESIGN APPROVAL v2: 신청 폼 + 내 신청 + admin 승인 관리) ═══
+             동작은 js/labber-lab.js, DB 는 supabase/labber_design_approval_v2_0920.sql.
+             DESIGN_APPROVAL_ENABLED=false 면 js 가 이 탭 내용을 숨기고 준비중 화면을 표시한다. -->
         <section class="labberlab-panel" id="tab-approval" hidden>
 
-          <!-- 일반 유저: 신청 폼 -->
+          <!-- admin/staff 전용: 내 신청 / 승인 관리 전환 (일반 유저에게는 계속 hidden) -->
+          <div class="shop-tab-row labberlab-status-row" id="approvalModeRow" hidden style="display:none;">
+            <button type="button" class="shop-tab-btn" data-amode="mine">내 신청</button>
+            <button type="button" class="shop-tab-btn active" data-amode="admin">승인 관리</button>
+            <button type="button" class="shop-tab-btn" data-amode="subject">SUBJECT 승인</button>
+          </div>
+
+          <!-- 비로그인 안내 -->
+          <div id="approvalGuest" class="labberlab-login-prompt empty-state-wrap" hidden style="display:none;">
+            <div class="empty-state-icon">🔒</div>
+            <p class="empty-state-title">로그인이 필요해요</p>
+            <a href="login.html" class="btn-secondary" style="margin-top:12px;">로그인하러 가기</a>
+          </div>
+
+          <!-- ── 유저 뷰: 내 신청 목록 / 신청 폼 ─────────────────── -->
           <div id="approvalUserView">
-            <p class="labberlab-panel-desc">
-              LABBER 디자인 승인을 신청합니다. 제출한 신청은 나와 관리자에게만 보여요.
-            </p>
 
-            <form class="register-form labberlab-form" id="designForm">
-              <input type="hidden" id="editingId" value="">
+            <!-- 내 디자인 승인 신청 (MY APPLICATIONS) -->
+            <div class="labberlab-my-section llapp-my-section" id="mySection">
+              <p class="labberlab-panel-desc">
+                LABBER 디자인 승인을 신청합니다. <strong>MYO · POD · INK</strong>가 필수이며, 아이템은 내 인벤토리에서 선택해요.
+                제출한 신청은 나와 관리자에게만 보이고, 승인되면 선택한 아이템이 소비돼요.
+              </p>
+              <div class="llapp-my-head">
+                <h3 class="labberlab-my-heading">내 디자인 승인 신청</h3>
+                <button type="button" class="btn-secondary" id="newAppBtn">새 신청 작성</button>
+              </div>
+              <div id="myAppList" class="labberlab-app-list"></div>
+              <div id="myEmpty" class="empty-state-wrap" style="display:none;">
+                <div class="empty-state-icon">📋</div>
+                <p class="empty-state-title">신청 내역이 없어요</p>
+                <p class="empty-state-desc">"새 신청 작성"으로 LABBER 디자인 승인을 신청할 수 있어요.</p>
+              </div>
+            </div>
 
+            <!-- 신청 폼 (작성/수정) -->
+            <form class="register-form labberlab-form llapp-form" id="designForm" hidden style="display:none;" novalidate>
+              <h3 class="labberlab-my-heading" id="formTitle">새 신청서 작성</h3>
+
+              <div class="labberlab-app-comment is-strong llapp-reject-banner" id="rejectBanner" hidden style="display:none;">
+                <span class="labberlab-app-comment-label">거절 사유</span>
+                <p id="rejectBannerText"></p>
+              </div>
+
+              <!-- 1. 개체 이미지 + 크롭 썸네일 -->
               <div class="form-group">
-                <label class="form-label">디자인 이미지 <span class="required">*</span></label>
-                <input type="file" id="imageFile" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" onchange="onImagePick(this)">
-                <div id="uploadBox" class="img-upload-box" style="height:220px;" onclick="document.getElementById('imageFile').click()">
-                  <img id="imagePreview" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:var(--radius);">
-                  <div id="uploadPlaceholder">
-                    <p class="img-upload-text">클릭하여 이미지 업로드</p>
+                <label class="form-label">개체 이미지 <span class="required">*</span></label>
+                <input type="file" id="charFile" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+                <div class="llapp-image-row">
+                  <div class="llapp-image-col">
+                    <div class="img-upload-box llapp-upload-box" onclick="document.getElementById('charFile').click()">
+                      <img id="charPreview" alt="개체 이미지 미리보기" style="display:none;">
+                      <div id="charPlaceholder"><p class="img-upload-text">클릭하여 이미지 업로드</p></div>
+                    </div>
+                    <p class="llapp-image-cap">원본 이미지</p>
+                  </div>
+                  <div class="llapp-image-col llapp-image-col-thumb">
+                    <div class="llapp-thumb-box">
+                      <img id="thumbPreview" alt="썸네일 미리보기" style="display:none;">
+                      <div id="thumbPlaceholder"><p class="img-upload-text">썸네일</p></div>
+                    </div>
+                    <p class="llapp-image-cap">썸네일 (3:4)</p>
+                    <button type="button" class="btn-ghost llapp-mini-btn" id="thumbEditBtn" style="display:none;">썸네일 편집</button>
                   </div>
                 </div>
-                <p class="img-upload-meta">PNG · JPG · WebP · GIF &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하</p>
-                <button type="button" id="removeImageBtn" class="btn-ghost" style="display:none; margin-top:8px; font-size:12px;" onclick="clearImage()">이미지 삭제</button>
+                <p class="img-upload-meta">PNG · JPG · WebP · GIF &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하 &nbsp;·&nbsp; 이미지를 고르면 썸네일 영역을 지정해요.</p>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">POD 설명 <span class="required">*</span></label>
-                <textarea id="podInput" class="form-textarea" rows="3" placeholder="POD의 구조 · 형태 · 재질 등"></textarea>
+              <!-- 2. 아이템 선택 (JS 가 내 인벤토리로 렌더: MYO·POD·INK 필수 / CARTRIDGE 선택) -->
+              <div id="itemPickers"></div>
+
+              <!-- 3. SUBJECT — 아이템 선택/이미지 업로드 없음(2026-09-24 변경). 이미 개인연구실
+                   SUBJECT 보관소에 등록해 둔 내 SUBJECT 개체 중 미배정 상태인 것만 선택(선택사항). -->
+              <div class="form-group" id="subjectInstanceGroup">
+                <label class="form-label">SUBJECT <span class="llapp-optional">선택</span></label>
+                <p class="form-hint">디자인에 SUBJECT를 함께 표현하고 싶다면, 먼저 가방에서 해당 SUBJECT를 등록 신청하고, 운영진 승인으로 SUBJECT 보관소에 등록된 뒤 선택해주세요.<br>등록된 SUBJECT는 이후 자유롭게 변경할 수 있으며, SUBJECT 변경만으로는 별도의 디자인 변경 승인이 필요하지 않습니다.</p>
+                <div id="subjectInstancePicker"></div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">INK 색상 / 명칭 <span class="required">*</span></label>
-                <input type="text" id="inkInput" class="form-input" placeholder="예: 청록빛 잉크 / #2FB6A0">
+              <!-- 4. 개체 제작자 — LABBER 개체 자체의 디자이너(필수) / 아티스트(선택). 제출하면 승인 데이터로 잠기고, 개체 등록 시 운영진이 확인·수정해요. -->
+              <div class="form-group llapp-creators" id="creatorSection">
+                <label class="form-label">개체 제작자</label>
+                <p class="form-hint">LABBER 개체 자체의 디자이너/아티스트예요.</p>
+                <div id="designerPicker"></div>
+                <div class="cp-divider"></div>
+                <div id="artistPicker"></div>
               </div>
 
+              <!-- 5. 하고 싶은 말 -->
               <div class="form-group">
-                <label class="form-label">SUBJECT 설명 <span class="required">*</span></label>
-                <textarea id="subjectDescInput" class="form-textarea" rows="3" placeholder="SUBJECT(연구표본)의 형태와 의미"></textarea>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">SUBJECT 종족</label>
-                <select id="subjectSpeciesSelect" class="form-input">
-                  <option value="">선택 안 함 / 목록에 없음</option>
-                </select>
-                <input type="text" id="subjectSpeciesNameInput" class="form-input" style="margin-top:8px;" placeholder="목록에 없는 종족이면 직접 입력 (선택)">
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">디자이너 <span class="required">*</span></label>
-                <input type="text" id="designerInput" class="form-input" placeholder="디자이너 이름 / 핸들">
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">추가 설명 / 비고</label>
-                <textarea id="noteInput" class="form-textarea" rows="2" placeholder="그 외 전달할 내용 (선택)"></textarea>
+                <label class="form-label">하고 싶은 말 <span class="llapp-optional">선택</span></label>
+                <textarea id="noteInput" class="form-textarea" rows="4" maxlength="500" placeholder="디자인 심사 시 관리자에게 전달하고 싶은 내용을 적어주세요. (최대 500자)"></textarea>
+                <p class="llapp-count" id="noteCount">0 / 500</p>
               </div>
 
               <p class="auth-error" id="formError"></p>
+              <p class="llapp-info" id="formInfo"></p>
 
-              <div class="register-actions">
-                <button type="button" class="btn-ghost" id="cancelEditBtn" style="display:none;" onclick="cancelEdit()">수정 취소</button>
+              <div class="register-actions llapp-form-actions">
+                <button type="button" class="btn-ghost" id="cancelFormBtn">목록으로</button>
+                <button type="button" class="btn-ghost" id="saveDraftBtn">임시저장</button>
                 <button type="submit" class="btn-secondary" id="submitBtn">제출하기</button>
               </div>
             </form>
           </div>
 
-          <!-- 관리자: 승인 관리 -->
-          <div id="approvalAdminView" hidden>
-            <p class="labberlab-panel-desc">LABBER 디자인 승인 신청 관리 — 상태 변경과 코멘트는 신청자에게 알림으로 전달됩니다.</p>
+          <!-- ── 관리자 뷰: 승인 관리 ────────────────────────────── -->
+          <div id="approvalAdminView" hidden style="display:none;">
+            <p class="labberlab-panel-desc">
+              제출된 LABBER 디자인 승인 신청을 확인하고 승인/거절합니다. 승인하면 예약된 아이템이 소비되고, 거절하면 예약이 해제돼요(사유 필수 · 신청자에게 알림).
+            </p>
             <div class="shop-tab-row labberlab-status-row" id="adminStatusRow"></div>
             <div id="adminAppList" class="labberlab-app-list"></div>
             <div id="adminEmpty" class="empty-state-wrap" style="display:none;">
@@ -421,18 +469,16 @@
             </div>
           </div>
 
-          <!-- 내 신청 내역 (독립 MY APPLICATIONS 탭 제거 → 이 탭 안으로 통합).
-               본인의 신청/상태/관리자 코멘트 확인 및 수정 기능은 그대로 유지된다. -->
-          <div class="labberlab-my-section" id="mySection">
-            <h3 class="labberlab-my-heading">내 디자인 승인 신청</h3>
-            <p class="labberlab-panel-desc" id="myGuestDesc" style="display:none;">
-              로그인하면 내 LABBER 디자인 승인 신청 내역과 상태를 볼 수 있어요.
+          <!-- ── 관리자 뷰: SUBJECT 승인 (가방에서 신청된 SUBJECT 등록) ────────── -->
+          <div id="approvalSubjectView" hidden style="display:none;">
+            <p class="labberlab-panel-desc">
+              가방에서 신청된 SUBJECT 등록을 확인하고 승인/반려합니다. 승인하면 예약된 SUBJECT 아이템이 소비되고 개인연구실 보관소에 SUBJECT 개체가 생성되며, 반려하면 예약만 해제돼요(사유 필수).
             </p>
-            <div id="myAppList" class="labberlab-app-list"></div>
-            <div id="myEmpty" class="empty-state-wrap" style="display:none;">
-              <div class="empty-state-icon">📋</div>
-              <p class="empty-state-title">신청 내역이 없어요</p>
-              <p class="empty-state-desc">위 신청 폼에서 LABBER 디자인 승인을 신청할 수 있어요.</p>
+            <div class="shop-tab-row labberlab-status-row" id="subjectApprovalStatusRow"></div>
+            <div id="subjectApprovalList" class="labberlab-app-list"></div>
+            <div id="subjectApprovalEmpty" class="empty-state-wrap" style="display:none;">
+              <div class="empty-state-icon">🗂️</div>
+              <p class="empty-state-title">해당 상태의 신청이 없어요</p>
             </div>
           </div>
         </section>
@@ -445,6 +491,24 @@
     <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.2.1</span></p>
   </footer>
 
+  <!-- 크롭 모달 (디자인 승인 신청 썸네일 — character-register.html 과 같은 마크업/클래스) -->
+  <div id="cropModal" class="crop-modal-overlay" style="display:none;">
+    <div class="crop-modal-box">
+      <div class="crop-modal-header">
+        <h3>썸네일 편집</h3>
+        <p>드래그로 이동 · 스크롤로 확대/축소 — 목록 카드에 표시될 영역을 선택하세요.</p>
+      </div>
+      <div class="crop-modal-canvas">
+        <img id="cropImage" src="">
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn-ghost" style="color:var(--text-mute);" id="cropCancelBtn">취소</button>
+        <button type="button" class="btn-ghost" id="cropAsIsBtn">원본 그대로 사용</button>
+        <button type="button" class="btn-secondary" id="cropConfirmBtn">확정</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/sidebar.js"></script>
@@ -453,7 +517,10 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
+  <script src="../js/search.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
   <script src="../js/labber-traits.js"></script>
+  <script src="../js/creator-picker.js"></script>
   <script src="../js/labber-lab.js"></script>
 </body>
 </html>

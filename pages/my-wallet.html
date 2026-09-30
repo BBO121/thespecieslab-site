@@ -182,6 +182,9 @@
       email_verification_reward: '이메일 인증 보상',  // Stage 4 — 실제 이메일 인증 완료 보상
       record_amplification_cost:   '기록 증폭 실험 투입',  // LABBER 기록 증폭 실험 비용 차감
       record_amplification_reward: '기록 증폭 실험 결과',  // LABBER 기록 증폭 실험 결과 지급
+      exploration_reward:          '탐험 보상',            // LABBER 탐험 보상 (exploration_reward RPC)
+      item_sell:                   '아이템 판매',          // 가방 아이템 판매 (sell_item RPC)
+      event_attendance_reward:     '이벤트 출석',          // 기간형 이벤트 출석 보상 (claim_event_attendance RPC, source=이벤트 코드)
     };
     const TYPE_CLASS = {
       signup_bonus:         'wallet-log-type--receive',
@@ -197,8 +200,11 @@
       email_verification_reward: 'wallet-log-type--receive',  // Stage 4 — 실제 이메일 인증 완료 보상
       record_amplification_cost:   'wallet-log-type--send',     // 연구기록 차감
       record_amplification_reward: 'wallet-log-type--receive',  // 연구기록 획득
+      exploration_reward:          'wallet-log-type--receive',  // 연구기록 획득
+      item_sell:                   'wallet-log-type--receive',  // 연구기록 획득
+      event_attendance_reward:     'wallet-log-type--receive',  // 연구기록/열쇠 획득
     };
-    const RECEIVE_TYPES = new Set(['signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant', 'achievement_reward', 'achievement_backfill', 'email_verification_reward', 'record_amplification_reward']);
+    const RECEIVE_TYPES = new Set(['signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant', 'achievement_reward', 'achievement_backfill', 'email_verification_reward', 'record_amplification_reward', 'exploration_reward', 'item_sell', 'event_attendance_reward']);
 
     // labber_exchange는 열쇠(차감)/연구기록(지급) 두 방향을 같은 type으로 공유하므로
     // type만으로는 +/- 판정이 안 된다 — 이 타입만 currency로 방향을 추가 판정한다.

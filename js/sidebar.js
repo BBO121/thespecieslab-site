@@ -109,8 +109,8 @@ async function initSidebar() {
       </div>
     </div>
 
-    <!-- ── 출석 단일 메뉴 ───────────────────────────── -->
-    <a href="attendance.html" class="sidebar-top-link ${path === 'attendance.html' ? 'active' : ''}">출석</a>
+    <!-- ── 출석 단일 메뉴 (공개 이벤트 출석이 있으면 refreshEventAttendanceMenu 가 depth 로 교체) ── -->
+    <a href="attendance.html" id="sidebarAttendanceLink" class="sidebar-top-link ${path === 'attendance.html' ? 'active' : ''}">출석</a>
 
     <!-- ── 리스트 아코디언 ──────────────────────────── -->
     <div class="sidebar-accordion" id="accList">
@@ -290,6 +290,131 @@ async function initSidebar() {
   loadAdminBadges();
   initEmailVerifyPopup();
   initHamburger();
+  refreshEventAttendanceMenu();
+}
+
+// ── 이벤트 출석 데이터 조회 (사이드바 + 출석 페이지 공용) ───────────
+// PUBLIC  : get_event_attendance_status 만 — 서버 KST 날짜가 노출 기간일 때만 이벤트를 준다.
+// LOCAL/DEV: hostname 허용 목록(기존 isLabberAchievementsEnv 와 동일, 모르는 호스트는 차단)일 때만
+//            get_event_attendance_preview 를 먼저 호출 — 서버가 admin/staff(app_metadata)에게만 시작 전 데이터를 준다.
+//            UI 미리보기 전용. 보상 수령(claim_event_attendance)은 환경과 무관하게 서버 기간 검증 그대로.
+// URL 파라미터 / localStorage 등 사용자가 조작 가능한 값은 판정에 쓰지 않는다.
+function isEventPreviewEnv() {
+  return ['localhost', '127.0.0.1', 'thespecieslab-dev.pages.dev'].includes(window.location.hostname);
+}
+
+async function fetchEventAttendanceStatus(includeDetail) {
+  if (typeof sb === 'undefined') return null;
+  if (isEventPreviewEnv()) {
+    try {
+      const { data, error } = await sb.rpc('get_event_attendance_preview', { p_include_detail: includeDetail });
+      if (!error && data && Array.isArray(data.events) && data.events.length > 0) return data;
+    } catch (e) { /* 미리보기 RPC 없음/권한 없음 → 공개 정책으로 */ }
+  }
+  const { data, error } = await sb.rpc('get_event_attendance_status', { p_include_detail: includeDetail });
+  if (error || !data || !Array.isArray(data.events)) return null;
+  return data;
+}
+
+// ── 출석 메뉴 depth (이벤트 출석) ──────────────────────────
+// 서버 RPC 가 "서버 KST 날짜 >= 시작일" 인 이벤트만 돌려준다. 없으면(공개 전 포함) 기존 단일 '출석' 링크 그대로 —
+// 이벤트명/메뉴 DOM 을 만들지 않는다. 클라이언트 시계·URL 파라미터·저장소 값으로 공개 여부를 판정하지 않는다.
+async function refreshEventAttendanceMenu() {
+  if (!document.getElementById('sidebarAttendanceLink') || typeof sb === 'undefined') return;
+
+  let data = null;
+  try {
+    data = await fetchEventAttendanceStatus(false);
+  } catch (e) {
+    return;   // 실패 시 기존 단일 링크 유지
+  }
+  if (!data) return;
+  scheduleEventAttendanceMidnightSync(data);   // 페이지를 열어 둔 채 KST 자정이 지나면 서버 기준으로 다시 맞춘다
+  renderEventAttendanceMenu(data.events);
+}
+
+// ── 이벤트 출석: KST 자정 재동기화 (새로고침 없이 노출 시작 · 일차 갱신 · 노출 종료) ──
+// 공개 여부는 여전히 서버 판정(get_event_attendance_status 의 서버 KST 날짜)만 따른다. 클라이언트는
+// 서버가 알려준 server_now 로 "다음 KST 00:00" 까지 남은 시간만 계산해 그때 서버에 다시 묻는다
+// (브라우저 시계/타임존과 무관). 서버 날짜가 아직 안 바뀌었으면 잠깐 뒤 재시도한다.
+let _evtSyncTimer = null;
+let _evtSyncToday = null;
+function scheduleEventAttendanceMidnightSync(data) {
+  const now = Date.parse(data && data.server_now);
+  if (Number.isNaN(now)) return;
+  _evtSyncToday = data.today;
+  const DAY = 86400000, KST = 9 * 3600000;
+  const nextMidnight = Math.floor((now + KST) / DAY) * DAY + DAY - KST;   // 다음 KST 00:00 (UTC ms)
+  const wait = nextMidnight - now + 1500;
+  if (wait <= 0 || wait > 2147483647) return;
+  clearTimeout(_evtSyncTimer);
+  _evtSyncTimer = setTimeout(() => runEventAttendanceMidnightSync(0), wait);
+}
+
+async function runEventAttendanceMidnightSync(attempt) {
+  let data = null;
+  try { data = await fetchEventAttendanceStatus(true); } catch (e) { data = null; }
+  const RETRY = [3000, 10000, 30000, 60000];
+  if ((!data || data.today === _evtSyncToday) && attempt < RETRY.length) {
+    _evtSyncTimer = setTimeout(() => runEventAttendanceMidnightSync(attempt + 1), RETRY[attempt]);
+    return;
+  }
+  if (!data) return;
+
+  // 사이드바: 기존 depth 는 단일 링크로 되돌린 뒤 서버 응답대로 다시 그린다(이벤트 없으면 단일 링크 유지)
+  const acc = document.getElementById('accAttendance');
+  if (acc) {
+    const link = document.createElement('a');
+    link.href = 'attendance.html';
+    link.id = 'sidebarAttendanceLink';
+    link.className = 'sidebar-top-link' + (window.location.pathname.split('/').pop() === 'attendance.html' ? ' active' : '');
+    link.textContent = '출석';
+    acc.replaceWith(link);
+  }
+  renderEventAttendanceMenu(data.events);
+  // 출석 페이지(js/event-attendance.js)가 열려 있으면 탭/출석판도 동기화
+  if (typeof onEventAttendanceSync === 'function') onEventAttendanceSync(data);
+  scheduleEventAttendanceMidnightSync(data);
+}
+
+function renderEventAttendanceMenu(events) {
+  const link = document.getElementById('sidebarAttendanceLink');
+  if (!link || !Array.isArray(events) || events.length === 0 || !document.body.contains(link)) return;
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const path     = window.location.pathname.split('/').pop();
+  const curEvent = path === 'attendance.html' ? new URLSearchParams(window.location.search).get('event') : null;
+  const onPage   = path === 'attendance.html';
+
+  const acc = document.createElement('div');
+  acc.className = 'sidebar-accordion';
+  acc.id = 'accAttendance';
+  acc.innerHTML = `
+    <button class="sidebar-accordion-btn" onclick="toggleAccordion('accAttendance')">
+      출석<svg class="sidebar-accordion-arrow" id="arrAttendance" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="sidebar-accordion-body${onPage ? ' open' : ''}" id="bodyAttendance">
+      <a href="attendance.html" class="sidebar-subitem ${onPage && !events.some(e => e.code === curEvent) ? 'active' : ''}">일일 출석</a>
+      ${events.map(e => `
+      <a href="attendance.html?event=${encodeURIComponent(e.code)}" class="sidebar-subitem ${onPage && curEvent === e.code ? 'active' : ''}">${esc(e.title)}</a>`).join('')}
+    </div>`;
+  link.replaceWith(acc);
+  if (onPage) document.getElementById('arrAttendance').style.transform = 'rotate(180deg)';
+
+  // initHamburger 와 동일: 모바일에서 메뉴 링크 클릭 시 사이드바 닫기
+  acc.querySelectorAll('a').forEach(el => el.addEventListener('click', () => {
+    if (window.innerWidth <= 767) closeSidebar();
+  }));
+
+  // 출석 페이지에서 탭 전환 시 사이드바 active 동기화 (같은 페이지라 새로고침 없음)
+  acc.querySelectorAll('a').forEach(el => el.addEventListener('click', (ev) => {
+    if (!onPage || typeof switchAttendanceTab !== 'function') return;
+    const code = new URL(el.href).searchParams.get('event');
+    if (code && !document.querySelector(`#attnTabRow [data-tab="${CSS.escape(code)}"]`)) return;
+    ev.preventDefault();
+    switchAttendanceTab(code, true);
+    acc.querySelectorAll('a').forEach(a => a.classList.toggle('active', a === el));
+  }));
 }
 
 function initHamburger() {

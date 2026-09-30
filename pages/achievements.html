@@ -20,6 +20,32 @@
     .featured-ach-option.selected { border-color:var(--sky-dark); background:var(--sky-pale); }
     .featured-ach-check { width:20px; height:20px; border-radius:4px; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; color:#fff; }
     .featured-ach-option.selected .featured-ach-check { background:var(--sky-dark); border-color:var(--sky-dark); }
+
+    /* [2026-09-22] scope 탭 — 종족연구소/LABBER */
+    .achievement-scope-tabs { display:flex; gap:8px; margin-top:16px; }
+    .achievement-scope-tab {
+      padding:8px 18px; border-radius:999px; border:1.5px solid var(--border);
+      background:var(--white); font-size:13px; font-weight:600; color:var(--text-mute);
+      cursor:pointer; transition:border-color 0.12s, background 0.12s, color 0.12s;
+    }
+    .achievement-scope-tab.active { background:var(--sky-dark); border-color:var(--sky-dark); color:#fff; }
+    .achievement-scope-empty { padding:56px 16px; text-align:center; color:var(--text-mute); font-size:14px; }
+
+    /* [2026-09-22] LABBER 탭 테마 — 새 색상 없음. body.labber-theme가 --white/--text/--border/
+       --sky-* 등을 이미 리스킨하므로 .achievement-* 대부분은 별도 오버라이드 없이 자동 적용됨
+       (css/scss/_labber-shop.scss의 "하드코딩된 라이트 색만 override" 패턴을 그대로 따름).
+       아래 3개만 style.scss에 하드코딩된 값이라 LABBER 스코프에서만 기존 LABBER 변수/색으로 교체. */
+    body.labber-theme #pageContent .ach-icon-wrap {
+      background: var(--sky-pale);   /* 원래 #F1F5F9 하드코딩 — LABBER 관리소/상점과 동일 패턴 */
+    }
+    body.labber-theme #pageContent .achievement-progress-fill {
+      /* 원래 라이트블루 하드코딩 그라디언트 → body.labber-theme가 정의한 --sky 3단계 그대로 재사용 */
+      background: linear-gradient(90deg, var(--sky-deep), var(--sky-dark), var(--sky));
+    }
+    body.labber-theme #pageContent .achievement-progress-fill.complete {
+      /* LABBER 관리소 .labber-trait-grade.is-special의 기존 앰버 조합(#3a3316/#e8c96b) 재사용 */
+      background: linear-gradient(90deg, #3a3316, #e8c96b);
+    }
   </style>
 </head>
 <body>
@@ -54,6 +80,13 @@
           <button class="btn-ghost" id="editFeaturedBtn" onclick="openFeaturedModal()" style="display:none; font-size:13px; margin-bottom:4px;">대표 업적 편집</button>
         </div>
 
+        <!-- scope 탭 -->
+        <div class="achievement-scope-tabs" id="achievementScopeTabs">
+          <button type="button" class="achievement-scope-tab active" data-scope="specieslab" onclick="switchScope('specieslab')">종족연구소</button>
+          <!-- LABBER 탭: LABBER 업적이 실제로 조회될 때만 loadAchievements 가 표시 (공개 여부는 DB RLS 가 결정) -->
+          <button type="button" class="achievement-scope-tab" id="labberScopeTab" data-scope="labber" onclick="switchScope('labber')" style="display:none;">LABBER</button>
+        </div>
+
         <!-- 달성률 -->
         <div class="achievement-stats" id="achievementStats" style="margin-top: 16px;">
           <div class="achievement-stats-row">
@@ -68,6 +101,7 @@
         <!-- 업적 목록 -->
         <div id="achievementCategories" class="achievement-categories"></div>
         <p id="achievementEmpty" class="empty-state" style="display:none;">업적을 불러오지 못했어요.</p>
+        <p id="achievementScopeEmpty" class="achievement-scope-empty" style="display:none;">아직 기록된 LABBER 업적이 없습니다.</p>
 
       </div>
 
@@ -108,65 +142,24 @@
     const viewNick = new URLSearchParams(window.location.search).get('user');
     let currentAchUser = null;
 
-    const CATEGORY_MAP = {
-      first_login:        '연구원 업적',
-      profile_setup:      '연구원 업적',
-      nickname_set:       '연구원 업적',
-      first_guide:        '연구원 업적',
-      open_beta:          '연구원 업적',
-      first_species:      '종족 연구 업적',
-      species_3:          '종족 연구 업적',
-      first_character:    '개체 연구 업적',
-      first_owned_character: '개체 연구 업적',
-      chars_10:           '개체 연구 업적',
-      chars_30:           '개체 연구 업적',
-      chars_50:           '개체 연구 업적',
-      chars_100:          '개체 연구 업적',
-      first_adoption:     '분양 업적',
-      adoption_10:        '분양 업적',
-      adoption_20:        '분양 업적',
-      adoption_30:        '분양 업적',
-      first_inquiry:      '문의 & 버그 업적',
-      first_bug_report:   '문의 & 버그 업적',
-      bug_report_3:       '문의 & 버그 업적',
-      bug_report_10:      '문의 & 버그 업적',
-      first_update_note:  '탐험 업적',
-      first_dev_log:      '탐험 업적',
-      first_notice:       '탐험 업적',
-      notice_5:           '탐험 업적',
-      no_species_search:  '탐험 업적',
-      no_char_search:     '탐험 업적',
-      first_terms:        '탐험 업적',
-      terms_5:            '탐험 업적',
-      terms_20:           '탐험 업적',
-      login_no_auth_5:         '연구원 업적',
-      night_login:             '연구원 업적',
-      dawn_login:              '연구원 업적',
-      work_overtime_fail:      '연구원 업적',
-      visit_404_3:             '탐험 업적',
-      odd_search:              '탐험 업적',
-      species_revisit_10:      '종족 연구 업적',
-      species_view_10:         '종족 연구 업적',
-      species_view_30:         '종족 연구 업적',
-      species_view_50:         '종족 연구 업적',
-      species_search_fail_10:  '종족 연구 업적',
-      char_view_20:            '개체 연구 업적',
-      char_view_50:            '개체 연구 업적',
-      char_view_100:           '개체 연구 업적',
-      own_variety_5:           '개체 연구 업적',
-      own_variety_10:          '개체 연구 업적',
-      own_variety_20:          '개체 연구 업적',
-      char_owner_desc:         '개체 연구 업적',
-      char_owner_relation:     '개체 연구 업적',
-      visit_404:               '탐험 업적',
-      gong_o_visit_1:     '공오 업적',
-      gong_o_visit_5:     '공오 업적',
-      gong_o_visit_20:    '공오 업적',
-      gong_o_visit_100:   '공오 업적',
-    };
+    // [2026-09-22] 카테고리 하드코딩 제거 — achievement_categories 테이블 기반으로 전환.
+    // CATEGORY_MAP/GONG_O_CODES/CATEGORY_ORDER는 더 이상 사용하지 않음(DB에서 조회).
+    let _allAch      = [];   // achievements 전체(scope 무관)
+    let _allCats     = [];   // achievement_categories 전체(scope 무관)
+    let _earnedMap   = new Map();  // achievement_code -> unlocked_at
+    let _currentScope = 'specieslab';
+    // [2026-10-01] LABBER 업적 공개 — LABBER scope 업적이 조회되면(=RLS 공개) 탭을 보여준다.
+    let _labberVisible = false;
 
-    const GONG_O_CODES   = new Set(['gong_o_visit_1','gong_o_visit_5','gong_o_visit_20','gong_o_visit_100']);
-    const CATEGORY_ORDER = ['연구원 업적','종족 연구 업적','개체 연구 업적','분양 업적','문의 & 버그 업적','탐험 업적','공오 업적','??? 업적'];
+    // is_secret 카테고리 공용 규칙(구 GONG_O_CODES 하드코딩 대체):
+    // 해당 카테고리 업적을 뷰어가 하나도 획득 못 했으면 이름 자체를 "???"로 감춘다.
+    function categoryDisplay(cat, earnedInCategory) {
+      const hidden = cat.is_secret && earnedInCategory === 0;
+      return {
+        name:      hidden ? '??? 업적' : cat.name,
+        shortName: hidden ? '???'      : cat.short_name,
+      };
+    }
 
     function showPage() {
       document.getElementById('pageLoading').style.display = 'none';
@@ -188,7 +181,7 @@
 
         if (!myAch?.length) { alert('아직 획득한 업적이 없어요.'); return; }
 
-        const codes = myAch.map(a => a.achievement_code).filter(c => !c.startsWith('labber_'));   // LABBER 미공개
+        const codes = myAch.map(a => a.achievement_code);
         _modalDateMap = Object.fromEntries(myAch.map(a => [a.achievement_code, a.unlocked_at]));
 
         const [{ data: details }, { data: profile }] = await Promise.all([
@@ -296,7 +289,7 @@
             <div class="achievement-item-right">
               <span class="achievement-item-reward">
                 <img src="../images/icons/currency-record.png" class="ach-reward-icon" alt="연구기록">
-                +${a.is_hidden ? 10 : 5}
+                +${(a.scope === 'labber' && a.reward_override != null) ? a.reward_override : (a.is_hidden ? 10 : 5)}
               </span>
               <span class="achievement-item-date">${date}</span>
             </div>
@@ -326,74 +319,103 @@
 
     async function loadAchievements(userId) {
       try {
-        const [{ data: allAchRaw, error: achErr }, { data: myAchRaw }] = await Promise.all([
-          sb.from('achievements').select('*').order('id'),
+        const [{ data: allAch, error: achErr }, { data: cats, error: catErr }, { data: myAch }] = await Promise.all([
+          sb.from('achievements').select('*').order('sort_order'),
+          sb.from('achievement_categories').select('*').order('sort_order'),
           sb.from('user_achievements').select('achievement_code, unlocked_at').eq('user_id', userId),
         ]);
 
-        // [2026-09-25] LABBER 업적 미공개 — 목록/달성률에서 LABBER scope 제외(탐험 업적 fallback 로 섞이지 않게)
-        const allAch     = (allAchRaw || []).filter(a => a.scope !== 'labber');
-        const shownCodes = new Set(allAch.map(a => a.code));
-        const myAch      = (myAchRaw || []).filter(a => shownCodes.has(a.achievement_code));
+        console.log('[업적] 전체:', allAch?.length, achErr || '', '/ 카테고리:', cats?.length, catErr || '');
 
-        console.log('[업적] 전체:', allAch?.length, achErr || '');
-
-        if (achErr || !allAch || allAch.length === 0) {
+        if (achErr || catErr || !allAch || allAch.length === 0) {
           document.getElementById('achievementEmpty').style.display = 'block';
           return;
         }
 
-        const earned      = new Map((myAch || []).map(a => [a.achievement_code, a.unlocked_at]));
-        const earnedCount = myAch?.length || 0;
-        const totalCount  = allAch.length;
-        const pct         = totalCount > 0 ? Math.floor((earnedCount / totalCount) * 100) : 0;
+        // LABBER 탭은 LABBER 업적이 있을 때만. specieslab/LABBER 는 scope + category 로 분리 렌더(탐험 업적 등에 섞이지 않음).
+        _labberVisible = allAch.some(a => a.scope === 'labber');
+        document.getElementById('labberScopeTab').style.display = _labberVisible ? '' : 'none';
+        _allAch    = _labberVisible ? allAch : allAch.filter(a => a.scope !== 'labber');
+        _allCats   = _labberVisible ? (cats || []) : (cats || []).filter(c => c.scope !== 'labber');
+        const shownCodes = new Set(_allAch.map(a => a.code));
+        _earnedMap = new Map((myAch || []).filter(a => shownCodes.has(a.achievement_code))
+                                          .map(a => [a.achievement_code, a.unlocked_at]));
 
-        document.getElementById('achievementStatsText').textContent = `${earnedCount} / ${totalCount} 달성`;
-        document.getElementById('achievementPct').textContent       = `${pct}%`;
-        const fillEl = document.getElementById('achievementProgressFill');
-        fillEl.style.width = `${pct}%`;
-        if (pct === 100) fillEl.classList.add('complete');
-
-        const hasGongO = [...earned.keys()].some(code => GONG_O_CODES.has(code));
-
-        const groups   = {};
-        const catStats = {};
-        CATEGORY_ORDER.forEach(c => { groups[c] = []; catStats[c] = { earned: 0, total: 0 }; });
-
-        allAch.forEach(a => {
-          const unlockedAt = earned.get(a.code);
-          const isEarned   = !!unlockedAt;
-          let cat;
-          if (GONG_O_CODES.has(a.code)) {
-            cat = hasGongO ? '공오 업적' : '??? 업적';
-          } else {
-            cat = CATEGORY_MAP[a.code] || '탐험 업적';
-          }
-          if (!groups[cat]) { groups[cat] = []; catStats[cat] = { earned: 0, total: 0 }; }
-          groups[cat].push({ ...a, unlockedAt, isEarned });
-          catStats[cat].total++;
-          if (isEarned) catStats[cat].earned++;
-        });
-
-        document.getElementById('achievementCategories').innerHTML = CATEGORY_ORDER
-          .filter(cat => groups[cat]?.length > 0)
-          .map(cat => {
-            const s = catStats[cat];
-            return `
-              <div class="ach-category">
-                <div class="ach-category-header">
-                  <h3 class="ach-category-title">${cat}</h3>
-                  <span class="ach-category-count">${s.earned} / ${s.total}</span>
-                </div>
-                <div class="achievement-list">${groups[cat].map(renderCard).join('')}</div>
-              </div>`;
-          })
-          .join('');
+        renderScope(_currentScope);
 
       } catch (e) {
         console.error('[업적] 로드 오류:', e);
         document.getElementById('achievementEmpty').style.display = 'block';
       }
+    }
+
+    // [2026-09-22] scope 탭 전환 — 재조회 없이 캐시된 데이터로 재렌더링만 한다.
+    function switchScope(scope) {
+      if (scope === 'labber' && !_labberVisible) return;   // LABBER 업적이 없으면 전환하지 않음
+      if (scope === _currentScope) return;
+      _currentScope = scope;
+      document.querySelectorAll('.achievement-scope-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.scope === scope);
+      });
+      renderScope(scope);
+    }
+
+    // 선택된 scope 기준으로 진행률/카테고리/업적 목록을 렌더링한다.
+    function renderScope(scope) {
+      // LABBER 탭 = 기존 LABBER 페이지(labber-lab.html 등)와 동일한 body.labber-theme 토글.
+      // 새 테마를 만들지 않고 _labber.scss가 이미 정의한 다크·민트 리스킨을 그대로 재사용한다.
+      // toggle 사용 → 종족연구소로 돌아오면 클래스가 제거되어 기본 테마로 완전히 복구됨.
+      document.body.classList.toggle('labber-theme', scope === 'labber');
+
+      const scopedAch  = _allAch.filter(a => a.scope === scope);
+      const scopedCats = _allCats.filter(c => c.scope === scope).sort((a, b) => a.sort_order - b.sort_order);
+      // 같은 scope 카테고리에 매칭되지 않는 업적은 다른 영역(예: 탐험 업적)으로 보내지 않고 미표시 + 경고만.
+      const scopedCatCodes = new Set(scopedCats.map(c => c.code));
+      scopedAch.filter(a => !scopedCatCodes.has(a.category)).forEach(a =>
+        console.warn('[업적] scope 내 카테고리 없음 — 미표시:', scope, a.code, a.category));
+
+      const statsEl     = document.getElementById('achievementStats');
+      const catsEl       = document.getElementById('achievementCategories');
+      const scopeEmptyEl = document.getElementById('achievementScopeEmpty');
+
+      if (scopedAch.length === 0) {
+        statsEl.style.display      = 'none';
+        catsEl.innerHTML           = '';
+        scopeEmptyEl.style.display = 'block';
+        return;
+      }
+      scopeEmptyEl.style.display = 'none';
+      statsEl.style.display      = '';
+
+      const earnedCount = scopedAch.filter(a => _earnedMap.has(a.code)).length;
+      const totalCount  = scopedAch.length;
+      const pct         = totalCount > 0 ? Math.floor((earnedCount / totalCount) * 100) : 0;
+
+      document.getElementById('achievementStatsText').textContent = `${earnedCount} / ${totalCount} 달성`;
+      document.getElementById('achievementPct').textContent       = `${pct}%`;
+      const fillEl = document.getElementById('achievementProgressFill');
+      fillEl.style.width = `${pct}%`;
+      fillEl.classList.toggle('complete', pct === 100);   // 탭 전환 시 이전 scope의 complete 상태가 남지 않도록 toggle 사용
+
+      catsEl.innerHTML = scopedCats.map(cat => {
+        const items = scopedAch
+          .filter(a => a.category === cat.code)
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(a => ({ ...a, unlockedAt: _earnedMap.get(a.code), isEarned: _earnedMap.has(a.code) }));
+        if (items.length === 0) return '';
+
+        const earnedInCat  = items.filter(a => a.isEarned).length;
+        const { name }      = categoryDisplay(cat, earnedInCat);
+
+        return `
+          <div class="ach-category">
+            <div class="ach-category-header">
+              <h3 class="ach-category-title">${name}</h3>
+              <span class="ach-category-count">${earnedInCat} / ${items.length}</span>
+            </div>
+            <div class="achievement-list">${items.map(renderCard).join('')}</div>
+          </div>`;
+      }).join('');
     }
 
     async function initPage() {
@@ -410,6 +432,7 @@
           }
           // 타인 접근 → 상세 차단
           document.getElementById('achievementStats').style.display = 'none';
+          document.getElementById('achievementScopeTabs').style.display = 'none';
           showPage();
           const el = document.getElementById('achievementEmpty');
           el.textContent   = '다른 유저의 업적 상세는 확인할 수 없어요.';
@@ -418,6 +441,8 @@
           currentAchUser = user;
           document.getElementById('editFeaturedBtn').style.display = '';
           showPage();
+          // LABBER 업적 소급/재확인(서버 판정·멱등). 지급 스위치 off 면 서버가 즉시 locked 반환.
+          await window.syncLabberAchievements?.();
           await loadAchievements(user.id);
 
           // 기존 유저 own_variety 체크 — 세션당 1회만 실행 (중복 Supabase 호출 방지)

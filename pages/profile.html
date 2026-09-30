@@ -549,67 +549,16 @@
     // 항상 실제 값(신규/미설정 사용자는 false)으로 덮어써진다.
     let _hideSensitiveContent = true;
 
-    // ── 업적 카테고리 상수 ────────────────────────
-    const ACH_CATEGORY_MAP = {
-      // 연구원 업적
-      first_login:           '연구원 업적',
-      profile_setup:         '연구원 업적',
-      nickname_set:          '연구원 업적',
-      first_guide:           '연구원 업적',
-      open_beta:             '연구원 업적',
-      login_no_auth_5:       '연구원 업적',
-      night_login:           '연구원 업적',
-      dawn_login:            '연구원 업적',
-      work_overtime_fail:    '연구원 업적',
-      // 종족 연구 업적
-      first_species:         '종족 연구 업적',
-      species_3:             '종족 연구 업적',
-      species_view_10:       '종족 연구 업적',
-      species_view_30:       '종족 연구 업적',
-      species_view_50:       '종족 연구 업적',
-      species_search_fail_10:'종족 연구 업적',
-      species_revisit_10:    '종족 연구 업적',
-      // 개체 연구 업적
-      first_character:       '개체 연구 업적',
-      first_owned_character: '개체 연구 업적',
-      chars_10:              '개체 연구 업적',
-      chars_30:              '개체 연구 업적',
-      chars_50:              '개체 연구 업적',
-      chars_100:             '개체 연구 업적',
-      char_view_20:          '개체 연구 업적',
-      char_view_50:          '개체 연구 업적',
-      char_view_100:         '개체 연구 업적',
-      own_variety_5:         '개체 연구 업적',
-      own_variety_10:        '개체 연구 업적',
-      own_variety_20:        '개체 연구 업적',
-      char_owner_desc:       '개체 연구 업적',
-      char_owner_relation:   '개체 연구 업적',
-      // 분양 업적
-      first_adoption:        '분양 업적',
-      adoption_10:           '분양 업적',
-      adoption_20:           '분양 업적',
-      adoption_30:           '분양 업적',
-      // 문의 & 버그 업적
-      first_inquiry:         '문의 & 버그 업적',
-      first_bug_report:      '문의 & 버그 업적',
-      bug_report_3:          '문의 & 버그 업적',
-      bug_report_10:         '문의 & 버그 업적',
-      // 탐험 업적
-      first_update_note:     '탐험 업적',
-      first_dev_log:         '탐험 업적',
-      first_notice:          '탐험 업적',
-      notice_5:              '탐험 업적',
-      no_species_search:     '탐험 업적',
-      no_char_search:        '탐험 업적',
-      first_terms:           '탐험 업적',
-      terms_5:               '탐험 업적',
-      terms_20:              '탐험 업적',
-      visit_404:             '탐험 업적',
-      visit_404_3:           '탐험 업적',
-      odd_search:            '탐험 업적',
-    };
-    const ACH_GONG_O_CODES   = new Set(['gong_o_visit_1','gong_o_visit_5','gong_o_visit_20','gong_o_visit_100']);
-    const ACH_CATEGORY_ORDER = ['연구원 업적','종족 연구 업적','개체 연구 업적','분양 업적','문의 & 버그 업적','탐험 업적','공오 업적'];
+    // [2026-09-22] 카테고리 하드코딩 제거 — achievement_categories 테이블 기반으로 전환.
+    // ACH_CATEGORY_MAP/ACH_GONG_O_CODES/ACH_CATEGORY_ORDER/ACH_CAT_SHORT는 더 이상 사용하지 않음.
+    // is_secret 카테고리 공용 규칙(구 ACH_GONG_O_CODES 하드코딩 대체) — achievements.html과 동일 로직.
+    function achCategoryDisplay(cat, earnedInCategory) {
+      const hidden = cat.is_secret && earnedInCategory === 0;
+      return {
+        name:      hidden ? '??? 업적' : cat.name,
+        shortName: hidden ? '???'      : cat.short_name,
+      };
+    }
     // ─────────────────────────────────────────────
 
     // ── Quill 초기화 ──────────────────────────
@@ -1957,8 +1906,9 @@
         return;
       }
       try {
-        const [{ data: allAchRaw }, { data: myAchRaw }, { data: profileData }] = await Promise.all([
-          sb.from('achievements').select('id, code, scope'),
+        const [{ data: allAch }, { data: catsRaw }, { data: myAchRaw }, { data: profileData }] = await Promise.all([
+          sb.from('achievements').select('id, code, category, scope'),
+          sb.from('achievement_categories').select('*').order('sort_order'),
           sb.from('user_achievements')
             .select('achievement_code, unlocked_at')
             .eq('user_id', userId)
@@ -1969,15 +1919,17 @@
             .single(),
         ]);
 
-        if (!allAchRaw) { document.getElementById('sectionAchievements').style.display = 'none'; return; }
+        if (!allAch) { document.getElementById('sectionAchievements').style.display = 'none'; return; }
 
-        // [2026-09-25] LABBER 업적 미공개 — 프로필 업적 현황은 종족연구소(specieslab) 기준만
-        const allAch     = allAchRaw.filter(a => a.scope !== 'labber');
-        const shownCodes = new Set(allAch.map(a => a.code));
-        const myAch      = (myAchRaw || []).filter(a => shownCodes.has(a.achievement_code));
+        // [2026-10-01 결정] 프로필 업적 현황(총계·카테고리·대표 업적)은 종족연구소(specieslab) 기준 유지.
+        // LABBER 업적은 공개 후에도 여기 총계에 합산하지 않는다(업적 페이지 LABBER 탭에서만 표시).
+        const shownAch   = allAch.filter(a => a.scope !== 'labber');
+        const shownCodes = new Set(shownAch.map(a => a.code));
+        const myAch = (myAchRaw || []).filter(a => shownCodes.has(a.achievement_code));
+        const cats  = (catsRaw  || []).filter(c => c.scope !== 'labber');
 
-        const earnedCount = myAch?.length || 0;
-        const totalCount  = allAch.length;
+        const earnedCount = myAch.length;
+        const totalCount  = shownAch.length;
         const pct         = totalCount > 0 ? Math.floor((earnedCount / totalCount) * 100) : 0;
 
         document.getElementById('achievementStats').style.display = 'block';
@@ -1993,33 +1945,23 @@
           achLink.style.display = 'none';
         }
 
-        // ── 카테고리별 달성 현황 ──────────────────
+        // ── 카테고리별 달성 현황 ── [2026-09-22] achievement_categories 기반,
+        // scope 구분 없이 전체 카테고리를 순회(LABBER 카테고리가 생기면 자동 포함)
         const earnedSet = new Set((myAch || []).map(a => a.achievement_code));
-        const hasGongO  = [...earnedSet].some(code => ACH_GONG_O_CODES.has(code));
 
         const catStats = {};
-        ACH_CATEGORY_ORDER.forEach(c => { catStats[c] = { earned: 0, total: 0 }; });
-        (allAch || []).forEach(a => {
-          const cat = ACH_GONG_O_CODES.has(a.code) ? '공오 업적' : (ACH_CATEGORY_MAP[a.code] || '탐험 업적');
-          if (!catStats[cat]) catStats[cat] = { earned: 0, total: 0 };
-          catStats[cat].total++;
-          if (earnedSet.has(a.code)) catStats[cat].earned++;
+        (cats || []).forEach(c => { catStats[c.code] = { earned: 0, total: 0 }; });
+        shownAch.forEach(a => {
+          const catCode = a.category;
+          if (!catStats[catCode]) catStats[catCode] = { earned: 0, total: 0 };
+          catStats[catCode].total++;
+          if (earnedSet.has(a.code)) catStats[catCode].earned++;
         });
 
-        const ACH_CAT_SHORT = {
-          '연구원 업적':      '연구원',
-          '종족 연구 업적':   '종족 연구',
-          '개체 연구 업적':   '개체 연구',
-          '분양 업적':        '분양',
-          '문의 & 버그 업적': '문의',
-          '탐험 업적':        '탐험',
-          '공오 업적':        '공오',
-        };
-        const visibleCats = ACH_CATEGORY_ORDER.filter(cat => (catStats[cat]?.total || 0) > 0);
+        const visibleCats = (cats || []).filter(c => (catStats[c.code]?.total || 0) > 0);
         const catHtml = visibleCats.map(cat => {
-            const isHidden   = cat === '공오 업적' && !hasGongO;
-            const shortName  = isHidden ? '???' : (ACH_CAT_SHORT[cat] || cat);
-            const s          = catStats[cat] || { earned: 0, total: 0 };
+            const s = catStats[cat.code] || { earned: 0, total: 0 };
+            const { shortName } = achCategoryDisplay(cat, s.earned);
             const isComplete = s.total > 0 && s.earned === s.total;
             const isNone     = s.earned === 0;
             const state      = isComplete ? 'complete' : isNone ? 'none' : 'progress';

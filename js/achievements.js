@@ -67,6 +67,31 @@ window.awardAchievement = async function(code, { pending = false } = {}) {
   }
 };
 
+// [2026-10-01] LABBER 업적 공개 — 서버가 조건을 직접 판정해서 만족한 것만 지급(sync_labber_achievements RPC, 멱등).
+// 서버 잠금: award_achievement 가 LABBER 업적은 항상 조건 검증(labber_achievements_enforce_1001.sql)
+//           + 지급 스위치(achievement_security_config.labber_achievements_award). 스위치 off 면 서버가 locked 로 즉시 반환.
+// 기존 사용자 소급 달성 경로이기도 하다. 새로 달성한 업적은 토스트로 표시. 실패해도 원래 기능을 막지 않는다.
+window.LABBER_ACHIEVEMENT_SYNC_ENABLED = true;
+
+window.syncLabberAchievements = async function() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) return [];
+    if (!window.LABBER_ACHIEVEMENT_SYNC_ENABLED) return [];
+    const { data, error } = await sb.rpc('sync_labber_achievements');
+    if (error || !data?.success) {
+      console.warn('[업적] LABBER 업적 재확인 실패:', error || data);
+      return [];
+    }
+    const list = Array.isArray(data.unlocked) ? data.unlocked : [];
+    list.forEach((a, i) => setTimeout(() => _showAchievementToast(a.name, a.description || ''), i * 900));
+    return list;
+  } catch (e) {
+    console.error('[업적] LABBER 업적 재확인 예외:', e);
+    return [];
+  }
+};
+
 // DB 카운터 값 조회 (실패 시 0 반환)
 window.getCounterValue = async function(counterKey) {
   try {

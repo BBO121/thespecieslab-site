@@ -67,9 +67,21 @@
           </div>
         </section>
 
-        <!-- 교환소 패널 -->
+        <!-- 교환소/납품 패널 — NPC 타이핑 완료 후 .show 로 등장.
+             탭(.shop-tab-row/.shop-tab-btn)은 관리소·조합소와 동일 클래스 재사용.
+             ?tab=delivery 로 납품 탭 바로 열기 가능 (js/labber.js). -->
         <section class="labber-exchange-panel" id="labberExchangePanel">
-          <div class="labber-exchange-card">
+          <div class="shop-tab-row labberlab-tab-row labber-room-tabs" id="labberRoomTabs" role="tablist">
+            <button type="button" class="shop-tab-btn active" data-room-tab="exchange" role="tab" aria-selected="true">열쇠 교환</button>
+            <button type="button" class="shop-tab-btn" data-room-tab="delivery" role="tab" aria-selected="false">납품</button>
+          </div>
+
+          <!-- 납품 탭 — 라인(장소)별 카드. 마크업은 js/labber.js renderDeliveryBoard() 가 채운다. -->
+          <div class="labdeliv-board" id="labberDeliveryBoard" hidden>
+            <p class="labdeliv-placeholder">불러오는 중...</p>
+          </div>
+
+          <div class="labber-exchange-card" id="labberExchangeCard">
             <div class="labber-exchange-top">
               <p class="labber-exchange-rate">열쇠 <strong>1개</strong> → 연구기록 <strong>25개</strong></p>
 

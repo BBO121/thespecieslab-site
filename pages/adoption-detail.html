@@ -232,6 +232,7 @@
               <div style="background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:var(--radius); padding:14px 16px; margin-bottom:12px;">
                 <p style="font-size:13px; font-weight:700; color:#92400E; margin:0 0 4px;">낙찰 확인 요청</p>
                 <p style="font-size:13px; color:#78350F; margin:0; line-height:1.5;">분양을 받으실 건가요? 확인하시면 캐릭터 소유권이 이전돼요.</p>
+                <p id="confirmLabberSubjectNotice" style="display:none; font-size:13px; color:#78350F; margin:4px 0 0; line-height:1.5;">LABBER에 장착된 SUBJECT가 있다면 함께 받게 돼요.</p>
               </div>
               <button class="btn-secondary" style="width:100%;" onclick="confirmAdoption()">확인하기</button>
             </div>
@@ -384,6 +385,9 @@
       <p id="completeCurrencyNotice" style="display:none; margin-top:4px; font-size:13px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 12px;">
         ⚠ 분양 완료 처리 전에 구매자와 직접 재화 거래를 완료한 후, 분양 확정을 눌러주세요!
       </p>
+      <p id="completeLabberSubjectNotice" style="display:none; margin-top:4px; font-size:13px; color:#0369A1; background:#F0F9FF; border:1px solid #BAE6FD; border-radius:8px; padding:8px 12px; line-height:1.5; word-break:keep-all;">
+        LABBER에 장착 중인 SUBJECT도 함께 이전돼요. SUBJECT를 넘기지 않으려면 분양 완료 전에 장착을 해제해주세요.
+      </p>
       <p class="auth-error" id="completeError"></p>
       <div class="modal-actions" style="margin-top:20px;">
         <button class="btn-ghost" onclick="closeCompleteModal()">취소</button>
@@ -469,6 +473,15 @@
     const CURRENCY_LABEL = { research_records: '연구기록', keys: '열쇠' };
 
     function normalizeNick(s) { return (s || '').trim().toLowerCase(); }
+
+    // LABBER 개체 분양 여부 — 장착 SUBJECT 동반 이전 안내용(renderMain 에서 1회 판정).
+    // 실제 동반 이전은 소유권 변경 시 DB 트리거가 처리하고, 이건 표시만 담당한다.
+    let _isLabberAdoption = false;
+    async function resolveIsLabberAdoption(a) {
+      if (!a?.character_id || !a.species_name || typeof LABBER_SPECIES_ID === 'undefined') return false;
+      const { data } = await sb.from('species').select('id').eq('name', a.species_name).maybeSingle();
+      return data?.id != null && String(data.id) === String(LABBER_SPECIES_ID);
+    }
 
     async function initPage() {
       if (!adoptionId) { window.location.href = 'adoption.html'; return; }
@@ -942,6 +955,9 @@
         }
         banner.style.display = 'block';
       }
+
+      _isLabberAdoption = await resolveIsLabberAdoption(a);
+      document.getElementById('confirmLabberSubjectNotice').style.display = _isLabberAdoption ? 'block' : 'none';
 
       // 당첨자 여부 — winner_user_id 우선, 없으면 닉네임 fallback
       const isWinner = !!(currentUser && (
@@ -2048,6 +2064,7 @@
         ? `<strong>${prefilledNick}</strong>님에게 캐릭터 소유권이 이전돼요. 확인해주세요.`
         : '분양받은 유저의 닉네임을 입력해주세요.<br>해당 유저에게 캐릭터 소유권이 이전돼요.';
       document.getElementById('completeCurrencyNotice').style.display = currentAdoption?.adoption_type === 'currency' ? 'block' : 'none';
+      document.getElementById('completeLabberSubjectNotice').style.display = _isLabberAdoption ? 'block' : 'none';
       document.getElementById('completeError').textContent = '';
       document.getElementById('completeModal').style.display = 'flex';
       if (!prefilledNick) input.focus();

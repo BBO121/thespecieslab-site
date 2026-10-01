@@ -1707,7 +1707,7 @@ function subjectApprovalCardHtml(row) {
   const footer = st === 'submitted'
     ? `<div class="labberlab-admin-controls" data-sctl="${row.id}">
          <label class="form-label">반려 사유 <span class="llapp-optional">반려할 때만 필수 · 신청자에게 그대로 표시돼요</span></label>
-         <textarea class="form-textarea llapp-reject-reason" rows="3" maxlength="500" placeholder="예: 연결 종족 정보를 다시 확인해주세요."></textarea>
+         <textarea class="form-textarea llapp-reject-reason" rows="3" maxlength="500" placeholder="예: 이미지가 SUBJECT와 관련 없어요. / 연결 종족 정보를 다시 확인해주세요."></textarea>
          <p class="auth-error labberlab-admin-err"></p>
          <div class="llapp-admin-btns">
            <button type="button" class="btn-ghost llapp-reject-btn" data-sact="reject">반려</button>

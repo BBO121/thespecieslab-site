@@ -318,13 +318,12 @@ window.PersonalLabSubject = (function () {
     openDetail(r.instance_id);
   }
 
-  // ── 이미지 / 크레딧 편집 — 2026-09-30 ────────────────────────────────
-  // 정책(뽀 확정): 가방 등록 신청 단계에서는 이미지·제작자를 받지 않고, 승인된 instance 의
-  // 이름·이미지·크레딧을 여기(보관소)에서 따로 편집한다. LABBER 미배정/장착 여부와 무관.
-  // 권한 = 현재 instance 소유자 OR admin/staff — 서버 RPC(_labber_subject_instance_edit_check)가 검사한다
+  // ── 크레딧 편집 (이미지는 읽기 전용) — 2026-09-30 / 2026-10-01 ────────────────
+  // 정책(뽀 확정 2026-10-01): SUBJECT 이미지는 가방 등록 신청 때 첨부하고 운영진이 승인한 이미지가 그대로
+  // instance 이미지가 된다. 승인 후 사용자는 이미지를 바꾸거나 지울 수 없다 — 이 화면에는 이미지 편집 UI 가 없고,
+  // 서버도 set/delete_labber_subject_instance_image 를 admin/staff 전용으로 막는다(supabase/labber_subject_image_approval_1001.sql).
+  // 이름·크레딧 편집 권한 = 현재 instance 소유자 OR admin/staff — 서버 RPC(_labber_subject_instance_edit_check)가 검사한다
   // (supabase/labber_subject_instance_edit_0930.sql). 이 화면은 본인 소유 instance(my_subject_instances)만 보여준다.
-  //   이미지: images 버킷 labber-subject-instance/{내 uid}/{uuid}.{ext} 업로드 → set_labber_subject_instance_image
-  //           (서버가 경로·업로더=본인·파일 실존을 검증). 교체/삭제 시 이전 파일은 지우지 않는다.
   //   크레딧: get_labber_subject_instance_credits_for_edit / set_labber_subject_instance_credits
   //           (js/creator-picker.js 재사용, 디자이너·아티스트 모두 선택). 종족형의 연결 종족은 표시만(편집 없음).
   let _editBusy = false;
@@ -346,17 +345,8 @@ window.PersonalLabSubject = (function () {
   function renderEditBox(r) {
     const box = document.getElementById('labberSubjectEditBox');
     if (!box) return;
+    // 아트웍은 편집 영역에 두지 않는다(2026-10-01) — 운영진이 승인한 신청 이미지가 위 상세 아트웍에 읽기 전용으로 표시된다.
     box.innerHTML = `
-      <div class="subj-edit-section">
-        <p class="subj-edit-title">아트웍</p>
-        <input type="file" id="labberSubjectImageFile" accept="image/png,image/jpeg,image/webp" style="display:none;"
-               onchange="PersonalLabSubject.onImagePick(this)">
-        <div class="subj-edit-row">
-          <button type="button" id="labberSubjectImageBtn" onclick="document.getElementById('labberSubjectImageFile').click()">${r.image_url ? '이미지 변경' : '이미지 등록'}</button>
-          ${r.image_url ? `<button type="button" class="is-ghost" id="labberSubjectImageDelBtn" onclick="PersonalLabSubject.deleteImage()">이미지 삭제</button>` : ''}
-        </div>
-        <p class="subj-name-edit-note">PNG · JPG · WebP (투명 배경 유지, 최대 800px · 2MB)</p>
-      </div>
       <div class="subj-edit-section">
         <div class="subj-edit-head">
           <p class="subj-edit-title">크레딧</p>
@@ -448,106 +438,7 @@ window.PersonalLabSubject = (function () {
     }
   }
 
-  // SUBJECT 이미지 압축 — PNG/WebP 투명도 보존(js/my-bag.js 의 옛 bagCompressKeepAlpha 와 동일 로직).
-  // utils.js compressImage()는 불투명 배경 + JPEG 로 바꿔서 SUBJECT 아트웍에는 쓰지 않는다.
-  function compressKeepAlpha(file, maxSize = 800) {
-    return new Promise((resolve, reject) => {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        reject(new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.')); return;
-      }
-      const keepAlpha = file.type === 'image/png' || file.type === 'image/webp';
-      const outType = keepAlpha ? 'image/png' : 'image/jpeg';
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지 파일을 읽을 수 없어요.')); };
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        let cap = Math.min(maxSize, typeof MAX_IMAGE_DIMENSION === 'number' ? MAX_IMAGE_DIMENSION : maxSize);
-        const maxBytes = typeof MAX_BLOB_BYTES === 'number' ? MAX_BLOB_BYTES : 2 * 1024 * 1024;
-        const attempt = (tries) => {
-          let { width, height } = img;
-          if (width > cap || height > cap) {
-            if (width > height) { height = Math.round(height * cap / width); width = cap; }
-            else                { width = Math.round(width * cap / height); height = cap; }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width; canvas.height = height;
-          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          canvas.toBlob((blob) => {
-            if (!blob) { reject(new Error('이미지 압축에 실패했어요.')); return; }
-            if (blob.size <= maxBytes) { resolve(blob); return; }
-            if (tries >= 3) { reject(new Error('압축 후에도 용량이 2MB를 초과해요. 더 작은 이미지를 사용해주세요.')); return; }
-            cap = Math.round(cap * 0.75);
-            attempt(tries + 1);
-          }, outType, 0.85);
-        };
-        attempt(0);
-      };
-      img.src = objectUrl;
-    });
-  }
-
-  async function onImagePick(input) {
-    const file = input.files && input.files[0];
-    input.value = '';
-    const instanceId = _openDetailInstanceId;
-    const r = _rows.find(x => x.instance_id === instanceId);
-    if (!file || !r || _editBusy) return;
-
-    const btn = document.getElementById('labberSubjectImageBtn');
-    _editBusy = true;
-    if (btn) { btn.disabled = true; btn.textContent = '업로드 중...'; }
-    let uploadedPath = null;
-    try {
-      const user = await getUser();
-      if (!user) throw new Error('로그인이 필요해요.');
-      const blob = await compressKeepAlpha(file);
-      const ext = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
-      const path = `labber-subject-instance/${user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await sb.storage.from('images').upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false });
-      if (upErr) throw new Error(`이미지 업로드에 실패했어요. (${upErr.message})`);
-      uploadedPath = path;
-      const imageUrl = sb.storage.from('images').getPublicUrl(path).data.publicUrl;
-
-      const { data, error } = await sb.rpc('set_labber_subject_instance_image', { p_instance_id: instanceId, p_image_url: imageUrl });
-      if (error) throw new Error(`저장에 실패했어요. (${error.message})`);
-      if (!data || data.success !== true) throw new Error(editErrMsg(data && data.error, '이미지 저장'));
-      uploadedPath = null;   // 저장 성공 — 정리 대상 아님
-      r.image_url = data.image_url;
-      render();
-      openDetail(instanceId);
-    } catch (e) {
-      console.error('[personal-lab-subject] 이미지 저장 오류:', e);
-      // 방금 내가 올린 파일(내 uid 폴더)만 정리 — 다른 파일은 절대 지우지 않는다.
-      if (uploadedPath) sb.storage.from('images').remove([uploadedPath]).catch(() => {});
-      alert(e.message || '이미지 저장 중 오류가 발생했어요.');
-    } finally {
-      _editBusy = false;
-      const b = document.getElementById('labberSubjectImageBtn');
-      if (b && b.textContent === '업로드 중...') { b.disabled = false; b.textContent = r.image_url ? '이미지 변경' : '이미지 등록'; }
-    }
-  }
-
-  async function deleteImage() {
-    const instanceId = _openDetailInstanceId;
-    const r = _rows.find(x => x.instance_id === instanceId);
-    if (!r || _editBusy || !r.image_url) return;
-    if (!confirm('이 SUBJECT의 아트웍을 삭제할까요? (삭제 후 "아트웍 없음"으로 표시돼요)')) return;
-    _editBusy = true;
-    try {
-      const { data, error } = await sb.rpc('delete_labber_subject_instance_image', { p_instance_id: instanceId });
-      if (error) throw new Error(`삭제에 실패했어요. (${error.message})`);
-      if (!data || data.success !== true) throw new Error(editErrMsg(data && data.error, '이미지 삭제'));
-      r.image_url = null;
-      render();
-      openDetail(instanceId);
-    } catch (e) {
-      console.error('[personal-lab-subject] 이미지 삭제 오류:', e);
-      alert(e.message || '이미지 삭제 중 오류가 발생했어요.');
-    } finally {
-      _editBusy = false;
-    }
-  }
+  // (이미지 업로드/교체/삭제 경로는 2026-10-01 제거 — 승인된 SUBJECT 이미지는 운영진만 변경. set/delete_labber_subject_instance_image 는 서버에서 admin/staff 전용)
 
   // ── 분리 ────────────────────────────────────────────────────────────
   async function detach(instanceId) {
@@ -653,8 +544,6 @@ window.PersonalLabSubject = (function () {
     closeDetail,
     toggleHistory,
     saveIndividualName,
-    onImagePick,
-    deleteImage,
     toggleCredits,
     saveCredits,
     detach,

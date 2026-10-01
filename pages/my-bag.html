@@ -161,11 +161,21 @@
         <!-- ── SUBJECT 등록 — SUBJECT 아이템일 때만 진입 가능. "SUBJECT 등록" 버튼을 누르면
              이 모달 내부가(위 bagItemNormalView 를 숨기고) 이 등록 화면으로 전환된다. ── -->
         <div id="bagSubjectRegisterForm" hidden>
-          <!-- 2026-09-30 정책: 신청 단계에는 이미지 업로드·디자이너/아티스트 입력이 없다.
-               승인된 SUBJECT 의 이름·이미지·크레딧은 개인연구실 > SUBJECT 보관소에서 편집한다. -->
+          <!-- 2026-10-01 정책: 신청 이미지 필수 — 운영진이 이 이미지를 확인해 승인하면 그대로 SUBJECT 이미지가 되고,
+               승인 후에는 사용자가 이미지를 바꾸거나 지울 수 없다(서버 RPC 가 admin/staff 만 허용).
+               디자이너/아티스트 입력은 신청 단계에 두지 않는다(이름·크레딧은 보관소에서 편집). -->
           <p class="form-label" style="margin-bottom:4px;">신청할 SUBJECT</p>
           <p class="shop-detail-name" id="bagSubjectRegisterType" style="margin:0 0 10px;"></p>
-          <p class="form-hint">등록 신청하면 SUBJECT 아이템 1개가 예약되며, 운영진 승인 시 아이템이 소비되고<br>개인연구실 SUBJECT 보관소에 등록됩니다. 이름·이미지·크레딧은 등록 후 보관소에서 편집할 수 있어요.</p>
+          <p class="form-hint">이미지와 함께 등록 신청하면 SUBJECT 아이템 1개가 예약되며, 운영진 승인 시 아이템이 소비되고<br>개인연구실 SUBJECT 보관소에 등록됩니다.</p>
+
+          <label class="form-label" style="margin-bottom:4px;">SUBJECT 이미지 <span class="required">*</span></label>
+          <input type="file" id="bagSubjectRegisterFile" accept="image/png,image/jpeg,image/webp"
+                 style="display:none;" onchange="onSubjectRegisterFileChange(this)">
+          <div class="img-upload-box llapp-upload-box" onclick="document.getElementById('bagSubjectRegisterFile').click()">
+            <img id="bagSubjectRegisterPreview" alt="SUBJECT 이미지 미리보기" style="display:none;">
+            <div id="bagSubjectRegisterPlaceholder"><p class="img-upload-text">클릭하여 이미지 업로드</p></div>
+          </div>
+          <p class="img-upload-meta">PNG · JPG · WebP (투명 배경 유지, 최대 800px · 2MB)<br>이미지는 운영진 승인 대상이며, 승인 후에는 변경·삭제할 수 없어요.</p>
 
           <!-- 연결 종족 — 종족형 SUBJECT("특이: 종족")일 때만 표시. 내가 종족주인 종족만(LABBER 제외), 필수.
                서버(submit_labber_subject_bag_registration)가 종족주 여부를 다시 검증한다. -->
@@ -178,7 +188,7 @@
           <p class="auth-error" id="bagSubjectRegisterError"></p>
           <div class="modal-actions">
             <button type="button" class="btn-ghost" onclick="closeSubjectRegisterPanel()">취소</button>
-            <button type="button" class="shop-buy-btn-lg" id="bagSubjectRegisterSubmitBtn" onclick="onSubjectRegisterSubmit()">등록 신청</button>
+            <button type="button" class="shop-buy-btn-lg" id="bagSubjectRegisterSubmitBtn" onclick="onSubjectRegisterSubmit()" disabled>등록 신청</button>
           </div>
         </div>
       </div>

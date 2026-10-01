@@ -823,14 +823,14 @@ function closeBagOpenResult() {
   document.getElementById('bagOpenResultModal').style.display = 'none';
 }
 
-// ── SUBJECT 등록 신청 (2026-09-24 승인형 · 2026-09-30 이미지/제작자 입력 제거) ──────────────
-// 가방의 실제 SUBJECT 아이템(items.metadata.kind==='subject') → 신청 RPC로 "아이템 1개 예약 + 신청서 생성"만
-// 처리된다(submit_labber_subject_bag_registration). 신청 단계에서는 이미지 업로드·디자이너/아티스트 입력이 없다
-// (뽀 확정 정책 2026-09-30 — supabase/labber_subject_bag_no_image_creator_0930.sql). 일반 SUBJECT 는 종류만으로,
-// 종족형("특이: 종족")은 연결 종족 선택이 필요하다. 아이템 소비 + SUBJECT instance 생성은 운영진이
-// 관리소 > 디자인 승인 > [SUBJECT 승인] 탭에서 승인할 때(approve_labber_subject_bag_registration) 일어나고,
-// 승인된 instance 의 이름·이미지·크레딧은 개인연구실 > SUBJECT 보관소에서 따로 편집한다.
+// ── SUBJECT 등록 신청 (2026-09-24 승인형 · 2026-10-01 이미지 필수/운영진 승인 대상) ──────────────
+// 가방의 실제 SUBJECT 아이템(items.metadata.kind==='subject') → 이미지 업로드 + 신청 RPC로 "아이템 1개 예약 + 신청서 생성"만
+// 처리된다(submit_labber_subject_bag_registration — 이미지 없으면 IMAGE_REQUIRED, supabase/labber_subject_image_approval_1001.sql).
+// 종족형("특이: 종족")은 연결 종족 선택도 필요하다. 아이템 소비 + SUBJECT instance 생성 + 신청 이미지 연결은 운영진이
+// 관리소 > 디자인 승인 > [SUBJECT 승인] 탭에서 이미지를 확인하고 승인할 때(approve_labber_subject_bag_registration) 일어난다.
+// 승인된 이미지는 사용자가 바꾸거나 지울 수 없다(서버 RPC 가 admin/staff 만 허용). 디자이너/아티스트 입력은 신청 단계에 두지 않는다.
 let _bagSubjectRegisterBusy = false;
+let _bagSubjectRegisterPending = null;   // { blob, url, ext } — 아직 업로드 안 한 선택 이미지
 
 // ── 연결 종족 (종족형 SUBJECT "특이: 종족" 전용, 0921 labber-lab.js 신청서 폼에서 옮겨옴) ──
 // 내가 종족주인 종족(LABBER 제외)만 후보. 서버(submit RPC)가 종족주 여부를 다시 검증한다.
@@ -881,12 +881,58 @@ async function bagSyncSubjectSpeciesGroup(code) {
   }
 }
 
-// 모달을 새로 열거나 등록 화면을 닫을 때 — 일반 보기로 복귀
+// SUBJECT 이미지 압축 — PNG/WebP 는 배경을 채우지 않고 투명도(alpha) 그대로 보존한다(9/30 이전 구현 그대로).
+// js/utils.js 의 공용 compressImage()는 캔버스에 불투명 배경을 먼저 채운 뒤 항상 JPEG 로
+// 변환해서(LABBER 개체 이미지 정책) 투명 배경이 흰색이 된다 — SUBJECT 이미지에는 안 맞아서 별도로 둔다.
+function bagCompressKeepAlpha(file, maxSize = 800) {
+  return new Promise((resolve, reject) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      reject(new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.')); return;
+    }
+    const keepAlpha = file.type === 'image/png' || file.type === 'image/webp';
+    const outType = keepAlpha ? 'image/png' : 'image/jpeg';
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지 파일을 읽을 수 없어요.')); };
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let cap = Math.min(maxSize, MAX_IMAGE_DIMENSION);
+      const attempt = (tries) => {
+        let { width, height } = img;
+        if (width > cap || height > cap) {
+          if (width > height) { height = Math.round(height * cap / width); width = cap; }
+          else                { width = Math.round(width * cap / height); height = cap; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);   // 배경 채우기 없음 → 투명 유지
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('이미지 압축에 실패했어요.')); return; }
+          if (blob.size <= MAX_BLOB_BYTES) { resolve(blob); return; }
+          if (tries >= 3) { reject(new Error('압축 후에도 용량이 2MB를 초과해요. 더 작은 이미지를 사용해주세요.')); return; }
+          cap = Math.round(cap * 0.75);
+          attempt(tries + 1);
+        }, outType, 0.85);
+      };
+      attempt(0);
+    };
+    img.src = objectUrl;
+  });
+}
+
+// 모달을 새로 열거나 등록 화면을 닫을 때 — 일반 보기로 복귀 + 선택 이미지 정리
 function resetSubjectRegisterPanel() {
+  if (_bagSubjectRegisterPending) URL.revokeObjectURL(_bagSubjectRegisterPending.url);
+  _bagSubjectRegisterPending = null;
+  const img = document.getElementById('bagSubjectRegisterPreview');
+  const ph  = document.getElementById('bagSubjectRegisterPlaceholder');
+  if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+  if (ph)  ph.style.display = '';
+
   const err = document.getElementById('bagSubjectRegisterError');
   if (err) err.textContent = '';
   const btn = document.getElementById('bagSubjectRegisterSubmitBtn');
-  if (btn) { btn.disabled = false; btn.textContent = '등록 신청'; }
+  if (btn) { btn.disabled = true; btn.textContent = '등록 신청'; }   // 이미지를 고르기 전까지 비활성
   // 연결 종족 — 이전 아이템에서 고른 값이 다음 신청에 섞이지 않도록 항상 비우고 숨긴다(열 때 다시 판정).
   const spGroup = document.getElementById('bagSubjectSpeciesGroup');
   const spSel   = document.getElementById('bagSubjectSpeciesSelect');
@@ -914,8 +960,35 @@ function closeSubjectRegisterPanel() {
   resetSubjectRegisterPanel();
 }
 
-// 신청 실행: 신청 RPC(아이템 예약만, 소비는 승인 시). 처리 중 버튼을 disabled 처리해 중복 클릭을 막는다
-// (서버도 보유 - 승인 대기 수량 < 1 이면 INSUFFICIENT_QUANTITY 로 다시 막는다).
+// 이미지 선택 — 압축(투명 유지 · ≤800px · ≤2MB) 후 미리보기만. 업로드는 신청 버튼을 눌렀을 때 한다.
+async function onSubjectRegisterFileChange(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file || _bagSubjectRegisterBusy) return;   // 업로드/신청 중에는 이미지를 바꾸지 않는다
+
+  const err = document.getElementById('bagSubjectRegisterError');
+  if (err) err.textContent = '';
+
+  try {
+    const blob = await bagCompressKeepAlpha(file);
+    if (_bagSubjectRegisterPending) URL.revokeObjectURL(_bagSubjectRegisterPending.url);
+    const ext = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
+    _bagSubjectRegisterPending = { blob, url: URL.createObjectURL(blob), ext };
+
+    const img = document.getElementById('bagSubjectRegisterPreview');
+    const ph  = document.getElementById('bagSubjectRegisterPlaceholder');
+    img.src = _bagSubjectRegisterPending.url;
+    img.style.display = 'block';
+    ph.style.display  = 'none';
+    document.getElementById('bagSubjectRegisterSubmitBtn').disabled = false;
+  } catch (e) {
+    if (err) err.textContent = e.message || '이미지를 처리할 수 없어요.';
+  }
+}
+
+// 신청 실행: 스토리지 업로드 → 신청 RPC(아이템 예약만, 소비는 승인 시) →
+// RPC 실패 시 방금 업로드한 파일을 정리(orphan 방지). 처리 중 버튼을 disabled 처리해 중복 클릭을 막는다
+// (서버도 보유 - 승인 대기 수량 < 1 이면 INSUFFICIENT_QUANTITY, 이미지 없으면 IMAGE_REQUIRED 로 다시 막는다).
 async function onSubjectRegisterSubmit() {
   if (_bagSubjectRegisterBusy) return;
   const code = _bagInfoCode;
@@ -926,6 +999,7 @@ async function onSubjectRegisterSubmit() {
   const err = document.getElementById('bagSubjectRegisterError');
   const btn = document.getElementById('bagSubjectRegisterSubmitBtn');
   if (err) err.textContent = '';
+  if (!_bagSubjectRegisterPending) { if (err) err.textContent = 'SUBJECT 이미지를 첨부해주세요.'; return; }
 
   // 연결 종족 — 종족형 SUBJECT 만 필수. 그 외 종류는 아예 보내지 않는다(서버도 NULL 로 강제).
   const isSpeciesSubject = bagIsSpeciesSubjectItem(code);
@@ -940,22 +1014,40 @@ async function onSubjectRegisterSubmit() {
   btn.disabled = true;
   btn.textContent = '신청 중...';
 
+  let uploadedPath = null;
   try {
-    const params = { p_item_id: row.item_id };
+    const pending = _bagSubjectRegisterPending;
+    const path = `labber-subject-instance/${_user.id}/${crypto.randomUUID()}.${pending.ext}`;
+    const { error: upErr } = await sb.storage.from('images').upload(path, pending.blob, {
+      contentType: pending.blob.type || 'image/jpeg',
+      upsert: false,
+    });
+    if (upErr) throw new Error(`이미지 업로드에 실패했어요. (${upErr.message})`);
+    uploadedPath = path;
+
+    const imageUrl = sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+    if (!imageUrl) throw new Error('이미지 URL을 만들지 못했어요.');
+
+    const params = { p_item_id: row.item_id, p_image_url: imageUrl };
     if (isSpeciesSubject) params.p_species_id = Number(spVal);
     const { data, error } = await sb.rpc('submit_labber_subject_bag_registration', params);
     if (error) throw new Error(`신청에 실패했어요. (${error.message})`);
     if (!data || data.success !== true) throw new Error(bagRpcErrorMsg(data && data.error, 'SUBJECT 등록 신청'));
+    uploadedPath = null;   // 신청 성공 — 이 파일은 신청 이미지로 쓰이므로 정리하지 않는다
 
     closeBagItemInfo();
     await refreshAfterBagAction();
-    alert('SUBJECT 등록 신청이 완료되었습니다.\n운영진 승인 후 개인연구실에 등록됩니다.\n신청 상태는 관리소 > 디자인 승인에서 확인할 수 있어요.');
+    alert('SUBJECT 등록 신청이 완료되었습니다.\n운영진이 이미지를 확인해 승인하면 개인연구실에 등록됩니다.\n신청 상태는 관리소 > 디자인 승인에서 확인할 수 있어요.');
   } catch (e) {
     console.error('[my-bag] SUBJECT 등록 신청 오류:', e);
+    if (uploadedPath) {
+      sb.storage.from('images').remove([uploadedPath])
+        .then(({ error: rmErr }) => { if (rmErr) console.warn('[my-bag] 업로드 롤백 실패:', rmErr.message); });
+    }
     if (err) err.textContent = e.message || '신청 중 오류가 발생했어요.';
   } finally {
     _bagSubjectRegisterBusy = false;
-    btn.disabled = false;
+    btn.disabled = !_bagSubjectRegisterPending;
     btn.textContent = '등록 신청';
   }
 }
@@ -1155,6 +1247,7 @@ function bagRpcErrorMsg(code, action) {
     WALLET_NOT_FOUND:     '지갑 정보를 찾을 수 없습니다.',
     NOT_A_SUBJECT_ITEM:   'SUBJECT 아이템이 아닙니다.',
     INVALID_SUBJECT:      '선택한 SUBJECT에 문제가 있어요. 운영진에게 문의해주세요.',
+    IMAGE_REQUIRED:       'SUBJECT 이미지를 첨부해주세요.',
     INVALID_IMAGE_URL:    '이미지 정보가 올바르지 않아요. 이미지를 다시 업로드해주세요.',
     INVALID_IMAGE_PATH:   '이미지 정보가 올바르지 않아요. 이미지를 다시 업로드해주세요.',
     IMAGE_NOT_UPLOADED:   '이미지 업로드가 완료되지 않았어요. 잠시 후 다시 시도해주세요.',

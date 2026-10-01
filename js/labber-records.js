@@ -48,6 +48,9 @@ async function initLabberRecords() {
       speciesName: species.name,
       canManage:   isOwner || isSuperAdmin,
       idToNick,
+      // LABBER 표시명 정책(2026-09-24): owner_custom_name 우선 + 카드에 종족명 대신 개체번호.
+      // 다른 종족(species.html)은 이 옵션을 안 넘기므로 기존 동작 그대로 유지된다.
+      labberDisplay: true,
     });
   } catch (e) {
     console.error('[labber-records] init 오류:', e);

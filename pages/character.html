@@ -187,6 +187,21 @@
       border-color: var(--sky-deep);
       color: var(--sky-deep);
     }
+    /* LABBER 테마 한정(2026-09-24, 10/1 범위 한정): 리스킨된 --sky-pale 이 어두워 선택 상태가 반대로
+       보이던 것을 바로잡음 — 선택됨(active)=흰 배경/진한 글자, 선택 안 됨=투명 배경 + 민트(--sky-deep)
+       테두리/글자. 일반 테마는 위 공통 규칙 그대로. */
+    body.labber-theme .char-name-tab {
+      border-color: var(--sky-deep);
+      background: transparent;
+      color: var(--sky-deep);
+    }
+    body.labber-theme .char-name-tab.active {
+      background: #fff;
+      border-color: var(--border);
+      /* var(--text)는 LABBER 테마에서 밝은색으로 리스킨돼(#E7E9F5) 흰 배경 위에서 거의 안 보였다
+         — 배경(#fff)과 마찬가지로 항상 어두운 값을 고정한다. */
+      color: #1E293B;
+    }
   </style>
 </head>
 <body>
@@ -1223,6 +1238,11 @@
         document.body.classList.add('labber-theme', 'labber-individual-detail');
         speciesHref = 'labber-records.html';
         speciesCrumbLabel = '개체기록실';
+        // LABBER 한정 표시명 정책(2026-09-24): 소유주명이 있으면 뷰어의 등록명/소유주명
+        // 표시 설정(user_settings.character_name_display_mode)과 무관하게 소유주명을 우선한다.
+        // 다른 종족은 기존처럼 뷰어 설정을 그대로 따른다(무변경). 토글 자체는 그대로 남아있어
+        // 사용자가 원하면 등록명으로 바꿔볼 수 있다.
+        if (_hasOwnerName) _nameDisplayMode = 'owner';
       }
 
       // LABBER SUBJECT 카드 데이터 — 반드시 get_labber_subject_card RPC 결과만 사용한다(테이블 직접 조회/조합 금지).

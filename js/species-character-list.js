@@ -39,9 +39,20 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // LABBER 표시명 우선순위(2026-09-24, cfg.labberDisplay=true일 때만 적용): owner_custom_name
+  // (소유주가 정한 이름)이 있으면 그걸, 없으면 등록명(character.name)을 쓴다. DB 값은
+  // 바꾸지 않고 화면 표시에서만 적용 — 다른 종족(labberDisplay=false)은 항상 등록명 그대로.
+  function charDisplayName(c) {
+    if (!c) return '';
+    const custom = typeof c.owner_custom_name === 'string' ? c.owner_custom_name.trim() : '';
+    return custom || c.name || '';
+  }
+
   // ── 진입점 ─────────────────────────────────────────────
   async function mount(opts) {
-    cfg = Object.assign({ canManage: false, idToNick: {}, onCount: null }, opts);
+    // labberDisplay: true → LABBER 표시명 정책(owner_custom_name 우선) + 카드에 종족명 대신
+    // 개체번호 표시(2026-09-24, 개체기록실 전용 opt-in). 기본 false — 다른 종족은 무변경.
+    cfg = Object.assign({ canManage: false, idToNick: {}, onCount: null, labberDisplay: false }, opts);
     if (!cfg.speciesName) throw new Error('[SpeciesCharList] speciesName 이 필요합니다.');
 
     manageMode = false;
@@ -55,7 +66,7 @@
       while (true) {
         const { data: page } = await sb
           .from('characters')
-          .select('id, name, species_name, owner_nickname, owner_user_id, image_url, thumbnail_url, default_image_index, created_at, is_sensitive, sensitive_note, char_categories, char_number')
+          .select('id, name, owner_custom_name, species_name, owner_nickname, owner_user_id, image_url, thumbnail_url, default_image_index, created_at, is_sensitive, sensitive_note, char_categories, char_number')
           .eq('species_name', cfg.speciesName)
           .order('created_at', { ascending: false })
           .range(from, from + pageSize - 1);
@@ -354,8 +365,8 @@
           </div>` : `
           <div class="character-img" style="background-image:url('${resolveCharacterImage(c)}'); background-size:cover; background-position:center;"></div>`}
           <div class="character-info">
-            <p class="character-name">${c.name}</p>
-            <p class="character-species">${c.species_name || ''}</p>
+            <p class="character-name">${cfg.labberDisplay ? charDisplayName(c) : c.name}</p>
+            <p class="character-species">${cfg.labberDisplay ? (c.char_number ? `#${c.char_number}` : '') : (c.species_name || '')}</p>
             <p class="character-owner">소유주: ${(c.owner_user_id && idToNick[c.owner_user_id]) || c.owner_nickname || '—'}</p>
           </div>
         </a>

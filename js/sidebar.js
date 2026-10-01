@@ -159,7 +159,7 @@ async function initSidebar() {
         <svg class="sidebar-accordion-arrow" id="arrLabber" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="sidebar-accordion-body" id="bodyLabber">
-        <a href="labber-lab.html" class="sidebar-subitem ${path === 'labber-lab.html' ? 'active' : ''}">관리소</a>
+        <a href="labber-lab.html"         class="sidebar-subitem ${path === 'labber-lab.html'         ? 'active' : ''}">관리소</a>
         <a href="labber-records.html"     class="sidebar-subitem ${path === 'labber-records.html'     ? 'active' : ''}">개체기록실</a>
         <!-- 아래 5개는 LABBER 런칭(LABBER_LAUNCH_AT) 이후에만 표시 -->
         <a href="labber-personal-lab.html" data-labber-launch="show" class="sidebar-subitem ${path === 'labber-personal-lab.html' ? 'active' : ''}">개인연구실</a>
@@ -183,7 +183,7 @@ async function initSidebar() {
           <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-menu-logo">
         </a>
         <!-- 수상한 연구실: LABBER 런칭 전까지만 상점에 표시(런칭 후 LABBER 메뉴로 이동) -->
-        <a href="labber.html"      data-labber-launch="hide" class="sidebar-subitem labber-menu-link ${path === 'labber.html'      ? 'active' : ''}">
+        <a href="labber.html" data-labber-launch="hide" class="sidebar-subitem labber-menu-link ${path === 'labber.html' ? 'active' : ''}">
           <span>수상한 연구실</span>
           <img src="../images/labber/labber_logo.png" alt="LABBER" class="labber-menu-logo">
         </a>
@@ -288,6 +288,7 @@ async function initSidebar() {
   loadSpeciesSidebar();
   updateSidebarLogin();
   loadAdminBadges();
+  refreshLabberDesignBadge();
   initEmailVerifyPopup();
   initHamburger();
   refreshEventAttendanceMenu();
@@ -825,6 +826,43 @@ async function loadAdminBadges() {
     aBadge.textContent  = applyCount > 99 ? '99+' : applyCount;
     aBadge.style.display = 'inline-flex';
   }
+}
+
+// ── LABBER 디자인 승인 "심사 대기" 배지 (MY 아래 LABBER 메뉴, admin/staff 전용) ──────────────
+// 숫자 = DB 의 labber_design_applications.status='submitted' 건수. 0건이면 배지 요소를 제거한다.
+// 노출 조건 = UI 운영진(user_metadata.role) && 서버 기준 운영진(app_metadata.role).
+//   - app_metadata 는 서버(관리자 API)만 쓸 수 있고 RLS/RPC 판정과 같은 기준이다(pages/inquiry-detail.html 과 동일 방식).
+//   - user_metadata 는 유저가 직접 고칠 수 있으므로 이것만으로는 배지를 만들지 않는다.
+//   - 일반 유저/비로그인은 count 쿼리도, 배지 DOM 도 만들어지지 않는다.
+// 이 함수는 전역이다: 페이지 로드 시 initSidebar() 가 호출하고, 관리소(labber-lab.js)가 승인/거절 처리 후 다시 호출한다.
+async function refreshLabberDesignBadge() {
+  const btn = document.querySelector('#accLabber > .sidebar-accordion-btn');
+  if (!btn) return;                                   // 사이드바가 아직 없거나 LABBER 메뉴가 없는 페이지
+  const user = await getUser();
+  if (!isAdminOrStaff(user?.user_metadata?.role) || !isAdminOrStaff(user?.app_metadata?.role)) return;
+
+  // LABBER 디자인 승인 대기 + SUBJECT 등록 승인 대기(가방, labber_subject_bag_registrations)를
+  // 합산해서 같은 배지 하나로 보여준다(뽀 확정, 2026-09-24 — 새 배지 시스템을 만들지 않는다).
+  const [designRes, subjectRes] = await Promise.all([
+    sb.from('labber_design_applications').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
+    sb.from('labber_subject_bag_registrations').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
+  ]);
+  if (designRes.error) console.warn('[sidebar] LABBER 심사 대기 수 조회 실패:', designRes.error.message);
+  if (subjectRes.error) console.warn('[sidebar] SUBJECT 승인 대기 수 조회 실패:', subjectRes.error.message);
+  const count = (designRes.count || 0) + (subjectRes.count || 0);
+
+  let badge = document.getElementById('sidebarLabberBadge');
+  if (!count) { if (badge) badge.remove(); return; }
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.id = 'sidebarLabberBadge';
+    badge.className = 'sidebar-notif-badge';          // 기존 사이드바 빨간 원형 배지 재사용
+    const arrow = document.getElementById('arrLabber');
+    if (arrow && arrow.parentNode === btn) btn.insertBefore(badge, arrow);   // 로고 | 배지 | 화살표
+    else btn.appendChild(badge);
+  }
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.setAttribute('aria-label', `LABBER 디자인·SUBJECT 등록 승인 대기 ${count}건`);
 }
 
 // ── 이메일 인증 안내 팝업 (기존 회원 대상) ──────────────────────

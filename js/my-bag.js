@@ -128,10 +128,13 @@ function bagSectionOf(row) {
 }
 
 // 섹션 내부 세부 정렬 키 — item_dogam_categories.sort_order 기반([부모 순서, 자기 순서]).
-//   소분류 정보가 없는 아이템(매핑 누락)은 맨 뒤로 보낸다. 값이 같으면 Array.sort 의 안정 정렬 특성상
-//   my_item_collection 이 이미 반환한 순서(items.sort_order 오름차순)가 그대로 유지된다.
+//   소분류 정보가 없는 아이템(매핑 누락)은 맨 뒤로 보낸다. 값이 같으면 표시명 가나다순(renderItemSections).
 function bagGroupRank(code) {
   return _bagGroupRankByCode[code] || [Infinity, Infinity];
+}
+// Infinity - Infinity = NaN 방지용 비교 (소분류 없는 아이템끼리는 동순위 → 이름순으로 넘어감)
+function bagRankCmp(x, y) {
+  return x === y ? 0 : (x < y ? -1 : 1);
 }
 
 // 이미지: items.image_url → image_path → code 폴백 → placeholder
@@ -587,9 +590,16 @@ function renderItemSections() {
     if (key === 'ticket') return;
     const rows = bySection[key];
     if (!rows || !rows.length) return;
+    // 정렬: 소분류 그룹(기록물/수집품 등, bagGroupRank) → 표시명 가나다순 → code(동명 시 고정용).
+    //   수량/획득일/DB 반환 순서와 무관하게 항상 같은 위치. 랜덤박스는 소분류 구분 없이 이름순만.
     rows.sort((a, b) => {
-      const ra = bagGroupRank(a.code), rb = bagGroupRank(b.code);
-      return ra[0] - rb[0] || ra[1] - rb[1];
+      if (key !== 'randombox') {
+        const ra = bagGroupRank(a.code), rb = bagGroupRank(b.code);
+        const g = bagRankCmp(ra[0], rb[0]) || bagRankCmp(ra[1], rb[1]);
+        if (g) return g;
+      }
+      return (a.name || '').localeCompare(b.name || '', 'ko', { numeric: true })
+          || (a.code || '').localeCompare(b.code || '');
     });
     sections.push(`
       <div class="bag-section">
@@ -738,6 +748,7 @@ function onBagItemSell() {
       }
       await refreshAfterBagAction();
       alert(`${row.name}을(를) 판매하고 ${Number(data.total).toLocaleString()} 연구기록을 받았습니다.`);
+      window.syncLabberAchievements?.();   // 잡템 판매 업적 재확인(서버 판정)
       return true;
     },
   });

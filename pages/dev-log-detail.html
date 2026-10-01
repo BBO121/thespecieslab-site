@@ -145,7 +145,8 @@
       document.getElementById('pageContent').style.display = 'block';
       loadAdSense(); // 상세 본문이 렌더된 뒤에만 광고 로드
 
-      window.awardAchievement?.('first_dev_log');
+      const _dc = await window.incrementAchCounter?.('dev_log_view') || 0;
+      if (_dc >= 1) window.awardAchievement?.('first_dev_log');
     }
 
     async function deleteNote() {

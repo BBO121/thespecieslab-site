@@ -95,7 +95,8 @@
       _noteData = data;
       pager.load(data);
       loadAdSense(); // 업데이트노트 목록이 실제로 렌더된 뒤에만 광고 로드
-      await window.awardAchievement?.('first_update_note');
+      const _uc = await window.incrementAchCounter?.('update_note_view') || 0;
+      if (_uc >= 1) await window.awardAchievement?.('first_update_note');
     }
 
     function renderNotices(list) {

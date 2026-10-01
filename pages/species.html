@@ -480,8 +480,9 @@
         if (_sv >= 50) window.awardAchievement?.('species_view_50');
 
         // 관심 감사합니다? — 타인 종족 재방문 카운터
+        // [2026-09-22] 동적 counter_key(species_revisit_${id}) → 전용 테이블/RPC로 전환
         if (!isOwner) {
-          const _rc = await window.incrementAchCounter?.(`species_revisit_${speciesId}`) || 0;
+          const _rc = await window.recordSpeciesRevisit?.(parseInt(speciesId)) || 0;
           if (_rc >= 10) window.awardAchievement?.('species_revisit_10');
         }
       }

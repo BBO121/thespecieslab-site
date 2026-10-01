@@ -312,7 +312,10 @@
   <script src="../js/achievements.js"></script>
   <script src="../js/main.js"></script>
   <script>
-  window.awardAchievement?.('first_guide');
+  (async () => {
+    const _gc = await window.incrementAchCounter?.('guide_view') || 0;
+    if (_gc >= 1) window.awardAchievement?.('first_guide');
+  })();
   </script>
 </body>
 </html>

@@ -92,6 +92,22 @@ window.syncLabberAchievements = async function() {
   }
 };
 
+// 서버 일일 방문 카운트 증가 후 오늘자 방문 횟수 반환 (실패 시 0 반환)
+// [2026-09-22 보안 패치] work_overtime_fail 판정을 localStorage 신뢰에서
+// 서버(user_daily_visits) 신뢰로 전환. record_daily_visit RPC 참고.
+window.recordDailyVisit = async function() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return 0;
+    const { data, error } = await sb.rpc('record_daily_visit');
+    if (error) { console.error('[업적] 일일 방문 기록 실패:', error); return 0; }
+    return data || 0;
+  } catch (e) {
+    console.error('[업적] 일일 방문 기록 예외:', e);
+    return 0;
+  }
+};
+
 // DB 카운터 값 조회 (실패 시 0 반환)
 window.getCounterValue = async function(counterKey) {
   try {
@@ -106,23 +122,18 @@ window.getCounterValue = async function(counterKey) {
   }
 };
 
-// 일일 방문 카운터 — localStorage만 먼저 처리, Supabase는 10번째 방문에만 호출
+// 일일 방문 카운터 — [2026-09-22] 서버(record_daily_visit RPC) 기준으로 전환.
+// award_achievement가 자체적으로 멱등(이미 달성 시 즉시 반환)이라
+// 매 페이지 로드마다 호출해도 안전하며 별도 localStorage 플래그가 필요 없다.
 async function _checkDailyVisit() {
   try {
     console.time('[업적] daily');
-    const today    = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const stored   = JSON.parse(localStorage.getItem('_daily_visit') || '{}');
-    const count    = stored.date !== today ? 1 : (stored.count || 0) + 1;
-    localStorage.setItem('_daily_visit', JSON.stringify({ date: today, count }));
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
 
-    // 10번째 방문이고 오늘 아직 수여 안 했을 때만 Supabase 호출
-    const _flagKey = `_work_overtime_awarded_${today}`;
-    if (count === 10 && !localStorage.getItem(_flagKey)) {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        localStorage.setItem(_flagKey, '1');
-        window.awardAchievement?.('work_overtime_fail');
-      }
+    const count = await window.recordDailyVisit?.() || 0;
+    if (count >= 10) {
+      window.awardAchievement?.('work_overtime_fail');
     }
     console.timeEnd('[업적] daily');
   } catch (e) {
@@ -199,6 +210,21 @@ window.getDistinctOwnedSpeciesCount = async function() {
     return data || 0;
   } catch (e) {
     console.error('[업적] 다양 종족 수 조회 예외:', e);
+    return 0;
+  }
+};
+
+// 종족 재방문(타인 종족) 카운트 — [2026-09-22] species_revisit_10 전용
+// 동적 counter_key(species_revisit_${id}) 방식을 대체
+window.recordSpeciesRevisit = async function(speciesId) {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return 0;
+    const { data, error } = await sb.rpc('record_species_revisit', { p_species_id: speciesId });
+    if (error) { console.error('[업적] 종족 재방문 기록 실패:', error); return 0; }
+    return data || 0;
+  } catch (e) {
+    console.error('[업적] 종족 재방문 기록 예외:', e);
     return 0;
   }
 };

@@ -95,7 +95,8 @@
       _noteData = data;
       pager.load(data);
       loadAdSense(); // 개발일지 목록이 실제로 렌더된 뒤에만 광고 로드
-      await window.awardAchievement?.('first_dev_log');
+      const _dc = await window.incrementAchCounter?.('dev_log_view') || 0;
+      if (_dc >= 1) await window.awardAchievement?.('first_dev_log');
     }
 
     function renderNotices(list) {

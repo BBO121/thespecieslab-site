@@ -136,7 +136,8 @@
       document.getElementById('pageContent').style.display = 'block';
       loadAdSense(); // 상세 본문이 렌더된 뒤에만 광고 로드
 
-      window.awardAchievement?.('first_guide');
+      const _gc = await window.incrementAchCounter?.('guide_view') || 0;
+      if (_gc >= 1) window.awardAchievement?.('first_guide');
     }
 
     initPage();

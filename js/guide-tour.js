@@ -199,8 +199,8 @@ const GUIDE_CATEGORIES = [
       {
         page:       'profile.html',
         selector:   '.main',
-        title:      '내 프로필',
-        desc:       '사이드바 → 내 정보 → 내 프로필에서 닉네임과 프로필 이미지를 설정할 수 있어요.',
+        title:      '프로필',
+        desc:       '사이드바 → 내 정보 → 프로필에서 닉네임과 프로필 이미지를 설정할 수 있어요.',
         tooltipPos: 'top',
       },
       {

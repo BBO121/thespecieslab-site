@@ -894,6 +894,7 @@
     // 워터마크 소스(speciesWatermarkUrl)는 initPage()에서 이미 로드됨 — 개별 등록/일반 일괄 등록과 동일 로직 재사용.
     let jsonItems      = [];  // 로드된 JSON 배열
     let jsonImageFiles = {};  // char_number(4자리) -> File
+    let jsonFilesByName = {}; // 파일명 -> File (JSON 항목에 image_file이 있으면 파일명으로 직접 매칭)
     let jsonExisting   = new Set(); // species_name+char_number 기준 이미 DB에 존재하는 char_number
     let jsonTestedOk   = new Set(); // 이번 세션에서 테스트 등록에 성공한 char_number
 
@@ -936,12 +937,19 @@
       return m[1];
     }
 
+    // JSON 항목의 이미지 파일 — image_file(파일명)이 있으면 그 파일, 없으면 기존처럼 파일명 끝 숫자 = char_number 매칭
+    function jsonFileFor(item) {
+      return item.image_file ? jsonFilesByName[item.image_file] : jsonImageFiles[item.char_number];
+    }
+
     function onJsonImagesSelected(input) {
       const files = [...input.files];
       jsonImageFiles = {};
+      jsonFilesByName = {};
       let matched = 0;
       files.forEach(f => {
         if (!ALLOWED_IMAGE_TYPES.includes(f.type)) return;
+        jsonFilesByName[f.name] = f;
         const num = extractCharNumberFromFilename(f.name);
         if (num) { jsonImageFiles[num] = f; matched++; }
       });
@@ -975,7 +983,7 @@
       const testSelect = document.getElementById('jsonTestSelect');
       testSelect.innerHTML = jsonItems
         .slice()
-        .sort((a, b) => a.char_number.localeCompare(b.char_number))
+        .sort((a, b) => a.char_number.localeCompare(b.char_number, undefined, { numeric: true }))
         .map(it => `<option value="${it.char_number}">${it.char_number} — ${it.name}</option>`)
         .join('');
     }
@@ -983,7 +991,7 @@
     function renderJsonPreviewTable() {
       const body = document.getElementById('jsonPreviewBody');
       body.innerHTML = jsonItems.map(it => {
-        const file = jsonImageFiles[it.char_number];
+        const file = jsonFileFor(it);
         const imgStatus = file ? `✅ ${file.name}` : '❌ 매칭 안됨';
         const dbStatus = jsonExisting.has(it.char_number)
           ? '<span style="color:#ef4444;">이미 등록됨(건너뜀)</span>'
@@ -1077,7 +1085,7 @@
         return;
       }
 
-      const file = jsonImageFiles[charNumber];
+      const file = jsonFileFor(item);
       if (!file) { errorEl.textContent = `개체번호 ${charNumber}에 매칭된 이미지 파일이 없어요.`; return; }
 
       btn.disabled = true;
@@ -1105,7 +1113,7 @@
       const remaining = jsonItems.filter(it => !jsonExisting.has(it.char_number));
       if (!remaining.length) { errorEl.textContent = '등록할 신규 항목이 없어요.'; return; }
 
-      const missingImage = remaining.filter(it => !jsonImageFiles[it.char_number]);
+      const missingImage = remaining.filter(it => !jsonFileFor(it));
       if (missingImage.length) {
         errorEl.textContent = `이미지가 매칭되지 않은 항목이 있어요: ${missingImage.map(it => it.char_number).join(', ')}`;
         return;
@@ -1127,7 +1135,7 @@
       for (const item of remaining) {
         progressText.textContent = `${done + 1} / ${remaining.length} 처리 중... (${item.char_number} ${item.name})`;
         try {
-          await registerJsonItem(item, jsonImageFiles[item.char_number]);
+          await registerJsonItem(item, jsonFileFor(item));
           jsonExisting.add(item.char_number);
         } catch (err) {
           console.warn(`[JSON일괄등록] 실패 (${item.char_number}):`, err.message);

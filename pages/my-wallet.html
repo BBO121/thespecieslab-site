@@ -14,7 +14,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>내 지갑 — 종족연구소</title>
+  <title>지갑 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -42,9 +42,9 @@
             <div class="breadcrumb" style="margin-bottom:8px;">
               <a href="index.html">홈</a>
               <span>/</span>
-              <span>내 지갑</span>
+              <span>지갑</span>
             </div>
-            <h1 class="list-page-title">내 지갑</h1>
+            <h1 class="list-page-title">지갑</h1>
           </div>
         </div>
 
@@ -168,6 +168,10 @@
   <script src="../js/search.js"></script>
   <script src="../js/main.js"></script>
   <script>
+    // ── 거래 내역 "구분" 라벨 (currency_logs.type → 사용자용 한글) ──────────────
+    // DB의 type 원본값은 절대 안 건드린다. 여기 매핑만 UI 표시에 쓴다.
+    // 지갑 로그 화면 전체가 이 한 곳(TYPE_LABEL / typeLabelOf)만 참조한다.
+    // 새 type이 생기면 여기 3곳(TYPE_LABEL / TYPE_CLASS / RECEIVE_TYPES)에 추가.
     const TYPE_LABEL = {
       signup_bonus:         '가입보너스',
       attendance_reward:    '일일 출석',
@@ -179,11 +183,11 @@
       achievement_reward:   '업적보상',
       achievement_backfill: '업적보상(필백)',
       labber_exchange:      '수상한 연구실 교환',
+      exploration_reward:   '탐험 보상',      // 수상한 연구실 탐험 보상 (exploration_reward RPC)
+      item_sell:            '아이템 판매',    // 내 가방 아이템 판매 (sell_item RPC)
       email_verification_reward: '이메일 인증 보상',  // Stage 4 — 실제 이메일 인증 완료 보상
-      record_amplification_cost:   '기록 증폭 실험 투입',  // LABBER 기록 증폭 실험 비용 차감
+      record_amplification_cost:   '기록 증폭 실험 투입',  // LABBER 기록 증폭 실험 비용 차감 (play_record_amplification RPC)
       record_amplification_reward: '기록 증폭 실험 결과',  // LABBER 기록 증폭 실험 결과 지급
-      exploration_reward:          '탐험 보상',            // LABBER 탐험 보상 (exploration_reward RPC)
-      item_sell:                   '아이템 판매',          // 가방 아이템 판매 (sell_item RPC)
       labber_delivery_reward:      '수상한 연구실 납품',   // LABBER 납품 보상 (deliver_labber_task RPC, 연구기록/열쇠 모두 지급)
       event_attendance_reward:     '이벤트 출석',          // 기간형 이벤트 출석 보상 (claim_event_attendance RPC, source=이벤트 코드)
     };
@@ -198,15 +202,31 @@
       achievement_reward:   'wallet-log-type--receive',
       achievement_backfill: 'wallet-log-type--admin',
       labber_exchange:      'wallet-log-type--labber',
+      exploration_reward:   'wallet-log-type--receive',   // 연구기록 획득
+      item_sell:            'wallet-log-type--receive',    // 연구기록 획득
       email_verification_reward: 'wallet-log-type--receive',  // Stage 4 — 실제 이메일 인증 완료 보상
       record_amplification_cost:   'wallet-log-type--send',     // 연구기록 차감
       record_amplification_reward: 'wallet-log-type--receive',  // 연구기록 획득
-      exploration_reward:          'wallet-log-type--receive',  // 연구기록 획득
-      item_sell:                   'wallet-log-type--receive',  // 연구기록 획득
       labber_delivery_reward:      'wallet-log-type--receive',  // 연구기록/열쇠 획득
       event_attendance_reward:     'wallet-log-type--receive',  // 연구기록/열쇠 획득
     };
-    const RECEIVE_TYPES = new Set(['signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant', 'achievement_reward', 'achievement_backfill', 'email_verification_reward', 'record_amplification_reward', 'exploration_reward', 'item_sell', 'labber_delivery_reward', 'event_attendance_reward']);
+    // 재화가 "들어오는(+)" type — 금액 부호 및 받음 필터 판정용
+    const RECEIVE_TYPES = new Set([
+      'signup_bonus', 'attendance_reward', 'transfer_receive', 'admin_grant',
+      'achievement_reward', 'achievement_backfill', 'exploration_reward', 'item_sell',
+      'email_verification_reward', 'record_amplification_reward', 'labber_delivery_reward', 'event_attendance_reward',
+    ]);
+
+    // type → 한글 라벨. 매핑 없으면 원본 코드로 폴백하되 개발 중 누락을 콘솔로 알린다.
+    const _warnedTypes = new Set();
+    function typeLabelOf(type) {
+      if (TYPE_LABEL[type]) return TYPE_LABEL[type];
+      if (type && !_warnedTypes.has(type)) {
+        _warnedTypes.add(type);
+        console.warn('[my-wallet] currency_logs type 한글 라벨 미매핑:', type, '→ TYPE_LABEL/TYPE_CLASS/RECEIVE_TYPES 에 추가 필요');
+      }
+      return type || '기타';
+    }
 
     // labber_exchange는 열쇠(차감)/연구기록(지급) 두 방향을 같은 type으로 공유하므로
     // type만으로는 +/- 판정이 안 된다 — 이 타입만 currency로 방향을 추가 판정한다.
@@ -338,7 +358,7 @@
         const amtHtml     = isPlus
           ? `<span class="wallet-log-amount--plus">+${fmt(log.amount)}</span>`
           : `<span class="wallet-log-amount--minus">-${fmt(log.amount)}</span>`;
-        const typeLabel   = TYPE_LABEL[log.type] ?? log.type;
+        const typeLabel   = typeLabelOf(log.type);
         const typeClass   = TYPE_CLASS[log.type] ?? '';
         const nick = log.counterpart_nickname;
         const counterpart = (nick && log.counterpart_user_id)

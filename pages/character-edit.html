@@ -65,66 +65,6 @@
     }
     .io-tab.is-active { border-color:var(--sky); background:var(--sky); color:#fff; }
 
-    /* LABBER SUBJECT 그림 관리 (현재 선택된 SUBJECT 1개 대상) — CSS 변수만 사용해 LABBER 테마에서도 자연스럽게 */
-    .labber-subject-img-box {
-      margin-top: 10px; padding: 12px;
-      border: 1px solid var(--border); border-radius: var(--radius);
-      background: var(--sky-pale);
-    }
-    .labber-subject-img-title { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text); }
-    .labber-subject-img-row { display: flex; align-items: flex-start; gap: 12px; }
-    .labber-subject-img-preview {
-      flex: 0 0 auto; width: 96px; height: 96px;
-      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-      background: var(--white);
-    }
-    .labber-subject-img-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .labber-subject-img-body { flex: 1; min-width: 0; }
-    .labber-subject-img-status { margin: 0 0 8px; font-size: 12px; color: var(--text-mute); line-height: 1.5; }
-    .labber-subject-img-status.is-pending { color: var(--sky-deep); }
-    .labber-subject-img-status.is-delete  { color: #ef4444; }
-    .labber-subject-img-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    .labber-subject-img-actions button { font-size: 12px; padding: 6px 12px; }
-    .labber-subject-img-msg { margin: 8px 0 0; font-size: 12px; color: #ef4444; }
-    .labber-subject-img-note { margin: 8px 0 0; font-size: 11px; color: var(--text-mute); line-height: 1.5; }
-    /* SUBJECT 제작자 편집기(js/creator-picker.js) 스타일 — css/style.css 의 .cp-* 와 동일한 규칙.
-       공개 style.css 에는 아직 이 규칙이 없고(style.css 는 미공개 기능이 섞여 통째로 배포 불가) 이 페이지에서만 쓰므로 페이지 안에 둔다. */
-    .cp-divider { height: 1px; background: var(--border); margin: 18px 0; }
-    .cp { display: flex; flex-direction: column; gap: 8px; }
-    .cp .cp-label, .cp .cp-hint { margin: 0; }
-    .cp .cp-error { min-height: 0; margin: 0; }
-    .cp .cp-error:empty { display: none; }
-    .cp .cp-search, .cp .cp-ext-contact { width: 100%; box-sizing: border-box; }
-    .cp-tabs { display: flex; gap: 8px; }
-    .cp-tab { padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: transparent; color: var(--text-mute); font-size: 13px; font-family: inherit; cursor: pointer; }
-    .cp-tab.is-active { border-color: var(--sky); background: var(--sky); color: #fff; }
-    .cp-tab:disabled { cursor: not-allowed; opacity: 0.55; }
-    .cp-site { position: relative; }
-    .cp-site[hidden], .cp-external[hidden], .cp-dropdown[hidden] { display: none; }
-    .cp-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 100; margin-top: 2px; max-height: 180px; overflow-y: auto; background: var(--white, #fff); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); }
-    .cp-drop-item { display: block; width: 100%; text-align: left; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text); font-size: 13px; font-family: inherit; cursor: pointer; }
-    .cp-drop-item:hover, .cp-drop-item:focus-visible { background: var(--sky-pale); outline: none; }
-    .cp-drop-item:last-child { border-bottom: 0; }
-    .cp-drop-empty { padding: 10px 14px; margin: 0; font-size: 13px; color: var(--text-mute); }
-    .cp-ext-row { display: flex; gap: 8px; margin-bottom: 6px; }
-    .cp-ext-name { flex: 1; min-width: 0; }
-    .cp-add-ext { flex-shrink: 0; height: 40px; padding: 0 14px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent; color: var(--text); font-size: 13px; font-family: inherit; white-space: nowrap; cursor: pointer; }
-    .cp-add-ext:disabled { cursor: not-allowed; opacity: 0.55; }
-    .cp-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-    .cp-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; background: var(--bg-sub, transparent); border-radius: 8px; border: 1px solid var(--border); }
-    .cp-item-txt { min-width: 0; font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
-    .cp-item-badge { font-size: 11px; color: var(--text-mute); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
-    .cp-item-contact { color: var(--text-mute); font-size: 11px; margin-left: 4px; }
-    .cp-item-del { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--text-mute); font-size: 16px; padding: 2px 6px; border-radius: 4px; line-height: 1; font-family: inherit; }
-    .cp-item-del:hover { color: #ef4444; }
-    .cp-item-del:disabled { cursor: not-allowed; opacity: 0.55; }
-    .llapp-optional { font-size: 11px; font-weight: 400; color: var(--text-mute); margin-left: 6px; }
-    .labber-subject-name-field { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-    .labber-subject-name-field .labber-subject-img-title { display: block; }
-    .labber-subject-name-field .form-input { width: 100%; box-sizing: border-box; }
-    @media (max-width: 480px) {
-      .labber-subject-img-preview { width: 80px; height: 80px; }
-    }
   </style>
 </head>
 <body>
@@ -444,17 +384,6 @@
               <textarea id="ownerDesc" class="form-textarea" placeholder="소유주가 작성하는 개체 설명을 입력하세요" rows="4"></textarea>
             </div>
 
-            <!-- LABBER SUBJECT 이름 — 소유주 영역 (개체 × SUBJECT 종류별 개별 이름).
-                 LABBER 개체이고 SUBJECT 가 선택돼 있을 때만 JS(renderLabberSubjectNameBox)가 표시한다.
-                 수정 가능: 소유주 / 오프사이트 개체의 종족주 / admin·staff (DB: _labber_subject_check_manage_name 과 동일 규칙).
-                 SUBJECT 그림·종류·제작자는 종족주 영역(커스텀 필드)에 있다. -->
-            <div class="form-group" id="labberSubjectNameGroup" style="display:none;">
-              <label class="form-label" for="labberSubjectName">SUBJECT 이름 <span class="form-hint-inline" id="labberSubjectNameTrait"></span></label>
-              <input type="text" id="labberSubjectName" class="form-input" maxlength="16" autocomplete="off"
-                     placeholder="이 SUBJECT의 이름 (없으면 비워두세요)" oninput="lsOnNameInput(this.value)">
-              <p class="form-hint" id="labberSubjectNameNote"></p>
-            </div>
-
             <!-- 추가 섹션 소구분선 -->
             <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
               <span style="font-size:11px; font-weight:700; color:var(--text-mute); letter-spacing:0.08em; white-space:nowrap;">추가 섹션</span>
@@ -510,7 +439,6 @@
   <script src="../js/search.js"></script>
   <script src="../js/step-priority.js"></script>
   <script src="../js/labber-traits.js"></script>
-  <script src="../js/creator-picker.js"></script>
   <script>
     const charId = new URLSearchParams(window.location.search).get('id');
 
@@ -1526,6 +1454,15 @@
 
       document.getElementById('customFieldInputs').innerHTML = sp.custom_fields.map(field => {
         const cfg = labberPickerCfg(field);
+
+        // SUBJECT는 2026-09-24부로 이 화면에서 아예 관리하지 않는다(종류 교체/그림/제작자
+        // 전부 개인연구실 > SUBJECT 보관소로 이관) — 필드 자체를 렌더하지 않고 건너뛴다.
+        // characters.custom_field_values.SUBJECT(표시용 호환 캐시)는 저장 시 원래 값 그대로
+        // 다시 실어 보내므로(아래 커스텀 필드 값 수집부 참고) 여기서 아무것도 안 그려도 지워지지 않는다.
+        if (cfg && cfg.type === 'subject') {
+          return '';
+        }
+
         if (cfg) {
           const selected = new Set(labberTraitCodesFromValue(cfg.type, existingValues?.[field]));
           const inputType = cfg.multi ? 'checkbox' : 'radio';
@@ -1554,7 +1491,6 @@
                 ${rowsHtml}
               </div>
               <p style="margin:6px 0 0; font-size:12px; color:var(--text-mute);">LABBER 관리소 특성 기준 · 등급은 자동 적용돼요.${cfg.multi ? '' : ' (하나만 선택)'}</p>
-              ${cfg.type === 'subject' ? '<div id="labberSubjectImageBox" class="labber-subject-img-box" hidden></div><div id="labberSubjectCreditsBox" class="labber-subject-img-box" hidden></div>' : ''}
             </div>`;
         }
         return `
@@ -1572,521 +1508,14 @@
           </div>
         </div>`;
       }).join('');
-
-      // LABBER SUBJECT 그림 관리 UI — SUBJECT 선택기가 실제로 그려진 경우에만 초기화
-      if (isLabber && document.getElementById('labberSubjectImageBox')) {
-        await initLabberSubjectImage(existingValues);
-      }
     }
 
-    // ── LABBER SUBJECT 그림 (character_id + subject_code) ─────────────────────────
-    // 현재 "선택된" SUBJECT 1개의 그림만 등록/교체/삭제한다. 다른 SUBJECT 의 저장된 그림은 절대 건드리지 않는다.
-    //  - 읽기: labber_subject_images 공개 SELECT (직접 조회). 쓰기: 반드시 RPC (set/delete_labber_subject_image).
-    //  - 모든 변경(등록/교체/삭제)은 "저장하기" 시점에 반영한다. 순서: Storage 업로드 → characters 저장(SUBJECT 반영)
-    //    → RPC. RPC 는 서버에 저장된 현재 SUBJECT 와 일치하는 code 만 허용하므로 개체 저장이 먼저여야 한다.
-    //  - 저장하지 않은 변경(_lsPending)은 SUBJECT 를 바꾸면 확인 후 폐기한다.
-    //  - 워터마크 없음. JPG/PNG/WebP 만(GIF 제외). 공용 compressImage 대신 lsCompressKeepAlpha 로 압축(PNG/WebP 는 투명도 보존).
-    const LS_IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-    let _lsActive       = false;
-    let _lsImages       = {};    // subject_code -> image_url (DB 저장분)
-    let _lsSelectedCode = '';    // 현재 선택 라디오 값 ('' = 선택 안 함)
-    let _lsPending      = null;  // { code, action:'set', blob, previewUrl } | { code, action:'delete' }
-
-    // SUBJECT 개별 이름 (character_id + subject_code) — 그림과 같은 단위로 SUBJECT 마다 따로 보존된다.
-    //  - 읽기: labber_subject_names 공개 SELECT. 쓰기: 반드시 RPC set_labber_subject_name (빈 이름 = 개별 이름 없음 = 서버가 행 삭제).
-    //  - "저장하기" 시점에 개체 저장(SUBJECT 반영) 후 RPC 로 반영. 서버는 현재 SUBJECT 와 일치하는 code 만 허용한다.
-    //  - 최대 16자(서버 CHECK 와 동일). SUBJECT 를 바꾸면 그 SUBJECT 에 저장된 이름을 불러오고, 없으면 빈 입력.
-    const LS_NAME_MAX = 16;
-    // 서버 정규화가 제거하는 보이지 않는 문자(제로폭 공백 U+200B~200D, U+2060, U+FEFF) — 소스에 숨은 문자를 두지 않으려고 코드값으로 생성
-    const LS_INVISIBLE_RE = new RegExp('[' + String.fromCharCode(0x200B) + '-' + String.fromCharCode(0x200D) + String.fromCharCode(0x2060) + String.fromCharCode(0xFEFF) + ']', 'g');
-    let _lsNames     = {};   // subject_code -> individual_name (DB 저장분)
-    let _lsNameDraft = '';   // 현재 선택 SUBJECT 의 입력창 값 (저장 전)
-
-    // ── SUBJECT 관련 수정 권한 (UI 게이트 — 실제 강제는 DB RPC. supabase/labber_subject_permission_split_0921.sql / labber_subject_credits_0921.sql) ──
-    //   editRole: 'admin'(admin·staff 또는 종족주=소유주 겸직) | 'species_owner' | 'owner'
-    //   · SUBJECT 종류(라디오) / 그림 / SUBJECT 제작자 → 종족주 영역: 종족주·admin 만. 소유주는 잠금(SUBJECT_MISMATCH 방지).
-    //   · SUBJECT 이름                              → 소유주 영역: 소유주 · admin · 오프사이트 개체의 종족주 (사이트 소유주 개체의 종족주는 불가)
-    function lsCanChangeSubject() { return editRole !== 'owner'; }
-    function lsCanEditImage()     { return editRole === 'admin' || editRole === 'species_owner'; }
-    function lsCanEditCredits()   { return editRole === 'admin' || editRole === 'species_owner'; }
-    function lsCanEditName() {
-      return editRole === 'admin' || editRole === 'owner' ||
-             (editRole === 'species_owner' && originalCharData?.owner_is_offsite === true);
-    }
-
-    // SUBJECT 제작자(디자이너/아티스트) + 종족형 SUBJECT 의 연결 종족 — labber_subject_credits (개체 × SUBJECT 종류별 보존)
-    //  - 읽기: get_labber_subject_credits_for_edit RPC(연락처 포함, 종족주/admin 전용). 쓰기: set_labber_subject_credits RPC 만.
-    //  - 그림/이름과 같은 3단계: 개체 저장(현재 SUBJECT 서버 반영) 성공 후 RPC 로 반영. 저장 안 한 변경은 SUBJECT 를 바꾸면 확인 후 폐기.
-    const LS_SPECIES_CODE = 'labber_subject_species';
-    let _lsCreditsByCode = {};   // subject_code -> { designers, artists, species_id, species_name } (DB 저장분)
-    let _lsCredOk        = false; // 조회 RPC 성공(=이 계정이 크레딧 편집 권한 있음)
-    let _lsCredDes       = null;  // CreatorPicker (SUBJECT 디자이너)
-    let _lsCredArt       = null;  // CreatorPicker (SUBJECT 아티스트)
-    let _lsCredSpecies   = null;  // { id, name } | null — 종족형 SUBJECT 의 연결 종족(입력 중)
-    let _lsCredBase      = '';    // 현재 SUBJECT 의 "불러온 시점" 스냅샷 문자열 (변경 감지용)
-    let _lsSpeciesResults = [];
-
-    function lsPickerEl() {
-      return document.querySelector('.labber-trait-picker[data-trait-type="subject"]');
-    }
-    function lsSelectedFromDom() {
-      const el = lsPickerEl()?.querySelector('input:checked');
-      return el ? (el.value || '') : '';
-    }
-    function lsClearPending() {
-      if (_lsPending?.previewUrl) URL.revokeObjectURL(_lsPending.previewUrl);
-      _lsPending = null;
-    }
-    function lsMsg(text) {
-      const el = document.getElementById('labberSubjectImageMsg');
-      if (el) el.textContent = text || '';
-    }
-    function lsErrorText(code) {
-      return ({
-        NOT_AUTHENTICATED:    '로그인이 필요해요.',
-        FORBIDDEN:            'SUBJECT 정보를 수정할 권한이 없어요. (그림·제작자는 종족주, 이름은 소유주 권한이에요)',
-        NOT_LABBER_CHARACTER: 'LABBER 개체만 SUBJECT 그림을 등록할 수 있어요.',
-        NO_CURRENT_SUBJECT:   '현재 선택된 SUBJECT가 없어요.',
-        SUBJECT_MISMATCH:     '현재 저장된 SUBJECT와 대상 SUBJECT가 달라요. 페이지를 새로고침 후 다시 시도해주세요.',
-        INVALID_SUBJECT_CODE: '알 수 없는 SUBJECT예요.',
-        INVALID_IMAGE_URL:    '이미지 주소가 올바르지 않아요.',
-        INVALID_IMAGE_PATH:   '이미지 경로가 올바르지 않아요.',
-        IMAGE_NOT_UPLOADED:   '업로드된 이미지를 찾을 수 없어요.',
-        NAME_TOO_LONG:        `SUBJECT 이름은 ${LS_NAME_MAX}자 이하로 입력해주세요.`,
-        SUBJECT_DESIGNER_REQUIRED: 'SUBJECT 디자이너를 1명 이상 추가해주세요.',
-        INVALID_CREATOR:      'SUBJECT 디자이너/아티스트 정보가 올바르지 않아요. (연구소 유저는 실제 존재하는 유저여야 하고, 이름은 40자, 연락처는 100자 이하예요)',
-        SPECIES_NOT_ALLOWED:  '종족형 SUBJECT 에서만 연결 종족을 지정할 수 있어요.',
-        INVALID_SUBJECT_SPECIES:   '선택한 종족을 찾을 수 없어요.',
-        SUBJECT_SPECIES_IS_LABBER: 'LABBER 는 연결 종족으로 선택할 수 없어요.',
-      })[code] || `처리에 실패했어요. (${code || 'unknown'})`;
-    }
-
-    // 서버 정규화(NFC · 보이지 않는 문자 제거 · 공백 정리 · trim)와 같은 규칙 — 변경 여부 비교/길이 검사용
-    function lsNormName(s) {
-      return String(s == null ? '' : s).normalize('NFC')
-        .replace(LS_INVISIBLE_RE, '')
-        .replace(/[\s\u0000-\u001f]+/g, ' ')
-        .trim();
-    }
-    function lsNameChanged() {
-      return !!_lsSelectedCode && lsNormName(_lsNameDraft) !== (_lsNames[_lsSelectedCode] || '');
-    }
-    function lsOnNameInput(value) { _lsNameDraft = value; }
-    // 저장 전 검증 (문제가 있으면 메시지 반환)
-    function lsNameError() {
-      if (!_lsActive || !_lsSelectedCode) return null;
-      if ([...lsNormName(_lsNameDraft)].length > LS_NAME_MAX) return `SUBJECT 이름은 ${LS_NAME_MAX}자 이하로 입력해주세요.`;
-      return null;
-    }
-
-    async function initLabberSubjectImage(existingValues) {
-      const picker = lsPickerEl();
-      if (!picker) return;
-      _lsActive = true;
-      _lsSelectedCode = lsSelectedFromDom();
-
-      const { data, error } = await sb.from('labber_subject_images')
-        .select('subject_code, image_url').eq('character_id', charId);
-      if (error) console.warn('[LABBER SUBJECT 그림] 조회 실패:', error.message);
-      _lsImages = Object.fromEntries((data || []).map(r => [r.subject_code, r.image_url]));
-
-      const { data: nameRows, error: nameErr } = await sb.from('labber_subject_names')
-        .select('subject_code, individual_name').eq('character_id', charId);
-      if (nameErr) console.warn('[LABBER SUBJECT 이름] 조회 실패:', nameErr.message);
-      _lsNames = Object.fromEntries((nameRows || []).map(r => [r.subject_code, r.individual_name]));
-      _lsNameDraft = _lsNames[_lsSelectedCode] || '';
-
-      // SUBJECT 제작자 — 종족주/admin 만 조회 가능(RPC 가 서버에서 권한 검사). 실패(권한 없음 등)하면 이 편집 영역만 숨긴다.
-      _lsCreditsByCode = {};
-      _lsCredOk = false;
-      if (lsCanEditCredits()) {
-        const { data: cd, error: cerr } = await sb.rpc('get_labber_subject_credits_for_edit', { p_character_id: Number(charId) });
-        if (cerr || !cd?.success) console.warn('[LABBER SUBJECT 제작자] 조회 실패:', cerr?.message || cd?.error);
-        else { _lsCredOk = true; _lsCreditsByCode = cd.credits_by_code || {}; }
-      }
-
-      // 소유주는 SUBJECT 종류를 바꿀 수 없다(종족주 영역) — 라디오/체크박스를 잠가 저장되지 않는 변경과 SUBJECT_MISMATCH 를 막는다.
-      // 이름은 서버에 저장된 현재 SUBJECT 기준으로 저장된다.
-      if (!lsCanChangeSubject()) {
-        document.querySelectorAll('.labber-trait-picker input').forEach(i => { i.disabled = true; });
-        document.querySelectorAll('.labber-trait-picker').forEach(p => { p.style.opacity = '0.6'; });
-      }
-
-      // SUBJECT 라디오 변경: 저장하지 않은 그림/이름/제작자 변경이 있으면 확인 후 폐기(취소 시 선택 원복)
-      picker.addEventListener('change', (e) => {
-        const input = e.target;
-        if (!input || input.type !== 'radio') return;
-        const newCode = input.value || '';
-        const pendImg  = !!(_lsPending && _lsPending.code !== newCode);
-        const pendName = lsNameChanged();
-        const pendCred = lsCreditsChanged();
-        if (pendImg || pendName || pendCred) {
-          const what = [pendImg && '그림', pendName && '이름', pendCred && '제작자/종족'].filter(Boolean).join('·');
-          const msg = `저장하지 않은 SUBJECT ${what}이(가) 있습니다. 변경하면 입력한 ${what}은(는) 취소됩니다.\n계속할까요?`;
-          if (!confirm(msg)) {
-            const prev = [...picker.querySelectorAll('input[type="radio"]')].find(r => (r.value || '') === _lsSelectedCode);
-            if (prev) prev.checked = true;
-            return;
-          }
-          lsClearPending();
-        }
-        _lsSelectedCode = newCode;
-        _lsNameDraft = _lsNames[newCode] || '';   // 새 SUBJECT 에 과거 저장한 이름이 있으면 불러오고, 없으면 빈 입력
-        lsMsg('');
-        renderLabberSubjectImageBox();
-        renderLabberSubjectNameBox();
-        renderLabberSubjectCreditsBox();
-      });
-
-      renderLabberSubjectImageBox();
-      renderLabberSubjectNameBox();
-      renderLabberSubjectCreditsBox();
-    }
-
-    // ── SUBJECT 이름 (소유주 영역) ─────────────────────────────────────────────
-    //  #labberSubjectNameGroup 은 소유주 영역(#ownerArea)에 정적으로 있다. 종족주 영역의 SUBJECT 그림 박스와는 별개.
-    //  수정 불가 역할(사이트 소유주가 있는 개체의 종족주)에게는 잠근 채 보여준다.
-    function renderLabberSubjectNameBox() {
-      const group = document.getElementById('labberSubjectNameGroup');
-      if (!group) return;
-      const code = _lsSelectedCode;
-      if (!_lsActive || !code) { group.style.display = 'none'; return; }   // LABBER 아님 / SUBJECT 없음 → 숨김
-
-      const trait    = labberTraitByCode(code);
-      const editable = lsCanEditName();
-      group.style.display = 'flex';   // .form-group 은 display:flex — 'block' 으로 덮으면 레이아웃이 깨진다
-      document.getElementById('labberSubjectNameTrait').textContent = trait ? `· ${trait.name}` : '';
-      const input = document.getElementById('labberSubjectName');
-      input.maxLength = LS_NAME_MAX;
-      input.value = _lsNameDraft;   // DOM 으로 값을 넣어 이스케이프 문제 없음
-      input.disabled = !editable;
-      input.readOnly = !editable;
-      input.style.background = editable ? '' : '#f8fafc';
-      input.style.color      = editable ? '' : 'var(--text-mute)';
-      document.getElementById('labberSubjectNameNote').textContent = editable
-        ? `최대 ${LS_NAME_MAX}자. 비우고 저장하면 개별 이름이 없어져요. 다른 SUBJECT에 붙여 둔 이름은 그대로 보존돼요.`
-        : 'SUBJECT 이름은 소유주만 수정할 수 있어요.';
-    }
-
-    // ── SUBJECT 제작자 / 연결 종족 (종족주 영역, 종족주·admin 만) ───────────────────
-    function lsCredSnapshot() {
-      if (!_lsCredDes || !_lsCredArt) return '';
-      const key = (arr) => arr.map(x => x.type === 'site' ? 's:' + x.userId : 'e:' + x.name + '|' + (x.contact || ''));
-      return JSON.stringify({
-        d: key(_lsCredDes.getValue()),
-        a: key(_lsCredArt.getValue()),
-        s: _lsSelectedCode === LS_SPECIES_CODE ? (_lsCredSpecies ? _lsCredSpecies.id : null) : null,
-      });
-    }
-    function lsCreditsChanged() {
-      return !!(_lsActive && _lsCredOk && _lsSelectedCode && _lsCredDes && lsCredSnapshot() !== _lsCredBase);
-    }
-    // 저장 전 검증 (문제가 있으면 메시지 반환). 디자이너 없이 아티스트/종족만 두는 조합은 서버가 거부하므로 미리 안내.
-    function lsCreditsError() {
-      if (!lsCreditsChanged()) return null;
-      const des = _lsCredDes.getValue().length, art = _lsCredArt.getValue().length;
-      const sp = _lsSelectedCode === LS_SPECIES_CODE && _lsCredSpecies;
-      if (!des && (art || sp)) return 'SUBJECT 아티스트/연결 종족을 저장하려면 SUBJECT 디자이너를 1명 이상 추가해주세요.';
-      return null;
-    }
-
-    function renderLabberSubjectCreditsBox() {
-      const box = document.getElementById('labberSubjectCreditsBox');
-      if (!box) return;
-      const code = _lsSelectedCode;
-      // 권한 없음(소유주 등) / 조회 실패 / SUBJECT 없음 → 숨김. (제작자는 종족주·admin·staff 만 수정)
-      if (!_lsActive || !_lsCredOk || !lsCanEditCredits() || !code || !window.CreatorPicker) {
-        box.hidden = true; box.innerHTML = ''; _lsCredDes = _lsCredArt = null; _lsCredBase = ''; return;
-      }
-      const trait = labberTraitByCode(code);
-      const isSpecies = code === LS_SPECIES_CODE;
-      const saved = _lsCreditsByCode[code] || null;
-      _lsCredSpecies = (isSpecies && saved && saved.species_id) ? { id: saved.species_id, name: saved.species_name || '(알 수 없는 종족)' } : null;
-
-      box.hidden = false;
-      box.innerHTML = `
-        <p class="labber-subject-img-title">SUBJECT 제작자${trait ? ` · ${escapeHtml(trait.name)}` : ''}</p>
-        <p class="labber-subject-img-note" style="margin:0 0 10px;">LABBER 개체의 제작자가 아니라 <b>SUBJECT 자체</b>의 제작자예요. 종족주·운영진만 수정할 수 있고, 다른 SUBJECT에 등록해 둔 제작자 정보는 그대로 보존돼요.</p>
-        <div id="lsCredDesigner"></div>
-        <div class="cp-divider"></div>
-        <div id="lsCredArtist"></div>
-        ${isSpecies ? `
-        <div class="labber-subject-name-field" id="lsSpeciesField">
-          <p class="labber-subject-img-title">연결 종족</p>
-          <p class="labber-subject-img-status" id="lsSpeciesCurrent"></p>
-          <input type="text" id="lsSpeciesSearch" class="form-input" placeholder="종족 이름으로 검색..." autocomplete="off" oninput="lsOnSpeciesInput(this.value)">
-          <div id="lsSpeciesResults" style="display:flex; flex-direction:column; gap:4px; margin-top:6px;"></div>
-          <p class="labber-subject-img-note">종족형 SUBJECT 는 개체 페이지의 SUBJECT 카드에서 이 종족으로 바로 이동할 수 있어요.</p>
-        </div>` : ''}
-        <p class="labber-subject-img-msg" id="labberSubjectCreditsMsg"></p>`;
-
-      _lsCredDes = CreatorPicker.create(box.querySelector('#lsCredDesigner'), {
-        kind: 'designer', required: false, label: 'SUBJECT 디자이너', hint: 'SUBJECT(서브젝트) 자체의 디자이너 · 여러 명 추가 가능',
-      });
-      _lsCredArt = CreatorPicker.create(box.querySelector('#lsCredArtist'), {
-        kind: 'artist', required: false, label: 'SUBJECT 아티스트', hint: 'SUBJECT(서브젝트) 일러스트를 그린 사람 크레딧 · 여러 명 추가 가능',
-      });
-      _lsCredDes.setValue(saved ? saved.designers : []);
-      _lsCredArt.setValue(saved ? saved.artists : []);
-      if (isSpecies) lsRenderSpeciesCurrent();
-      _lsCredBase = lsCredSnapshot();   // 불러온 시점 기준 — 이후 달라지면 "변경됨"
-    }
-
-    function lsRenderSpeciesCurrent() {
-      const el = document.getElementById('lsSpeciesCurrent');
-      if (!el) return;
-      el.innerHTML = _lsCredSpecies
-        ? `${escapeHtml(_lsCredSpecies.name)} <button type="button" class="btn-ghost" style="margin-left:6px; font-size:12px; padding:4px 10px;" onclick="lsClearSpecies()">연결 해제</button>`
-        : '연결된 종족이 없어요.';
-    }
-    function lsClearSpecies() { _lsCredSpecies = null; lsRenderSpeciesCurrent(); }
-    function lsPickSpecies(idx) {
-      const s = _lsSpeciesResults[idx];
-      if (!s) return;
-      _lsCredSpecies = { id: s.id, name: s.name };
-      const inp = document.getElementById('lsSpeciesSearch'); if (inp) inp.value = '';
-      const res = document.getElementById('lsSpeciesResults'); if (res) res.innerHTML = '';
-      lsRenderSpeciesCurrent();
-    }
-    const _lsSpeciesSearchDebounced = (typeof debounce === 'function') ? debounce(lsRunSpeciesSearch, 250) : lsRunSpeciesSearch;
-    function lsOnSpeciesInput(v) { if (String(v || '').trim()) _lsSpeciesSearchDebounced(); else { const r = document.getElementById('lsSpeciesResults'); if (r) r.innerHTML = ''; } }
-    async function lsRunSpeciesSearch() {
-      const inp = document.getElementById('lsSpeciesSearch');
-      const res = document.getElementById('lsSpeciesResults');
-      if (!inp || !res || typeof searchSpecies !== 'function') return;
-      const q = inp.value.trim();
-      if (!q) { res.innerHTML = ''; return; }
-      const { data } = await searchSpecies(q, { limit: 8, sort: 'name' });   // LABBER 종족은 검색에서 제외됨
-      if (inp.value.trim() !== q) return;   // 오래된 응답 무시
-      _lsSpeciesResults = data || [];
-      res.innerHTML = _lsSpeciesResults.length
-        ? _lsSpeciesResults.map((s, i) => `<button type="button" class="btn-ghost" style="text-align:left;" onclick="lsPickSpecies(${i})">${escapeHtml(s.name)}</button>`).join('')
-        : '<p class="labber-subject-img-note" style="margin:0;">검색 결과가 없어요.</p>';
-    }
-
-    // 저장 4단계(개체 저장 성공 후): SUBJECT 제작자/연결 종족 반영. 변경이 없으면 RPC 를 호출하지 않는다. 실패 문자열(없으면 null) 반환.
-    async function lsApplyCredits() {
-      if (!lsCanEditCredits() || !lsCreditsChanged()) return null;
-      const code = lsSelectedFromDom();       // 방금 개체 저장으로 서버에 반영된 현재 SUBJECT
-      if (!code || code !== _lsSelectedCode) return null;
-      try {
-        const { data, error } = await sb.rpc('set_labber_subject_credits', {
-          p_character_id: Number(charId),
-          p_subject_code: code,
-          p_designers: _lsCredDes.getValue(),
-          p_artists: _lsCredArt.getValue(),
-          p_species_id: (code === LS_SPECIES_CODE && _lsCredSpecies) ? _lsCredSpecies.id : null,
-        });
-        if (error || !data?.success) return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
-        _lsCredBase = lsCredSnapshot();   // 저장 반영 → 변경 없음 상태로
-        return null;
-      } catch (err) {
-        return err.message || String(err);
-      }
-    }
-
-    function renderLabberSubjectImageBox() {
-      const box = document.getElementById('labberSubjectImageBox');
-      if (!box) return;
-      const code = _lsSelectedCode;
-      // SUBJECT 없음 → 그림 UI 숨김. 그림은 종족주 영역 기능이라 소유주(권한 없음)에게는 아예 렌더하지 않는다
-      // (SUBJECT 이름은 소유주 영역 renderLabberSubjectNameBox 로 분리됨).
-      if (!code || !lsCanEditImage()) { box.hidden = true; box.innerHTML = ''; return; }
-
-      const trait  = labberTraitByCode(code);
-      const stored = _lsImages[code] || null;
-      const pend   = (_lsPending && _lsPending.code === code) ? _lsPending : null;
-
-      let previewUrl = null, status = '', statusCls = '';
-      const actions = [];
-      if (pend && pend.action === 'set') {
-        previewUrl = pend.previewUrl;
-        status     = '새 그림이에요. 저장하기를 누르면 ' + (stored ? '교체' : '등록') + '돼요.';
-        statusCls  = 'is-pending';
-        actions.push('<button type="button" class="btn-ghost" onclick="lsPickFile()">다른 그림 선택</button>');
-        actions.push('<button type="button" class="btn-ghost" onclick="lsUndoPending()">선택 취소</button>');
-      } else if (pend && pend.action === 'delete') {
-        status    = '삭제 예정이에요. 저장하기를 누르면 이 그림이 삭제돼요.';
-        statusCls = 'is-delete';
-        actions.push('<button type="button" class="btn-ghost" onclick="lsUndoPending()">삭제 취소</button>');
-      } else if (stored) {
-        previewUrl = stored;
-        status     = '등록된 그림이에요.';
-        actions.push('<button type="button" class="btn-ghost" onclick="lsPickFile()">그림 교체</button>');
-        actions.push('<button type="button" class="btn-ghost" style="color:#ef4444;" onclick="lsMarkDelete()">삭제</button>');
-      } else {
-        status = '등록된 그림이 없어요.';
-        actions.push('<button type="button" class="btn-ghost" onclick="lsPickFile()">그림 등록</button>');
-      }
-
-      box.hidden = false;
-      box.innerHTML = `
-        <p class="labber-subject-img-title">SUBJECT 그림${trait ? ` · ${trait.name}` : ''}</p>
-        <div class="labber-subject-img-row">
-          ${previewUrl ? '<div class="labber-subject-img-preview"><img alt="SUBJECT 그림 미리보기"></div>' : ''}
-          <div class="labber-subject-img-body">
-            <p class="labber-subject-img-status ${statusCls}">${status}</p>
-            <div class="labber-subject-img-actions">${actions.join('')}</div>
-          </div>
-        </div>
-        <input type="file" id="labberSubjectFile" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="onLabberSubjectFile(this)">
-        <p class="labber-subject-img-msg" id="labberSubjectImageMsg"></p>
-        <p class="labber-subject-img-note">현재 선택한 SUBJECT의 그림만 등록할 수 있어요. 다른 SUBJECT에 등록해 둔 그림은 그대로 보존돼요. (JPG·PNG·WebP)</p>`;
-      if (previewUrl) box.querySelector('.labber-subject-img-preview img').src = previewUrl;
-    }
-
-    function lsPickFile() { document.getElementById('labberSubjectFile')?.click(); }
-
-    // SUBJECT 그림 전용 압축 — 공용 compressImage 는 투명 영역을 밝은 색으로 채운 JPEG 로 바꾸므로 쓰지 않는다.
-    //  - PNG / WebP 입력 → PNG 로 인코딩(알파 보존, 배경 채우기 없음). JPEG 입력 → JPEG.
-    //  - 긴 변 maxSize 로 축소. 2MB(MAX_BLOB_BYTES) 초과 시 크기를 줄여 재시도.
-    function lsCompressKeepAlpha(file, maxSize = 800) {
-      return new Promise((resolve, reject) => {
-        if (!LS_IMG_TYPES.includes(file.type)) { reject(new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.')); return; }
-        const keepAlpha = file.type === 'image/png' || file.type === 'image/webp';
-        const outType   = keepAlpha ? 'image/png' : 'image/jpeg';
-        const objectUrl = URL.createObjectURL(file);
-        const img = new Image();
-        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지 파일을 읽을 수 없어요.')); };
-        img.onload = () => {
-          URL.revokeObjectURL(objectUrl);
-          let cap = Math.min(maxSize, MAX_IMAGE_DIMENSION);
-          const attempt = (tries) => {
-            let { width, height } = img;
-            if (width > cap || height > cap) {
-              if (width > height) { height = Math.round(height * cap / width); width = cap; }
-              else                { width  = Math.round(width  * cap / height); height = cap; }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width; canvas.height = height;
-            canvas.getContext('2d').drawImage(img, 0, 0, width, height);   // 배경 채우기 없음 → 투명 유지
-            canvas.toBlob((blob) => {
-              if (!blob) { reject(new Error('이미지 압축에 실패했어요.')); return; }
-              if (blob.size <= MAX_BLOB_BYTES) { resolve(blob); return; }
-              if (tries >= 3) { reject(new Error('압축 후에도 용량이 2MB를 초과해요. 더 작은 이미지를 사용해주세요.')); return; }
-              cap = Math.round(cap * 0.75);
-              attempt(tries + 1);
-            }, outType, 0.85);
-          };
-          attempt(0);
-        };
-        img.src = objectUrl;
-      });
-    }
-
-    async function onLabberSubjectFile(input) {
-      const file = input.files && input.files[0];
-      input.value = '';
-      if (!file) return;
-      lsMsg('');
-      if (!LS_IMG_TYPES.includes(file.type)) { lsMsg('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.'); return; }
-      const code = _lsSelectedCode;
-      if (!code) return;
-      try {
-        const blob = await lsCompressKeepAlpha(file, 800);
-        lsClearPending();
-        _lsPending = { code, action: 'set', blob, previewUrl: URL.createObjectURL(blob) };
-        renderLabberSubjectImageBox();
-      } catch (err) {
-        lsMsg(err.message || '이미지를 처리하지 못했어요.');
-      }
-    }
-
-    function lsMarkDelete() {
-      if (!_lsSelectedCode || !_lsImages[_lsSelectedCode]) return;
-      lsClearPending();
-      _lsPending = { code: _lsSelectedCode, action: 'delete' };
-      lsMsg('');
-      renderLabberSubjectImageBox();
-    }
-
-    function lsUndoPending() {
-      lsClearPending();
-      lsMsg('');
-      renderLabberSubjectImageBox();
-    }
-
-    // 저장 1단계(개체 저장 전): 새 그림 Storage 업로드. 경로에 character_id + subject_code 포함.
-    async function lsUploadPending() {
-      if (!_lsActive || !_lsPending || _lsPending.action !== 'set') return null;
-      const code = _lsPending.code;
-      if (code !== lsSelectedFromDom()) return null;   // 방어: 선택이 바뀌었다면 반영하지 않음
-      const isPng = _lsPending.blob.type === 'image/png';
-      const path = `labber-subject/${charId}/${code}/${Date.now()}.${isPng ? 'png' : 'jpg'}`;
-      const { error } = await sb.storage.from('images').upload(path, _lsPending.blob, { contentType: isPng ? 'image/png' : 'image/jpeg' });
-      if (error) throw new Error(`SUBJECT 그림 업로드에 실패했어요. (${error.message})`);
-      return { code, path, url: sb.storage.from('images').getPublicUrl(path).data.publicUrl };
-    }
-
-    // 개체 저장이 실패했을 때 방금 올린(미사용) 그림 파일 정리
-    async function lsDiscardUpload(up) {
-      if (up?.path) await sb.storage.from('images').remove([up.path]).catch(() => {});
-    }
-
-    // 저장 2단계(개체 저장 성공 후): RPC 로 DB 반영 → 성공 시 이전 파일 Storage 정리.
-    // 실패 문자열(없으면 null)을 반환한다. DB 반영 후 Storage 정리 실패는 되돌리지 않고 경고만 남긴다.
-    async function lsApplyPending(up) {
-      if (!_lsActive || !_lsPending) return null;
-      const pend = _lsPending;
-      try {
-        if (pend.action === 'set' && up) {
-          const { data, error } = await sb.rpc('set_labber_subject_image', {
-            p_character_id: Number(charId), p_subject_code: up.code, p_image_url: up.url,
-          });
-          if (error || !data?.success) {
-            await lsDiscardUpload(up);
-            return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
-          }
-          _lsImages[up.code] = up.url;
-          const oldPath = storagePathFromUrl(data.previous_image_url);
-          if (oldPath) {
-            const { error: rmErr } = await sb.storage.from('images').remove([oldPath]);
-            if (rmErr) console.warn('[LABBER SUBJECT 그림] 이전 파일 정리 실패(orphan 가능):', oldPath, rmErr.message);
-          }
-        } else if (pend.action === 'delete') {
-          const { data, error } = await sb.rpc('delete_labber_subject_image', {
-            p_character_id: Number(charId), p_subject_code: pend.code,
-          });
-          if (error || !data?.success) {
-            return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
-          }
-          delete _lsImages[pend.code];
-          const oldPath = storagePathFromUrl(data.deleted_image_url);
-          if (oldPath) {
-            const { error: rmErr } = await sb.storage.from('images').remove([oldPath]);
-            if (rmErr) console.warn('[LABBER SUBJECT 그림] 삭제된 그림 파일 정리 실패(orphan 가능):', oldPath, rmErr.message);
-          }
-        }
-        lsClearPending();
-        return null;
-      } catch (err) {
-        if (up) await lsDiscardUpload(up);
-        return err.message || String(err);
-      }
-    }
-
-    // 저장 3단계(개체 저장 성공 후): SUBJECT 개별 이름 반영. 변경이 없으면 RPC 를 호출하지 않는다.
-    // 빈 이름 = 개별 이름 없음(서버가 행 삭제). 실패 문자열(없으면 null)을 반환한다.
-    async function lsApplyName() {
-      if (!_lsActive || !lsCanEditName()) return null;   // 이름 수정 권한 없는 역할은 RPC 를 호출하지 않는다(서버도 거부)
-      const code = lsSelectedFromDom();       // 방금 개체 저장으로 서버에 반영된 현재 SUBJECT
-      if (!code || code !== _lsSelectedCode) return null;
-      const next = lsNormName(_lsNameDraft);
-      if (next === (_lsNames[code] || '')) return null;
-      try {
-        const { data, error } = await sb.rpc('set_labber_subject_name', {
-          p_character_id: Number(charId), p_subject_code: code, p_name: next,
-        });
-        if (error || !data?.success) return lsErrorText(data?.error) + (error ? ` (${error.message})` : '');
-        if (data.individual_name) _lsNames[code] = data.individual_name;
-        else delete _lsNames[code];
-        _lsNameDraft = _lsNames[code] || '';
-        return null;
-      } catch (err) {
-        return err.message || String(err);
-      }
-    }
-
+    // SUBJECT는 2026-09-24부로 LABBER 개체 수정 화면에서 전혀 관리하지 않는다(그림/제작자/
+    // 이름/종류 교체 전부) — 위 loadCustomFields의 커스텀 필드 루프가 SUBJECT 필드 자체를
+    // 완전히 건너뛴다(별도 조회/초기화 없음). SUBJECT instance 자체와 그 이미지/이름/크레딧
+    // 데이터는 전혀 건드리지 않는다 — 개인연구실 > SUBJECT 보관소가 계속 읽고 쓴다.
+    // 관련 RPC(set/delete_labber_subject_image, get/set_labber_subject_credits 등)도
+    // DROP하지 않았다 — 이 화면에서 호출하지 않을 뿐이다.
     async function loadExistingCategories(speciesName) {
       if (!speciesName) return;
       const { data: chars } = await sb
@@ -2588,10 +2017,6 @@
         // 비워두면 NULL로 저장되어 상세 페이지의 등록명/소유주명 전환 탭이 다시 숨겨진다(선택 항목).
         const ownerCustomName = document.getElementById('charOwnerCustomName').value.trim().normalize('NFC') || null;
 
-        // LABBER SUBJECT 이름 길이 검사 — 소유주 영역의 이름만 저장 대상(그림/종류/제작자는 소유주에게 잠겨 있고 저장하지 않는다)
-        const lsNameProblemOwner = lsNameError();
-        if (lsNameProblemOwner) { errorEl.textContent = lsNameProblemOwner; return; }
-
         btn.textContent = '저장 중...';
         btn.disabled = true;
         try {
@@ -2608,10 +2033,6 @@
           }).eq('id', charId);
 
           if (error) throw new Error(`저장에 실패했어요: ${error.message}`);
-
-          // LABBER SUBJECT 이름 (소유주 영역) — 서버에 저장된 현재 SUBJECT 기준. 개체 저장 후 RPC 로만 반영, 실패해도 개체 저장은 유지.
-          const lsNameErrOwner = await lsApplyName();
-          if (lsNameErrOwner) alert('개체 정보는 저장됐지만 SUBJECT 이름 처리에 실패했어요:\n' + lsNameErrOwner);
 
           // 등록명(characters.name)은 이 분기에서 변경되지 않으므로 adoptions.character_name 동기화 불필요
 
@@ -2696,12 +2117,6 @@
       const artist_user_ids = artists.filter(a => a.type === 'site').map(a => a.userId);
       const artist_external = artists.filter(a => a.type === 'external').map(a => ({ name: a.name }));
       const artist_nickname = artists.length ? artists.map(a => a.type === 'site' ? a.nickname : a.name).join(' / ') : null;
-
-      // LABBER SUBJECT 이름 길이 검사 (개체 저장/업로드를 시작하기 전에 막는다)
-      const lsNameProblem = lsNameError();
-      if (lsNameProblem) { errorEl.textContent = lsNameProblem; return; }
-      const lsCredProblem = lsCreditsError();   // SUBJECT 제작자/종족 조합 검증
-      if (lsCredProblem) { errorEl.textContent = lsCredProblem; return; }
 
       btn.textContent = '저장 중...';
       btn.disabled = true;
@@ -2870,6 +2285,15 @@
           const codes = [...picker.querySelectorAll('input:checked')].map(el => el.value).filter(Boolean);
           if (codes.length) customFieldValues[picker.dataset.field] = codes;
         });
+        // SUBJECT는 2026-09-24부터 이 화면에 선택 UI가 없다(위 .labber-trait-picker 루프가
+        // SUBJECT를 더 이상 만들지 않음) — 그렇다고 저장 시 이 키를 비워버리면 실제 SUBJECT
+        // 배정(instance/assignment)과 무관하게 유지되던 표시용 호환 캐시(characters.
+        // custom_field_values.SUBJECT)가 다른 필드를 고칠 때마다 조용히 지워진다. 이 폼은
+        // 그 캐시를 절대 만들거나 바꾸지 않고, 원래 있던 값을 그대로 실어 보내기만 한다
+        // (실제 값은 attach/detach RPC만 갱신한다).
+        if (originalCharData?.custom_field_values?.SUBJECT !== undefined) {
+          customFieldValues.SUBJECT = originalCharData.custom_field_values.SUBJECT;
+        }
 
         const isSensitive   = document.getElementById('isSensitive').checked;
         const sensitiveNote = document.getElementById('sensitiveNote').value.trim();
@@ -2897,9 +2321,6 @@
           await loadSpeciesSteps(currentSpeciesId);
           throw new Error('대표 이미지 성장 단계 정보가 최신 상태가 아니었어요. 다시 불러왔으니 선택을 확인하고 다시 저장해주세요.');
         }
-
-        // LABBER SUBJECT 그림: 새 그림이 있으면 개체 저장 전에 Storage 업로드(RPC 는 개체 저장 성공 후 호출)
-        const lsUpload = await lsUploadPending();
 
         const { error } = await sb.from('characters').update({
           name,
@@ -2942,17 +2363,7 @@
         }).eq('id', charId);
 
         if (error) {
-          await lsDiscardUpload(lsUpload);   // 개체 저장 실패 → 방금 올린 미사용 SUBJECT 그림 파일 정리
           throw new Error(`저장에 실패했어요: ${error.message}`);
-        }
-
-        // LABBER SUBJECT 그림 반영 (등록/교체/삭제) — 서버에 SUBJECT 가 저장된 뒤 RPC 로만 변경
-        const lsErr     = await lsApplyPending(lsUpload);
-        const lsNameErr = await lsApplyName();   // SUBJECT 이름 (개체 저장 후 RPC) — 이름 수정 권한이 없는 역할은 호출하지 않는다
-        const lsCredErr = await lsApplyCredits(); // SUBJECT 제작자/연결 종족 (종족주·admin 만)
-        if (lsErr || lsNameErr || lsCredErr) {
-          alert('개체 정보는 저장됐지만 SUBJECT 처리에 실패했어요:\n' +
-            [lsErr && ('그림: ' + lsErr), lsNameErr && ('이름: ' + lsNameErr), lsCredErr && ('제작자/종족: ' + lsCredErr)].filter(Boolean).join('\n'));
         }
 
         // 성장 Step 이미지 반영: 새 파일 있는 Step은 upsert, ✕로 제거된 Step은 delete

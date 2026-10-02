@@ -315,8 +315,15 @@
     async function initPage() {
       const user = await getUser();
       if (!user) { window.location.href = 'login.html'; return; }
+      // 종족주 여부는 metadata role이 아니라 실제 소유(species.owner_user_id)로 판정한다 — characters INSERT RLS와 같은 기준.
+      // 종족이 지정된 진입은 URL의 species_id 종족을 본인이 소유하고 species 이름(저장·데이터 조회 기준)도 그 종족과 일치해야만 허용.
       const role = user.user_metadata?.role;
-      if (!isAdminOrStaff(role) && role !== 'species_owner') { window.location.href = 'index.html'; return; }
+      if (!isAdminOrStaff(role)) {
+        const allowed = (speciesId || speciesName)
+          ? await isOwnSpeciesFromUrl(user.id)
+          : await window._cachedIsSpeciesOwner(user.id, role === 'species_owner');
+        if (!allowed) { window.location.href = 'index.html'; return; }
+      }
 
       currentUser = user;
 
@@ -341,6 +348,14 @@
 
       // 기본 1개 추가
       addItem();
+    }
+
+    // URL의 species_id 종족 owner_user_id가 userId이고, URL species 이름도 그 종족명과 같은지.
+    async function isOwnSpeciesFromUrl(userId) {
+      if (!/^\d+$/.test(speciesId || '') || !speciesName) return false;
+      const { data, error } = await sb.from('species').select('name, owner_user_id').eq('id', speciesId).maybeSingle();
+      if (error || !data) return false;
+      return data.owner_user_id === userId && data.name === speciesName;
     }
 
     async function loadBulkUsers() {

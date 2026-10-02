@@ -266,7 +266,7 @@ function renderExplorers() {
 
   const curSub = cur.isDefault
     ? '기본 LABBER · 보너스 없음'
-    : '개인 LABBER · <span class="is-bonus">연구기록 +3%</span>';
+    : '개인 LABBER · <span class="is-bonus">연구기록 +5</span>';
 
   const pickBtn = hasChoice ? `
     <button type="button" class="labexp-explorer-pick" id="explorerPickBtn" aria-expanded="false" aria-controls="explorerPanel">

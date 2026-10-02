@@ -154,6 +154,12 @@ function formatBagNameThumb(name) {
     .replace(/^(쁘띠아라크네)\(Petit Arachne\)$/, '$1<br>(Petit Arachne)');
 }
 
+// 미리보기 좌/우 이름 전용: 좁은 모바일에서 줄바꿈이 필요할 때 '(' 앞에서 우선 끊기도록 <wbr> 삽입
+// (예: 드라카우2 / (Dracow)) — 한 줄에 들어가면 화면 변화 없음
+function formatBagPreviewName(name) {
+  return escapeHtml(name || '').replace(/\(/g, '<wbr>(');
+}
+
 // ── 초기화 ──────────────────────────────────────────────
 async function initPage() {
   try {
@@ -475,7 +481,7 @@ function renderEquippedPreview() {
   const leftHtml = equippedFrame
     ? `<div class="bag-ep-side bag-ep-side--left">
         <span class="bag-ep-item-label">프레임</span>
-        <p class="bag-ep-name">${equippedFrame.name}</p>
+        <p class="bag-ep-name">${formatBagPreviewName(equippedFrame.name)}</p>
         <button class="bag-unequip-btn" onclick="unequipFrame()">해제하기</button>
       </div>`
     : `<div class="bag-ep-side bag-ep-side--left"></div>`;
@@ -483,7 +489,7 @@ function renderEquippedPreview() {
   const rightHtml = equippedSticker
     ? `<div class="bag-ep-side bag-ep-side--right">
         <span class="bag-ep-item-label">스티커</span>
-        <p class="bag-ep-name">${equippedSticker.name}</p>
+        <p class="bag-ep-name">${formatBagPreviewName(equippedSticker.name)}</p>
         <button class="bag-unequip-btn" onclick="unequipSticker()">해제하기</button>
       </div>`
     : `<div class="bag-ep-side bag-ep-side--right"></div>`;

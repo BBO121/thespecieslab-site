@@ -95,6 +95,9 @@
         <h1 class="register-title">개체 등록</h1>
         <p class="register-subtitle" id="registerSubtitle">새로운 개체를 종족연구소에 추가해요</p>
 
+        <!-- LABBER 승인 데이터 불러오기 (운영진 + LABBER 종족일 때만 js/labber-register.js 가 채운다) -->
+        <div id="labberImportPanel" hidden></div>
+
         <form class="register-form" id="registerForm">
 
           <!-- 메인 이미지 -->
@@ -114,7 +117,7 @@
           </div>
 
           <!-- 기본 이미지 선택 -->
-          <div class="form-group">
+          <div class="form-group lr-hide-in-labber">
             <label class="form-label">메인 이미지가 없나요? <span class="form-hint-inline">선택사항</span></label>
             <p class="form-hint">이미지가 없는 개체는 연구소 기본 이미지를 사용할 수 있습니다.<br>기본 이미지를 선택하면 업로드한 메인 이미지보다 우선 표시돼요.</p>
             <div class="default-img-grid" id="defaultImgGrid"></div>
@@ -129,14 +132,14 @@
           </div>
 
           <!-- 성장 Step 이미지 -->
-          <div class="form-group" id="stepImageSection" style="display:none;">
+          <div class="form-group lr-hide-in-labber" id="stepImageSection" style="display:none;">
             <label class="form-label">성장 Step 이미지 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항</span></label>
             <p class="form-hint">이 종족은 성장 단계별 이미지를 등록할 수 있어요. 등록하지 않은 Step은 저장되지 않습니다.</p>
             <div id="stepImageList" style="display:flex; flex-direction:column; gap:16px;"></div>
           </div>
 
           <!-- 추가 이미지 -->
-          <div class="form-group">
+          <div class="form-group lr-hide-in-labber">
             <label class="form-label">추가 이미지 <span class="form-hint" style="display:inline; margin:0 0 0 6px;">선택사항</span></label>
             <div id="extraImageList" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;"></div>
             <input type="file" id="extraImageInput" accept="image/*" style="display:none;" multiple onchange="addExtraImages(this)">
@@ -377,6 +380,8 @@
   <script src="../js/utils.js"></script>
   <script src="../js/search.js"></script>
   <script src="../js/step-priority.js"></script>
+  <script src="../js/labber-traits.js"></script>
+  <script src="../js/labber-register.js"></script>
   <script>
     let currentUser   = null;
     let ownerType     = 'site';
@@ -788,6 +793,9 @@
         userWatermarkUrl = profData?.watermark_url || null;
       }
       await Promise.all([loadUsers(), loadCustomFields(), loadExistingCategories(), loadSpeciesSteps()]);
+
+      // LABBER 종족 + 운영진이면 상단에 "등록 데이터 불러오기" 패널 (js/labber-register.js). 그 외에는 아무 일도 하지 않는다.
+      if (window.LabberRegister) await window.LabberRegister.init({ user, speciesId });
     }
 
     // 종족별 species_steps 조회 요청이 중복으로 겹칠 때, 늦게 도착한(오래된) 응답이
@@ -1421,6 +1429,8 @@
         let watermark_type     = null; // 실제 적용한 워터마크 종류 (GIF 등 워터마크 미적용 시 null → DB 기본값)
         // 개인 워터마크 있으면 사용, 없으면 연구소 기본
         const wmSrc = userWatermarkUrl || '../images/watermark.png';
+        // LABBER 승인 데이터 등록일 때만 labber-character/{application_id}/ 폴더로 묶는다 (일반 등록은 빈 문자열 = 기존 경로 그대로)
+        const uploadPrefix = (window.LabberRegister && window.LabberRegister.uploadPrefix()) || '';
         if (file) {
           const ts    = Date.now();
           const isGif = file.type === 'image/gif';
@@ -1428,7 +1438,7 @@
           const blob  = await compressImage(file);
 
           // 원본 저장
-          const origName = `${ts}_orig.${ext}`;
+          const origName = `${uploadPrefix}${ts}_orig.${ext}`;
           const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: isGif ? 'image/gif' : 'image/jpeg' });
           if (origErr) throw new Error(`원본 이미지 업로드에 실패했어요. (${origErr.message})`);
           original_image_url = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
@@ -1439,7 +1449,7 @@
           } else {
             // 워터마크 합성 후 저장
             const wmBlob   = await applyWatermark(blob, wmSrc);
-            const mainName = `${ts}.jpg`;
+            const mainName = `${uploadPrefix}${ts}.jpg`;
             const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: 'image/jpeg' });
             if (mainErr) throw new Error(`메인 이미지 업로드에 실패했어요. (${mainErr.message})`);
             image_url = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
@@ -1448,7 +1458,7 @@
 
           // 썸네일 (워터마크 없음 — 첫 프레임 크롭)
           const thumbBlob = pendingThumbnailBlob || await autoCenterCropToBlob(file, 3/4, 600, 0.85);
-          const thumbName = `${ts}_thumb.jpg`;
+          const thumbName = `${uploadPrefix}${ts}_thumb.jpg`;
           const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
           if (thumbErr) throw new Error(`썸네일 업로드에 실패했어요. (${thumbErr.message})`);
           thumbnail_url = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
@@ -1609,7 +1619,9 @@
         }
 
         // DB 저장
-        const { data: newChar, error } = await sb.from('characters').insert({
+        // LABBER 승인 데이터 등록이면 클라이언트 직접 INSERT 대신 전용 RPC(register_labber_design_character)로 한 트랜잭션 등록한다.
+        // 일반 등록은 아래 payload 를 그대로 INSERT (기존과 동일).
+        const _insertPayload = {
           name,
           char_number:         document.getElementById('charNumber').value.trim() || null,
           species_name:        speciesName || null,
@@ -1642,7 +1654,10 @@
           allow_paid_adoption:  getTristate('allowPaidAdoption'),
           allow_other_adoption: getTristate('allowOtherAdoption'),
           char_sections:       charSections.length ? charSections : null,
-        }).select('id').single();
+        };
+        const { data: newChar, error } = (window.LabberRegister && window.LabberRegister.isActive())
+          ? await window.LabberRegister.registerCharacter(_insertPayload)
+          : await sb.from('characters').insert(_insertPayload).select('id').single();
 
         if (error) throw new Error(`등록에 실패했어요: ${error.message}`);
 
@@ -1694,6 +1709,7 @@
         }
         window.location.href = speciesId ? `species.html?id=${speciesId}` : 'my-characters.html';
       } catch (err) {
+        if (window.LabberRegister) window.LabberRegister.onRegisterFailed();   // LABBER 모드에서 이번 시도에 올린 파일 정리 (일반 등록은 no-op)
         errorEl.textContent = err.message;
       } finally {
         btn.textContent = '등록하기';

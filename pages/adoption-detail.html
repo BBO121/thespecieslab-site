@@ -87,6 +87,9 @@
     }
     .apply-btn:hover { background:var(--sky-deep); }
     .apply-btn:disabled { background:var(--border); color:var(--text-mute); cursor:not-allowed; }
+    .apply-btn--cancel { background:#fff; color:#B91C1C; border:1.5px solid #FCA5A5; margin-top:10px; }
+    .apply-btn--cancel:hover { background:#FEF2F2; }
+    .raffle-cancel-hint { font-size:12px; color:var(--text-mute); margin:6px 0 0; text-align:center; }
     .raffle-info-box {
       background:#F0FDF4; border:1px solid #86EFAC; border-radius:var(--radius);
       padding:12px 16px; margin-top:12px; font-size:13px; color:#166534;
@@ -1087,7 +1090,12 @@
           if (currentUser && !isAuthor) {
             let html = '';
             if (myApp) {
-              html = `<div class="raffle-info-box">✅ 추첨 신청이 완료됐어요!</div>`;
+              // 취소 버튼 표시는 UX 용 — 최종 허용 여부는 cancel_adoption_raffle_application 의 서버 시각 판정
+              html = `
+                <div class="raffle-info-box">✅ 추첨 신청이 완료됐어요!</div>
+                <button class="apply-btn apply-btn--cancel" onclick="cancelRaffle()">신청 취소</button>
+                <p class="raffle-cancel-hint">추첨 시각 전까지 취소·재신청할 수 있어요</p>
+              `;
             } else {
               html = `
                 <div class="raffle-info-box">🎲 추첨에 신청하려면 버튼을 눌러주세요.</div>
@@ -1171,24 +1179,53 @@
       const btn = document.querySelector('#freeActionArea .apply-btn');
       if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
 
-      const { error } = await sb.from('adoption_applications').insert({
-        adoption_id:        adoptionId,
-        applicant_nickname: myNick,
-        applicant_id:       currentUser.id,
-      });
+      // 서버 검증 RPC — 유형/분양중/추첨 시각/작성자/중복 판정과 닉네임은 서버가 결정
+      const { data, error } = await sb.rpc('apply_adoption_raffle', { p_adoption_id: adoptionId });
 
-      if (error) {
+      if (error || !data?.ok) {
+        console.error('[applyRaffle] RPC 실패:', error || data);
         if (btn) { btn.disabled = false; btn.textContent = '추첨 신청하기'; }
-        if (error.code === '23505') {
-          alert('이미 신청하셨어요.');
-        } else {
-          alert('신청에 실패했어요. 다시 시도해주세요.');
-        }
+        alert(data?.error || '신청에 실패했어요. 다시 시도해주세요.');
+        await afterRaffleRpcFail(data?.code);
         return;
       }
 
-      document.getElementById('freeActionArea').innerHTML =
-        `<div class="raffle-info-box">✅ 추첨 신청이 완료됐어요!</div>`;
+      await rerenderRaffleArea();
+    }
+
+    async function cancelRaffle() {
+      if (!confirm('추첨 신청을 취소할까요?')) return;
+
+      const btn = document.querySelector('#freeActionArea .apply-btn--cancel');
+      if (btn) { btn.disabled = true; btn.textContent = '취소 중...'; }
+
+      const { data, error } = await sb.rpc('cancel_adoption_raffle_application', { p_adoption_id: adoptionId });
+
+      if (error || !data?.ok) {
+        console.error('[cancelRaffle] RPC 실패:', error || data);
+        if (btn) { btn.disabled = false; btn.textContent = '신청 취소'; }
+        alert(data?.error || '취소에 실패했어요. 다시 시도해주세요.');
+        await afterRaffleRpcFail(data?.code);
+        return;
+      }
+
+      await rerenderRaffleArea();
+    }
+
+    // 신청/취소 후 신청 상태 + 신청자 목록/인원수 다시 조회·렌더링
+    // (신청·취소는 작성자가 아닌 사용자가 분양중일 때만 가능하므로 isAuthor=false / isOpen=true 로 다시 그린다)
+    async function rerenderRaffleArea() {
+      if (!currentAdoption) { location.reload(); return; }
+      await renderFreeAction(currentAdoption, false, true, false);
+    }
+
+    // 서버가 거부한 경우 — 마감/기간 종료는 화면 전체를 최신 상태로, 신청 상태 불일치는 영역만 다시 그림
+    async function afterRaffleRpcFail(code) {
+      if (['closed', 'deadline', 'not_found', 'not_raffle'].includes(code)) {
+        location.reload();
+      } else if (['already_applied', 'not_applied'].includes(code)) {
+        await rerenderRaffleArea();
+      }
     }
 
     async function runRaffle() {

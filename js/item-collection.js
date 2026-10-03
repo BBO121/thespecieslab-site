@@ -5,8 +5,9 @@
 //   window.ItemDogam 모듈로 감쌌다. 파일 로드 시 자동 실행되던 initPage() 호출도 제거 —
 //   이제 dogam.html 의 js/dogam.js 가 명시적으로 ItemDogam.init() 을 호출한다.
 //   HTML 인라인 onclick 은 openIcDetail/closeIcDetail 대신 ItemDogam.openDetail/closeDetail 을 쓴다.
-// - 획득 여부(acquired)는 카드 opacity 만 크게(0.4) 차등 — 이름/설명 자체를 가리지 않는다
+// - 획득 여부(acquired)는 카드 opacity 만 크게(0.4) 차등 — 이름 자체를 가리지 않는다
 //   (수집 여부로 아이템명을 숨기는 기능 없음 — 명시적 요청으로 제거됨).
+//   단 상세 모달의 설명(description)만 미획득이면 '???' (2026-10-03, openIcDetail).
 // - 카드에는 description 을 표시하지 않는다. 목록 = 수집 현황, 모달 = 상세 정보로 분리.
 //   description/rarity 는 카드 클릭 시 뜨는 상세 모달(#icDetailModal)에서만 보여준다.
 // - 2026-09-06 대분류/소분류 2단 탭 구조로 개편(item_dogam_hierarchy_migration_0906.sql).
@@ -355,7 +356,8 @@ window.ItemDogam = (function () {
 
   // ── 상세 모달 — 연구소 상점 #shopDetailModal(js/shop.js openDetailModal/closeDetailModal)과
   //    동일한 구조/토글 방식(.shop-detail-*, style.display='flex'/'none')을 별도 노드(#icDetailModal)에
-  //    재사용. 획득 여부와 무관하게 열리며, 미획득 아이템도 이름/설명/획득처를 그대로 공개한다. ──
+  //    재사용. 획득 여부와 무관하게 열리며, 미획득 아이템도 이름/획득처는 그대로 공개한다
+  //    (설명만 '???' — 2026-10-03). ──
   function openIcDetail(idx) {
     const c = _icCards[idx];
     if (!c) return;
@@ -368,7 +370,7 @@ window.ItemDogam = (function () {
       : icThumbHtml(r, name);
     document.getElementById('icDetailName').textContent = name;
 
-    // 미획득 아이템 — 이미지만 크게 dim 처리(일반 카테고리는 이름/설명/획득처 그대로 공개).
+    // 미획득 아이템 — 이미지만 크게 dim 처리(일반 카테고리는 이름/획득처 그대로 공개, 설명만 '???').
     document.getElementById('icDetailModal').classList.toggle('is-locked', !r.acquired);
 
     // Design by — 연구소 상점 상세모달과 동일한 표기. designer 없거나 비밀 잠금이면 숨김.
@@ -377,7 +379,9 @@ window.ItemDogam = (function () {
     creditEl.textContent  = showCredit ? `Design by ${r.designer}` : '';
     creditEl.style.display = showCredit ? '' : 'none';
 
-    document.getElementById('icDetailDesc').textContent = secret ? '???' : (r.description || '');
+    // 설명(description)은 미획득이면 일반 카테고리여도 '???' — 이름/이미지/획득처/등급은 그대로 공개.
+    // 판정은 r.acquired(first_acquired_at 기준)라 판매/소비로 보유량이 0이 돼도 설명은 계속 공개된다.
+    document.getElementById('icDetailDesc').textContent = (secret || !r.acquired) ? '???' : (r.description || '');
 
     document.getElementById('icDetailAcquisition').innerHTML = secret
       ? `<span class="labber-trait-acquisition-label">획득처</span> : <span class="labber-trait-acquisition-null">???</span>`

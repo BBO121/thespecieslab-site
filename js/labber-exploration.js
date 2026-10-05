@@ -563,7 +563,13 @@ function closeProbPanel() {
 //        [상] 슬롯도 여기에 합쳐진다.
 //      - item_pool 슬롯은 서버가 후보 중 균등 무작위 1개를 고르므로 "슬롯 확률 ÷ 후보 수" 가
 //        각 아이템의 최종 개별 획득 확률이다.
+//      - 단, PROB_GROUPED_SLOTS 의 슬롯은 후보를 나누지 않고 "그룹명 + 슬롯 확률" 한 줄로 표시한다
+//        (지급은 서버가 그대로 후보 중 균등 1개 — 표시만 묶음).
 //  · 정렬: 최종 확률 내림차순. 같은 확률이면 서버가 준 슬롯/후보 순서를 유지한다(안정 정렬).
+const PROB_GROUPED_SLOTS = {
+  ttibu_group: '띠부씰 랜덤',   // 과자바구니 — 1% 당첨 시 띠부씰 001/002/003 중 1종
+};
+
 function roundPct(n) { return Math.round(Number(n) * 100) / 100; }
 
 function researchLabel(min, max) {
@@ -591,6 +597,10 @@ function buildProbEntries(slots) {
       return;
     }
     const items = s.items || [];
+    if (PROB_GROUPED_SLOTS[s.slot_key] && items.length) {
+      entries.push({ label: PROB_GROUPED_SLOTS[s.slot_key], pct: w, order: order++ });
+      return;
+    }
     if (!items.length) {
       // 활성 후보가 0개인 슬롯(정상 데이터에는 없음). 서버 최후 안전장치가 연구기록 +3을 지급하므로
       // 화면도 실제 결과와 같게 연구기록 3개로 합산한다.

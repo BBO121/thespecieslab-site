@@ -2,7 +2,7 @@ let _user              = null;
 let _equippedFrameId   = null;
 let _equippedStickerId = null;
 let _itemsByType       = {};
-let _activeTab         = 'decorate'; // 'item' | 'decorate'
+let _activeTab         = 'item'; // 'item' | 'decorate'
 
 const TAB_ITEM_TYPES = {
   item: ['consumable'],
@@ -166,7 +166,7 @@ async function initPage() {
     _user = await getUser();
     if (!_user) { window.location.href = 'login.html'; return; }
 
-    // 딥링크 ?tab=item — 예) SUBJECT 반려 신청의 [다시 등록하기]. 없으면 기본 탭(꾸미기) 그대로 유지.
+    // 딥링크 ?tab=item — 예) SUBJECT 반려 신청의 [다시 등록하기]. 없으면 기본 탭(아이템) 그대로 유지.
     if (new URLSearchParams(location.search).get('tab') === 'item') {
       _activeTab = 'item';
       document.querySelectorAll('#bagTabRow .shop-tab-btn').forEach(b => {
@@ -200,6 +200,15 @@ async function initPage() {
       if (dd && !dd.hidden && wrap && !wrap.contains(e.target)) { dd.hidden = true; }
     });
 
+    // SUBJECT 제작자 — LABBER 개체 제작자와 같은 입력 방식(js/creator-picker.js). 둘 다 필수(2026-10-07 핫픽스 복구).
+    if (window.CreatorPicker) {
+      _bagSubjectDesigner = CreatorPicker.create(document.getElementById('bagSubjectDesignerPicker'), {
+        kind: 'designer', required: true, label: 'SUBJECT 디자이너', hint: '사이트 유저 검색 또는 사이트 밖 제작자 · 여러 명 추가 가능',
+      });
+      _bagSubjectArtist = CreatorPicker.create(document.getElementById('bagSubjectArtistPicker'), {
+        kind: 'artist', required: true, label: 'SUBJECT 아티스트', hint: '이 SUBJECT 일러스트를 그린 사람 · 여러 명 추가 가능',
+      });
+    }
 
     document.getElementById('pageLoading').style.display = 'none';
     document.getElementById('pageContent').style.display = '';
@@ -834,9 +843,13 @@ function closeBagOpenResult() {
 // 처리된다(submit_labber_subject_bag_registration — 이미지 없으면 IMAGE_REQUIRED, supabase/labber_subject_image_approval_1001.sql).
 // 종족형("특이: 종족")은 연결 종족 선택도 필요하다. 아이템 소비 + SUBJECT instance 생성 + 신청 이미지 연결은 운영진이
 // 관리소 > 디자인 승인 > [SUBJECT 승인] 탭에서 이미지를 확인하고 승인할 때(approve_labber_subject_bag_registration) 일어난다.
-// 승인된 이미지는 사용자가 바꾸거나 지울 수 없다(서버 RPC 가 admin/staff 만 허용). 디자이너/아티스트 입력은 신청 단계에 두지 않는다.
+// 승인된 이미지는 사용자가 바꾸거나 지울 수 없다(서버 RPC 가 admin/staff 만 허용).
+// 제작자(디자이너/아티스트)는 신청 단계 필수(2026-10-07 핫픽스, supabase/labber_subject_bag_creator_required_1007.sql) —
+// 신청 행에 스냅샷 저장 → 승인 시 labber_subject_instance_credits 로 복사. 승인 후 크레딧 변경은 운영진만.
 let _bagSubjectRegisterBusy = false;
 let _bagSubjectRegisterPending = null;   // { blob, url, ext } — 아직 업로드 안 한 선택 이미지
+let _bagSubjectDesigner = null;   // CreatorPicker — SUBJECT 디자이너(필수)
+let _bagSubjectArtist   = null;   // CreatorPicker — SUBJECT 아티스트(필수, 디자이너와 동일인 지정 가능)
 
 // ── 연결 종족 (종족형 SUBJECT "특이: 종족" 전용, 0921 labber-lab.js 신청서 폼에서 옮겨옴) ──
 // 내가 종족주인 종족(LABBER 제외)만 후보. 서버(submit RPC)가 종족주 여부를 다시 검증한다.
@@ -939,6 +952,8 @@ function resetSubjectRegisterPanel() {
   if (err) err.textContent = '';
   const btn = document.getElementById('bagSubjectRegisterSubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = '등록 신청'; }   // 이미지를 고르기 전까지 비활성
+  if (_bagSubjectDesigner) _bagSubjectDesigner.clear();
+  if (_bagSubjectArtist) _bagSubjectArtist.clear();
   // 연결 종족 — 이전 아이템에서 고른 값이 다음 신청에 섞이지 않도록 항상 비우고 숨긴다(열 때 다시 판정).
   const spGroup = document.getElementById('bagSubjectSpeciesGroup');
   const spSel   = document.getElementById('bagSubjectSpeciesSelect');
@@ -1006,6 +1021,10 @@ async function onSubjectRegisterSubmit() {
   const btn = document.getElementById('bagSubjectRegisterSubmitBtn');
   if (err) err.textContent = '';
   if (!_bagSubjectRegisterPending) { if (err) err.textContent = 'SUBJECT 이미지를 첨부해주세요.'; return; }
+  // 제작자(디자이너/아티스트) 둘 다 필수 — 이미지 업로드 전에 먼저 확인(불필요한 업로드 방지). 서버도 DESIGNER/ARTIST_REQUIRED 로 다시 막는다.
+  if (!_bagSubjectDesigner || !_bagSubjectArtist) { if (err) err.textContent = '제작자 입력란을 불러오지 못했어요. 새로고침 후 다시 시도해주세요.'; return; }
+  if (!_bagSubjectDesigner.count()) { if (err) err.textContent = 'SUBJECT 디자이너를 1명 이상 추가해주세요.'; return; }
+  if (!_bagSubjectArtist.count()) { if (err) err.textContent = 'SUBJECT 아티스트를 1명 이상 추가해주세요.'; return; }
 
   // 연결 종족 — 종족형 SUBJECT 만 필수. 그 외 종류는 아예 보내지 않는다(서버도 NULL 로 강제).
   const isSpeciesSubject = bagIsSpeciesSubjectItem(code);
@@ -1034,7 +1053,12 @@ async function onSubjectRegisterSubmit() {
     const imageUrl = sb.storage.from('images').getPublicUrl(path).data.publicUrl;
     if (!imageUrl) throw new Error('이미지 URL을 만들지 못했어요.');
 
-    const params = { p_item_id: row.item_id, p_image_url: imageUrl };
+    const params = {
+      p_item_id: row.item_id,
+      p_image_url: imageUrl,
+      p_designers: _bagSubjectDesigner.getValue(),
+      p_artists: _bagSubjectArtist.getValue(),
+    };
     if (isSpeciesSubject) params.p_species_id = Number(spVal);
     const { data, error } = await sb.rpc('submit_labber_subject_bag_registration', params);
     if (error) throw new Error(`신청에 실패했어요. (${error.message})`);

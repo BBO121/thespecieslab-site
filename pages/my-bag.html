@@ -53,8 +53,8 @@
 
         <!-- 가방 탭 -->
         <div class="shop-tab-row" id="bagTabRow">
-          <button class="shop-tab-btn active" data-tab="decorate">꾸미기</button>
-          <button class="shop-tab-btn" data-tab="item">아이템</button>
+          <button class="shop-tab-btn active" data-tab="item">아이템</button>
+          <button class="shop-tab-btn" data-tab="decorate">꾸미기</button>
         </div>
 
         <!-- 아이템 섹션 (JS 렌더) -->
@@ -163,7 +163,7 @@
         <div id="bagSubjectRegisterForm" hidden>
           <!-- 2026-10-01 정책: 신청 이미지 필수 — 운영진이 이 이미지를 확인해 승인하면 그대로 SUBJECT 이미지가 되고,
                승인 후에는 사용자가 이미지를 바꾸거나 지울 수 없다(서버 RPC 가 admin/staff 만 허용).
-               디자이너/아티스트 입력은 신청 단계에 두지 않는다(이름·크레딧은 보관소에서 편집). -->
+               제작자(디자이너/아티스트)는 신청 단계 필수(2026-10-07). 이름은 보관소에서 편집. -->
           <p class="form-label" style="margin-bottom:4px;">신청할 SUBJECT</p>
           <p class="shop-detail-name" id="bagSubjectRegisterType" style="margin:0 0 10px;"></p>
           <p class="form-hint">이미지와 함께 등록 신청하면 SUBJECT 아이템 1개가 예약되며, 운영진 승인 시 아이템이 소비되고<br>개인연구실 SUBJECT 보관소에 등록됩니다.</p>
@@ -176,6 +176,16 @@
             <div id="bagSubjectRegisterPlaceholder"><p class="img-upload-text">클릭하여 이미지 업로드</p></div>
           </div>
           <p class="img-upload-meta">PNG · JPG · WebP (투명 배경 유지, 최대 800px · 2MB)<br>이미지는 운영진 승인 대상이며, 승인 후에는 변경·삭제할 수 없어요.</p>
+
+          <!-- SUBJECT 제작자(디자이너/아티스트) — 필수(2026-10-07 핫픽스). LABBER 개체 제작자와 같은 입력 방식(js/creator-picker.js).
+               신청자/소유자가 아니라 이 SUBJECT 를 디자인·그린 사람. 승인 시 instance 크레딧으로 저장되고 이후 변경은 운영진만. -->
+          <div class="form-group llapp-creators" id="bagSubjectCreatorSection">
+            <label class="form-label">제작자 <span class="required">*</span></label>
+            <p class="form-hint">이 SUBJECT를 디자인/그린 사람이에요. 동일인이면 양쪽에 같은 분을 추가해도 돼요.<br>승인 후에는 변경할 수 없어요.</p>
+            <div id="bagSubjectDesignerPicker"></div>
+            <div class="cp-divider"></div>
+            <div id="bagSubjectArtistPicker"></div>
+          </div>
 
           <!-- 연결 종족 — 종족형 SUBJECT("특이: 종족")일 때만 표시. 내가 종족주인 종족만(LABBER 제외), 필수.
                서버(submit_labber_subject_bag_registration)가 종족주 여부를 다시 검증한다. -->
@@ -230,6 +240,7 @@
   <script src="../js/search.js"></script>
   <script src="../js/main.js"></script>
   <script src="../js/achievements.js"></script>
+  <script src="../js/creator-picker.js"></script>
   <script src="../js/my-bag.js"></script>
 </body>
 </html>

@@ -350,7 +350,7 @@ window.PersonalLabSubject = (function () {
       <div class="subj-edit-section">
         <div class="subj-edit-head">
           <p class="subj-edit-title">크레딧</p>
-          <button type="button" class="subj-edit-toggle" id="labberSubjectCreditToggle" onclick="PersonalLabSubject.toggleCredits()">편집</button>
+          <button type="button" class="subj-edit-toggle" id="labberSubjectCreditToggle" onclick="PersonalLabSubject.toggleCredits()" hidden>편집</button>
         </div>
         <p class="subj-credit-summary" id="labberSubjectCreditSummary">불러오는 중...</p>
         <div id="labberSubjectCreditEditor" hidden>
@@ -367,6 +367,13 @@ window.PersonalLabSubject = (function () {
     _creditArtist = null;
     _creditsLoadedFor = null;
     loadCredits(r.instance_id);
+    // 2026-10-07 핫픽스: 승인된 크레딧(제작자)은 소유자가 바꿀 수 없다 — 편집 버튼은 운영진(app_metadata.role)에게만.
+    // 서버(set_labber_subject_instance_credits)도 admin/staff 전용으로 막는다(supabase/labber_subject_bag_creator_required_1007.sql).
+    getUser().then(user => {
+      const role = user && user.app_metadata && user.app_metadata.role;
+      const btn = document.getElementById('labberSubjectCreditToggle');
+      if (btn && _openDetailInstanceId === r.instance_id) btn.hidden = !isAdminOrStaff(role);
+    }).catch(() => {});
   }
 
   function creditNames(list) {

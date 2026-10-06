@@ -129,11 +129,11 @@ async function initPage() {
     document.getElementById('pageLoading').style.display = 'none';
     document.getElementById('pageContent').style.display = '';
 
-    // 딥링크: ?tab=about|traits|guide|usage|approval , ?app=<id>
+    // 딥링크: ?tab=about|traits|guide|usage|approval|update , ?app=<id>
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
     if (tab === 'my') switchTab('approval');
-    else if (['about', 'traits', 'guide', 'usage', 'approval'].includes(tab)) switchTab(tab);
+    else if (['about', 'traits', 'guide', 'usage', 'approval', 'update'].includes(tab)) switchTab(tab);
 
     // 특성 딥링크(#trait-*) — ?tab= 처리 뒤에 실행해 특성 탭/하위 탭을 확정하고 스크롤
     handleTraitHashDeepLink();
@@ -158,11 +158,16 @@ async function initPage() {
           await loadSubjectApprovalList();
         }
         const focusId = params.get('app');
-        if (focusId) {
+        if (focusId && tab !== 'update') {
           if (_llIsAdmin) setApprovalMode('mine');   // 알림 링크는 "내 신청" 카드로 연결된다
           focusApplication(focusId);
         }
       }
+    }
+
+    // 디자인 업데이트 탭 (js/labber-design-update.js — 디자인 승인과 별도 상태/별도 RPC)
+    if (window.LabberDesignUpdate) {
+      await LabberDesignUpdate.init({ focusId: tab === 'update' ? params.get('app') : null });
     }
   } catch (e) {
     console.error('[labber-lab] initPage 오류:', e);
@@ -345,8 +350,9 @@ function switchTab(tab) {
   document.querySelectorAll('#tabRow .shop-tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
-  ['about', 'traits', 'guide', 'usage', 'approval'].forEach(t => {
-    document.getElementById('tab-' + t).hidden = (t !== tab);
+  ['about', 'traits', 'guide', 'usage', 'approval', 'update'].forEach(t => {
+    const panel = document.getElementById('tab-' + t);
+    if (panel) panel.hidden = (t !== tab);
   });
   const url = new URL(location.href);
   url.searchParams.set('tab', tab);
@@ -354,6 +360,7 @@ function switchTab(tab) {
   history.replaceState(null, '', url);
 
   if (DESIGN_APPROVAL_ENABLED && tab === 'approval' && !_llUser) showLoginPrompt();
+  if (tab === 'update' && window.LabberDesignUpdate) LabberDesignUpdate.onTabShown();
 }
 
 // 디자인 승인 준비중 (DESIGN_APPROVAL_ENABLED=false) — 기존 하위 뷰(신청 폼/관리자/내 신청)를

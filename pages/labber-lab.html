@@ -78,6 +78,7 @@
           <button type="button" class="shop-tab-btn" data-tab="guide">디자인 가이드</button>
           <button type="button" class="shop-tab-btn" data-tab="usage">이용 가이드</button>
           <button type="button" class="shop-tab-btn labberlab-tab-btn--apply" data-tab="approval">디자인 승인</button>
+          <button type="button" class="shop-tab-btn labberlab-tab-btn--apply" data-tab="update">디자인 업데이트</button>
         </div>
 
         <!-- ═══ ABOUT LABBER (세계관/설정 기록) ═════════════════ -->
@@ -483,6 +484,145 @@
           </div>
         </section>
 
+        <!-- ═══ 디자인 업데이트 (이미 등록된 내 LABBER 의 디자인 변경 승인) ═══
+             동작은 js/labber-design-update.js, DB 는 supabase/labber_design_update_1006.sql.
+             마크업·클래스는 위 「디자인 승인」 탭(.llapp-* / .labberlab-app-*)을 그대로 따른다. id 는 upd* 로 분리. -->
+        <section class="labberlab-panel" id="tab-update" hidden>
+
+          <!-- admin/staff 전용: 내 신청 / 업데이트 승인 관리 -->
+          <div class="shop-tab-row labberlab-status-row" id="updModeRow" hidden style="display:none;">
+            <button type="button" class="shop-tab-btn" data-umode="mine">내 신청</button>
+            <button type="button" class="shop-tab-btn active" data-umode="admin">업데이트 승인 관리</button>
+          </div>
+
+          <div id="updGuest" class="labberlab-login-prompt empty-state-wrap" hidden style="display:none;">
+            <div class="empty-state-icon">🔒</div>
+            <p class="empty-state-title">로그인이 필요해요</p>
+            <a href="login.html" class="btn-secondary" style="margin-top:12px;">로그인하러 가기</a>
+          </div>
+
+          <div id="updUserView">
+            <div class="labberlab-my-section llapp-my-section" id="updMySection">
+              <p class="labberlab-panel-desc">
+                이미 등록된 <strong>내 LABBER</strong>의 디자인을 변경해 다시 승인받아요. 새 디자인 이미지만 있으면 신청할 수 있고,
+                <strong>POD · INK · CARTRIDGE · SUBJECT</strong>는 모두 선택이에요. 선택한 아이템은 심사 동안 예약되고 승인되면 소비돼요.
+              </p>
+              <div class="llapp-my-head">
+                <h3 class="labberlab-my-heading">내 디자인 업데이트 신청</h3>
+                <button type="button" class="btn-secondary" id="updNewBtn">새 업데이트 신청</button>
+              </div>
+              <div id="updMyList" class="labberlab-app-list"></div>
+              <div id="updMyEmpty" class="empty-state-wrap" style="display:none;">
+                <div class="empty-state-icon">📋</div>
+                <p class="empty-state-title">신청 내역이 없어요</p>
+                <p class="empty-state-desc">"새 업데이트 신청"으로 내 LABBER의 디자인 변경을 신청할 수 있어요.</p>
+              </div>
+            </div>
+
+            <form class="register-form labberlab-form llapp-form" id="updForm" hidden style="display:none;" novalidate>
+              <h3 class="labberlab-my-heading" id="updFormTitle">새 디자인 업데이트 신청</h3>
+
+              <div class="labberlab-app-comment is-strong llapp-reject-banner" id="updRejectBanner" hidden style="display:none;">
+                <span class="labberlab-app-comment-label">반려 사유</span>
+                <p id="updRejectBannerText"></p>
+              </div>
+
+              <!-- 1. 업데이트할 LABBER -->
+              <div class="form-group">
+                <label class="form-label">업데이트할 LABBER <span class="required">*</span></label>
+                <p class="form-hint">현재 내가 소유한 LABBER 중에서 선택해요. 이미 심사 중이거나 작성 중인 업데이트가 있는 LABBER는 선택할 수 없어요.</p>
+                <div id="updTargetPicker"></div>
+              </div>
+
+              <!-- 2. 현재 디자인 (비교용) -->
+              <div class="form-group" id="updCurrentGroup" hidden style="display:none;">
+                <label class="form-label">현재 디자인</label>
+                <div id="updCurrent"></div>
+              </div>
+
+              <!-- 3. 새 디자인 + 크롭 썸네일 -->
+              <div class="form-group" id="updImageGroup" hidden style="display:none;">
+                <label class="form-label">업데이트할 새 디자인 <span class="required">*</span></label>
+                <input type="file" id="updCharFile" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+                <div class="llapp-image-row">
+                  <div class="llapp-image-col">
+                    <div class="img-upload-box llapp-upload-box" onclick="document.getElementById('updCharFile').click()">
+                      <img id="updCharPreview" alt="새 디자인 미리보기" style="display:none;">
+                      <div id="updCharPlaceholder"><p class="img-upload-text">클릭하여 이미지 업로드</p></div>
+                    </div>
+                    <p class="llapp-image-cap">원본 이미지</p>
+                  </div>
+                  <div class="llapp-image-col llapp-image-col-thumb">
+                    <div class="llapp-thumb-box">
+                      <img id="updThumbPreview" alt="썸네일 미리보기" style="display:none;">
+                      <div id="updThumbPlaceholder"><p class="img-upload-text">썸네일</p></div>
+                    </div>
+                    <p class="llapp-image-cap">썸네일 (3:4)</p>
+                    <button type="button" class="btn-ghost llapp-mini-btn" id="updThumbEditBtn" style="display:none;">썸네일 편집</button>
+                  </div>
+                </div>
+                <p class="img-upload-meta">PNG · JPG · WebP · GIF &nbsp;·&nbsp; 최대 2MB · 2000×2000px 이하 &nbsp;·&nbsp; 이미지를 고르면 썸네일 영역을 지정해요.</p>
+              </div>
+
+              <!-- 4. 아이템 (전부 선택) -->
+              <div id="updItemGroup" hidden style="display:none;">
+                <div id="updItemPickers"></div>
+              </div>
+
+              <!-- 5. SUBJECT (보관소 미배정 instance, 선택) -->
+              <div class="form-group" id="updSubjectGroup" hidden style="display:none;">
+                <label class="form-label">SUBJECT <span class="llapp-optional">선택</span></label>
+                <div id="updSubjectPicker"></div>
+              </div>
+
+              <!-- 6. 개체 제작자 -->
+              <div class="form-group llapp-creators" id="updCreatorSection" hidden style="display:none;">
+                <label class="form-label">개체 제작자</label>
+                <p class="form-hint">LABBER 개체 자체의 디자이너/아티스트예요. 현재 등록된 값으로 채워져 있고, 승인되면 이 값으로 바뀌어요.</p>
+                <div id="updDesignerPicker"></div>
+                <div class="cp-divider"></div>
+                <div id="updArtistPicker"></div>
+              </div>
+
+              <!-- 7. 하고 싶은 말 -->
+              <div class="form-group" id="updNoteGroup" hidden style="display:none;">
+                <label class="form-label">하고 싶은 말 <span class="llapp-optional">선택</span></label>
+                <textarea id="updNoteInput" class="form-textarea" rows="4" maxlength="500" placeholder="디자인 업데이트와 관련해 운영진에게 전달하고 싶은 내용을 적어주세요. (최대 500자)"></textarea>
+                <p class="llapp-count" id="updNoteCount">0 / 500</p>
+              </div>
+
+              <!-- 8. 안내 (UI 전용 — 로직 없음) -->
+              <div class="lldu-notice" role="note">
+                <p class="lldu-notice-title">디자인 업데이트 안내</p>
+                <p class="lldu-notice-body">디자인 업데이트는 기존 개체의 디자인을 기반으로 합니다.<br>
+                  기존 디자인의 원형을 크게 벗어나는 변경은 승인되지 않을 수 있습니다.</p>
+              </div>
+
+              <p class="auth-error" id="updFormError"></p>
+              <p class="llapp-info" id="updFormInfo"></p>
+
+              <div class="register-actions llapp-form-actions">
+                <button type="button" class="btn-ghost" id="updCancelBtn">목록으로</button>
+                <button type="button" class="btn-ghost" id="updSaveBtn">임시저장</button>
+                <button type="submit" class="btn-secondary" id="updSubmitBtn">디자인 업데이트 신청</button>
+              </div>
+            </form>
+          </div>
+
+          <div id="updAdminView" hidden style="display:none;">
+            <p class="labberlab-panel-desc">
+              신청된 LABBER 디자인 업데이트를 현재 디자인과 비교해 승인/반려합니다. 승인하면 새 디자인·썸네일이 LABBER에 반영되고 예약된 아이템이 소비돼요.
+              반려하면 현재 디자인은 그대로이고 예약만 해제돼요(사유 필수 · 신청자에게 알림).
+            </p>
+            <div class="shop-tab-row labberlab-status-row" id="updAdminStatusRow"></div>
+            <div id="updAdminList" class="labberlab-app-list"></div>
+            <div id="updAdminEmpty" class="empty-state-wrap" style="display:none;">
+              <div class="empty-state-icon">🗂️</div>
+              <p class="empty-state-title">해당 상태의 신청이 없어요</p>
+            </div>
+          </div>
+        </section>
+
       </div>
     </main>
   </div>
@@ -509,6 +649,24 @@
     </div>
   </div>
 
+  <!-- 크롭 모달 (디자인 업데이트 썸네일 — 위 모달과 같은 마크업, 디자인 승인 폼 상태와 분리하려고 별도 노드) -->
+  <div id="updCropModal" class="crop-modal-overlay" style="display:none;">
+    <div class="crop-modal-box">
+      <div class="crop-modal-header">
+        <h3>썸네일 편집</h3>
+        <p>드래그로 이동 · 스크롤로 확대/축소 — 목록 카드에 표시될 영역을 선택하세요.</p>
+      </div>
+      <div class="crop-modal-canvas">
+        <img id="updCropImage" src="">
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn-ghost" style="color:var(--text-mute);" id="updCropCancelBtn">취소</button>
+        <button type="button" class="btn-ghost" id="updCropAsIsBtn">원본 그대로 사용</button>
+        <button type="button" class="btn-secondary" id="updCropConfirmBtn">확정</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/sidebar.js"></script>
@@ -521,6 +679,7 @@
   <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
   <script src="../js/labber-traits.js"></script>
   <script src="../js/creator-picker.js"></script>
+  <script src="../js/labber-design-update.js"></script>
   <script src="../js/labber-lab.js"></script>
 </body>
 </html>

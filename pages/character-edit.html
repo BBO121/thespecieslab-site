@@ -1169,9 +1169,11 @@
       const { data: spList } = await sb.from('species').select('id, name').order('name');
       allSpecies = spList || [];
 
-      const myNick = user.user_metadata?.display_name || user.user_metadata?.nickname;
-      if (myNick) {
-        const { data: profData } = await sb.from('user_profiles').select('watermark_url').eq('nickname', myNick).single();
+      // 워터마크는 편집자(로그인 사용자)나 개체 소유주가 아니라 "개체가 속한 종족의 종족주" 기준이다.
+      // admin/staff가 대신 편집해도 결과가 같아야 하므로 편집자 역할로 분기하지 않는다.
+      // (프로필 워터마크 재적용·대량 등록·backfill과 같은 정책, 종족주 워터마크가 없으면 연구소 기본 워터마크)
+      if (spData?.owner_user_id) {
+        const { data: profData } = await sb.from('user_profiles').select('watermark_url').eq('user_id', spData.owner_user_id).maybeSingle();
         userWatermarkUrl = profData?.watermark_url || null;
       }
 

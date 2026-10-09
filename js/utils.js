@@ -43,7 +43,52 @@ const ALLOWED_IMAGE_TYPES = ['image/png', 'image/gif', 'image/jpeg', 'image/webp
 const MAX_IMAGE_DIMENSION  = 2000;
 const MAX_BLOB_BYTES       = 2 * 1024 * 1024;
 
-function compressImage(file, maxSize = 1200, quality = 0.82) {
+// ── 투명도 보존 옵션 (opts.keepAlpha) — LABBER 디자인 신청/업데이트/승인 등록에서만 명시적으로 사용 ──
+// 옵션을 넘기지 않으면 아래 이미지 함수들은 기존 동작 그대로(배경 #F8FAFC 합성 → JPEG)다.
+// keepAlpha: true 이면 실제 투명/반투명 픽셀(alpha < 255)이 있을 때만 PNG 로 저장하고,
+// 2MB 를 넘으면 WebP(투명도 지원)로 재압축, 그래도 넘으면 오류. 불투명 이미지는 기존과 같은 JPEG.
+
+// PNG/WebP 만 투명 픽셀을 가질 수 있다 (JPEG 는 항상 불투명, GIF 는 기존 정책대로 별도 처리)
+function blobMayHaveAlpha(blob) {
+  return !!blob && (blob.type === 'image/png' || blob.type === 'image/webp');
+}
+
+// 실제 blob 형식 → 저장 확장자 (경로 확장자와 contentType 을 일치시키기 위해 사용)
+function imageExtOfBlob(blob) {
+  const t = (blob && blob.type) || '';
+  if (t === 'image/png')  return 'png';
+  if (t === 'image/webp') return 'webp';
+  if (t === 'image/gif')  return 'gif';
+  return 'jpg';
+}
+
+function canvasHasAlpha(canvas) {
+  const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) return true;
+  }
+  return false;
+}
+
+// 투명도 유지 인코딩: PNG(무손실) → maxBytes 초과 시 WebP 0.9 → 0.7 → 그래도 초과면 오류
+function encodeAlphaCanvas(canvas, maxBytes = MAX_BLOB_BYTES) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(png => {
+      if (!png) { reject(new Error('이미지 변환에 실패했어요.')); return; }
+      if (png.size <= maxBytes) { resolve(png); return; }
+      const tryWebp = (q, next) => canvas.toBlob(webp => {
+        // WebP 인코딩 미지원 브라우저는 PNG 를 돌려주므로 type 으로 확인
+        if (webp && webp.type === 'image/webp' && webp.size <= maxBytes) { resolve(webp); return; }
+        next();
+      }, 'image/webp', q);
+      tryWebp(0.9, () => tryWebp(0.7, () => {
+        reject(new Error('투명 배경 이미지가 압축 후에도 2MB를 초과해요. 해상도를 줄이거나 더 작은 이미지를 사용해주세요.'));
+      }));
+    }, 'image/png');
+  });
+}
+
+function compressImage(file, maxSize = 1200, quality = 0.82, opts = {}) {
   return new Promise((resolve, reject) => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       reject(new Error('PNG, GIF, JPG, WebP 형식의 이미지만 업로드할 수 있어요.'));
@@ -87,6 +132,17 @@ function compressImage(file, maxSize = 1200, quality = 0.82) {
       canvas.width  = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
+
+      // keepAlpha: 투명 픽셀이 실제로 있으면 배경을 깔지 않고 PNG/WebP 로 끝낸다
+      if (opts.keepAlpha && blobMayHaveAlpha(file)) {
+        ctx.drawImage(img, 0, 0, width, height);
+        if (canvasHasAlpha(canvas)) {
+          encodeAlphaCanvas(canvas).then(resolve, reject);
+          return;
+        }
+        ctx.clearRect(0, 0, width, height);   // 불투명 → 아래 기존 JPEG 경로
+      }
+
       ctx.fillStyle = '#F8FAFC';
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
@@ -112,7 +168,8 @@ function compressImage(file, maxSize = 1200, quality = 0.82) {
 }
 
 // Cropper.js 인스턴스 → 3:4 JPEG blob
-function cropToBlob(cropper, maxSize = 600, quality = 0.85) {
+// opts.keepAlpha: 크롭 원본이 PNG/WebP 일 때만 호출부가 true 로 넘긴다 (JPEG 원본은 기존 경로)
+function cropToBlob(cropper, maxSize = 600, quality = 0.85, opts = {}) {
   return new Promise((resolve, reject) => {
     const outH    = Math.round(maxSize * 4 / 3);
     const cropped = cropper.getCroppedCanvas({
@@ -120,6 +177,11 @@ function cropToBlob(cropper, maxSize = 600, quality = 0.85) {
       imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
     });
     if (!cropped) { reject(new Error('크롭에 실패했어요.')); return; }
+
+    if (opts.keepAlpha && canvasHasAlpha(cropped)) {
+      encodeAlphaCanvas(cropped).then(resolve, reject);
+      return;
+    }
 
     // PNG 투명 배경 → 흰색으로 합성 후 JPEG 변환
     const canvas = document.createElement('canvas');
@@ -158,7 +220,8 @@ function calculateWatermarkRect(canvasWidth, canvasHeight, watermarkWidth, water
 }
 
 // 이미지 blob + 워터마크 URL → 워터마크 합성 JPEG blob
-function applyWatermark(imageBlob, watermarkUrl) {
+// opts.keepAlpha: 원본에 투명 픽셀이 있으면 투명 배경 위에 워터마크만 합성해 PNG/WebP 로 저장
+function applyWatermark(imageBlob, watermarkUrl, opts = {}) {
   return new Promise((resolve, reject) => {
     const blobUrl = URL.createObjectURL(imageBlob);
     const img = new Image();
@@ -173,9 +236,17 @@ function applyWatermark(imageBlob, watermarkUrl) {
         canvas.height = img.naturalHeight;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
+        // 투명 여부는 워터마크(외부 URL)를 그리기 전에 판정 — 그린 뒤에는 canvas 가 tainted 일 수 있다
+        const keepAlpha = !!opts.keepAlpha && blobMayHaveAlpha(imageBlob) && canvasHasAlpha(canvas);
         if (wm.naturalWidth > 0) {
           const rect = calculateWatermarkRect(canvas.width, canvas.height, wm.naturalWidth, wm.naturalHeight);
           ctx.drawImage(wm, rect.x, rect.y, rect.width, rect.height);
+        }
+        if (keepAlpha) {
+          encodeAlphaCanvas(canvas).then(
+            blob => { URL.revokeObjectURL(blobUrl); resolve(blob); },
+            err  => { URL.revokeObjectURL(blobUrl); reject(err); });
+          return;
         }
         canvas.toBlob(blob => {
           URL.revokeObjectURL(blobUrl);
@@ -290,7 +361,8 @@ function characterHasVisibleRealImage(c, { thumb = true } = {}) {
 }
 
 // 중앙 자동 크롭 (팝업 없이) → JPEG blob
-function autoCenterCropToBlob(file, aspectRatio = 3/4, maxSize = 600, quality = 0.85) {
+// opts.keepAlpha: PNG/WebP 원본에 투명 픽셀이 있으면 배경 없이 PNG/WebP 로 저장 (GIF·JPEG 는 기존 경로)
+function autoCenterCropToBlob(file, aspectRatio = 3/4, maxSize = 600, quality = 0.85, opts = {}) {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
@@ -309,6 +381,14 @@ function autoCenterCropToBlob(file, aspectRatio = 3/4, maxSize = 600, quality = 
       const canvas = document.createElement('canvas');
       canvas.width = maxSize; canvas.height = outH;
       const ctx = canvas.getContext('2d');
+      if (opts.keepAlpha && blobMayHaveAlpha(file)) {
+        ctx.drawImage(img, cx, cy, cw, ch, 0, 0, maxSize, outH);
+        if (canvasHasAlpha(canvas)) {
+          encodeAlphaCanvas(canvas).then(resolve, reject);
+          return;
+        }
+        ctx.clearRect(0, 0, maxSize, outH);   // 불투명 → 아래 기존 JPEG 경로
+      }
       ctx.fillStyle = '#F8FAFC';
       ctx.fillRect(0, 0, maxSize, outH);
       ctx.drawImage(img, cx, cy, cw, ch, 0, 0, maxSize, outH);

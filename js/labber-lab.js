@@ -1177,9 +1177,10 @@ async function onCharacterPick(input) {
   if (!file) return;
   llSetError('');
   try {
-    const blob = await compressImage(file);   // ≤1200px · ≤2MB · GIF 는 원본 유지 (utils.js — 개체 등록과 동일)
+    // ≤1200px · ≤2MB · GIF 는 원본 유지 (utils.js — 개체 등록과 동일). LABBER 는 투명 PNG 보존(keepAlpha) — 투명이면 PNG/WebP
+    const blob = await compressImage(file, 1200, 0.82, { keepAlpha: true });
     const isGif = blob.type === 'image/gif';
-    llSetPending('character', blob, isGif ? 'gif' : 'jpg');
+    llSetPending('character', blob, imageExtOfBlob(blob));
     llClearPending('thumbnail');
     if (isGif) {
       // 개체 등록과 동일: GIF 는 크롭 모달을 건너뛰고 첫 프레임 중앙 크롭
@@ -1219,8 +1220,8 @@ async function onThumbnailEdit() {
 function openCropModal(blob, isNew) {
   if (typeof Cropper === 'undefined') {
     // Cropper.js 로딩 실패 시에도 신청은 가능하도록 중앙 자동 크롭으로 대체
-    autoCenterCropToBlob(blob, 3 / 4, 600, 0.85)
-      .then(b => { llSetPending('thumbnail', b, 'jpg'); refreshImagePreviews(); })
+    autoCenterCropToBlob(blob, 3 / 4, 600, 0.85, { keepAlpha: true })
+      .then(b => { llSetPending('thumbnail', b, imageExtOfBlob(b)); refreshImagePreviews(); })
       .catch(err => llSetError(err.message));
     return;
   }
@@ -1258,8 +1259,9 @@ function closeCropModal() {
 
 async function onCropConfirm() {
   try {
-    const blob = await cropToBlob(_llCropper, 600, 0.85);   // 600×800 JPEG
-    llSetPending('thumbnail', blob, 'jpg');
+    // 600×800 — 원본이 투명 PNG/WebP 면 투명도 유지(PNG/WebP), 아니면 기존 JPEG
+    const blob = await cropToBlob(_llCropper, 600, 0.85, { keepAlpha: blobMayHaveAlpha(_llCropSource) });
+    llSetPending('thumbnail', blob, imageExtOfBlob(blob));
     closeCropModal();
     refreshImagePreviews();
   } catch (e) { llSetError(e.message); }
@@ -1268,8 +1270,8 @@ async function onCropConfirm() {
 async function onCropAsIs() {
   if (!_llCropSource) return;
   try {
-    const blob = await autoCenterCropToBlob(_llCropSource, 3 / 4, 600, 0.85);
-    llSetPending('thumbnail', blob, 'jpg');
+    const blob = await autoCenterCropToBlob(_llCropSource, 3 / 4, 600, 0.85, { keepAlpha: true });
+    llSetPending('thumbnail', blob, imageExtOfBlob(blob));
     closeCropModal();
     refreshImagePreviews();
   } catch (e) { llSetError(e.message); }

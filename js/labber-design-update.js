@@ -738,9 +738,10 @@
     if (!file) return;
     setError('');
     try {
-      const blob = await compressImage(file);   // ≤1200px · ≤2MB · GIF 원본 유지 (개체 등록·디자인 승인과 동일)
+      // ≤1200px · ≤2MB · GIF 원본 유지 (개체 등록·디자인 승인과 동일). 투명 PNG 는 투명도 보존(keepAlpha) — PNG/WebP
+      const blob = await compressImage(file, 1200, 0.82, { keepAlpha: true });
       const isGif = blob.type === 'image/gif';
-      setPending('character', blob, isGif ? 'gif' : 'jpg');
+      setPending('character', blob, imageExtOfBlob(blob));
       clearPending('thumbnail');
       if (isGif) {
         setPending('thumbnail', await autoCenterCropToBlob(blob, 3 / 4, 600, 0.85), 'jpg');
@@ -774,8 +775,8 @@
 
   function openCrop(blob, isNew) {
     if (typeof Cropper === 'undefined') {
-      autoCenterCropToBlob(blob, 3 / 4, 600, 0.85)
-        .then(b => { setPending('thumbnail', b, 'jpg'); refreshPreviews(); })
+      autoCenterCropToBlob(blob, 3 / 4, 600, 0.85, { keepAlpha: true })
+        .then(b => { setPending('thumbnail', b, imageExtOfBlob(b)); refreshPreviews(); })
         .catch(err => setError(err.message));
       return;
     }
@@ -804,14 +805,17 @@
   }
   async function onCropConfirm() {
     try {
-      setPending('thumbnail', await cropToBlob(S.cropper, 600, 0.85), 'jpg');
+      // 원본이 투명 PNG/WebP 면 투명도 유지, 아니면 기존 JPEG
+      const blob = await cropToBlob(S.cropper, 600, 0.85, { keepAlpha: blobMayHaveAlpha(S.cropSource) });
+      setPending('thumbnail', blob, imageExtOfBlob(blob));
       closeCrop(); refreshPreviews();
     } catch (e) { setError(e.message); }
   }
   async function onCropAsIs() {
     if (!S.cropSource) return;
     try {
-      setPending('thumbnail', await autoCenterCropToBlob(S.cropSource, 3 / 4, 600, 0.85), 'jpg');
+      const blob = await autoCenterCropToBlob(S.cropSource, 3 / 4, 600, 0.85, { keepAlpha: true });
+      setPending('thumbnail', blob, imageExtOfBlob(blob));
       closeCrop(); refreshPreviews();
     } catch (e) { setError(e.message); }
   }
@@ -1004,6 +1008,15 @@
     return data;
   }
 
+  // 신청 썸네일 확장자 — 서버가 검증한 경로 확장자(jpg|png|webp)를 그대로 따른다 (download blob.type 은 비어 있을 수 있음)
+  const THUMB_MIME = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+  function imageExtOfThumb(blob, path) {
+    const m = /\.(jpe?g|png|webp)$/i.exec(path || '');
+    if (m) return m[1].toLowerCase().replace('jpeg', 'jpg');
+    const e = imageExtOfBlob(blob);
+    return THUMB_MIME[e] ? e : 'jpg';
+  }
+
   // 신청 이미지 → 개체 등록과 같은 파이프라인으로 images 버킷 labber-character/update/{id}/ 에 업로드
   async function uploadApprovedImages(row) {
     const prefix = `labber-character/update/${row.id}/`;
@@ -1018,17 +1031,19 @@
     try {
       let blob = await downloadPrivate(row.character_image_path);
       const isGif = /\.gif$/i.test(row.character_image_path);
-      if (!isGif && blob.type !== 'image/jpeg') blob = await compressImage(new File([blob], 'design', { type: blob.type || 'image/png' }));
-      const original_image_url = await put(`${ts}_orig.${isGif ? 'gif' : 'jpg'}`, blob, isGif ? 'image/gif' : 'image/jpeg');
+      // 투명 PNG/WebP 는 투명도 보존(keepAlpha) — 실제 blob 형식으로 확장자/contentType 을 정한다 (불투명은 기존 JPEG)
+      if (!isGif && blob.type !== 'image/jpeg') blob = await compressImage(new File([blob], 'design', { type: blob.type || 'image/png' }), 1200, 0.82, { keepAlpha: true });
+      const original_image_url = await put(`${ts}_orig.${isGif ? 'gif' : imageExtOfBlob(blob)}`, blob, isGif ? 'image/gif' : (blob.type || 'image/jpeg'));
       let image_url = original_image_url;
       let watermark_type = null;
       if (!isGif) {
-        const wmBlob = await applyWatermark(blob, row.owner_watermark_url || '../images/watermark.png');
-        image_url = await put(`${ts}.jpg`, wmBlob, 'image/jpeg');
+        const wmBlob = await applyWatermark(blob, row.owner_watermark_url || '../images/watermark.png', { keepAlpha: true });
+        image_url = await put(`${ts}.${imageExtOfBlob(wmBlob)}`, wmBlob, wmBlob.type || 'image/jpeg');
         watermark_type = row.owner_watermark_url ? 'personal' : 'lab_black';
       }
       const thumbBlob = await downloadPrivate(row.thumbnail_path);
-      const thumbnail_url = await put(`${ts}_thumb.jpg`, thumbBlob, 'image/jpeg');
+      const thumbExt = imageExtOfThumb(thumbBlob, row.thumbnail_path);
+      const thumbnail_url = await put(`${ts}_thumb.${thumbExt}`, thumbBlob, THUMB_MIME[thumbExt]);
       return { payload: { image_url, original_image_url, thumbnail_url, watermark_type }, uploaded };
     } catch (e) {
       if (uploaded.length) sb.storage.from('images').remove(uploaded).catch(() => {});

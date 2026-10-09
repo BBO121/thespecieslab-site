@@ -1447,15 +1447,19 @@
         const wmSrc = userWatermarkUrl || '../images/watermark.png';
         // LABBER 승인 데이터 등록일 때만 labber-character/{application_id}/ 폴더로 묶는다 (일반 등록은 빈 문자열 = 기존 경로 그대로)
         const uploadPrefix = (window.LabberRegister && window.LabberRegister.uploadPrefix()) || '';
+        // LABBER 승인 데이터 등록일 때만 투명 PNG 보존(keepAlpha) — 일반 등록은 옵션 없음 = 기존 JPEG 처리 그대로
+        const lrAlphaOpts = (window.LabberRegister && window.LabberRegister.isActive()) ? { keepAlpha: true } : undefined;
         if (file) {
           const ts    = Date.now();
           const isGif = file.type === 'image/gif';
-          const ext   = isGif ? 'gif' : 'jpg';
-          const blob  = await compressImage(file);
+          const blob  = await compressImage(file, 1200, 0.82, lrAlphaOpts);
+          // 실제 blob 형식 기준 확장자/MIME (일반 등록은 compressImage 가 항상 JPEG 를 돌려주므로 기존과 같은 jpg)
+          const ext   = isGif ? 'gif' : (lrAlphaOpts ? imageExtOfBlob(blob) : 'jpg');
+          const mime  = isGif ? 'image/gif' : (lrAlphaOpts ? blob.type : 'image/jpeg');
 
           // 원본 저장
           const origName = `${uploadPrefix}${ts}_orig.${ext}`;
-          const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: isGif ? 'image/gif' : 'image/jpeg' });
+          const { error: origErr } = await sb.storage.from('images').upload(origName, blob, { contentType: mime });
           if (origErr) throw new Error(`원본 이미지 업로드에 실패했어요. (${origErr.message})`);
           original_image_url = sb.storage.from('images').getPublicUrl(origName).data.publicUrl;
 
@@ -1464,18 +1468,18 @@
             image_url = original_image_url;
           } else {
             // 워터마크 합성 후 저장
-            const wmBlob   = await applyWatermark(blob, wmSrc);
-            const mainName = `${uploadPrefix}${ts}.jpg`;
-            const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: 'image/jpeg' });
+            const wmBlob   = await applyWatermark(blob, wmSrc, lrAlphaOpts);
+            const mainName = `${uploadPrefix}${ts}.${lrAlphaOpts ? imageExtOfBlob(wmBlob) : 'jpg'}`;
+            const { error: mainErr } = await sb.storage.from('images').upload(mainName, wmBlob, { contentType: lrAlphaOpts ? wmBlob.type : 'image/jpeg' });
             if (mainErr) throw new Error(`메인 이미지 업로드에 실패했어요. (${mainErr.message})`);
             image_url = sb.storage.from('images').getPublicUrl(mainName).data.publicUrl;
             watermark_type = userWatermarkUrl ? 'personal' : 'lab_black';
           }
 
           // 썸네일 (워터마크 없음 — 첫 프레임 크롭)
-          const thumbBlob = pendingThumbnailBlob || await autoCenterCropToBlob(file, 3/4, 600, 0.85);
-          const thumbName = `${uploadPrefix}${ts}_thumb.jpg`;
-          const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: 'image/jpeg' });
+          const thumbBlob = pendingThumbnailBlob || await autoCenterCropToBlob(file, 3/4, 600, 0.85, lrAlphaOpts);
+          const thumbName = `${uploadPrefix}${ts}_thumb.${lrAlphaOpts ? imageExtOfBlob(thumbBlob) : 'jpg'}`;
+          const { error: thumbErr } = await sb.storage.from('images').upload(thumbName, thumbBlob, { contentType: lrAlphaOpts ? (thumbBlob.type || 'image/jpeg') : 'image/jpeg' });
           if (thumbErr) throw new Error(`썸네일 업로드에 실패했어요. (${thumbErr.message})`);
           thumbnail_url = sb.storage.from('images').getPublicUrl(thumbName).data.publicUrl;
         }

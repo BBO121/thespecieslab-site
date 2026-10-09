@@ -257,7 +257,9 @@
     // 2) 대표 이미지 / 썸네일 — 기존 파이프라인 입력 변수에 그대로 넣는다 (승인 이미지 외 입력은 잠금)
     const cExt = extOf(data.images.character_path, charBlob);
     selectedMainFile = new File([charBlob], `labber_approved.${cExt}`, { type: MIME[cExt] || charBlob.type || 'image/jpeg' });
-    pendingThumbnailBlob = thumbBlob;
+    // 썸네일도 경로 확장자(서버 검증: jpg|png|webp)로 type 을 고정 — 등록 시 확장자/contentType 을 blob.type 으로 정한다
+    const tExt = extOf(data.images.thumbnail_path, thumbBlob);
+    pendingThumbnailBlob = new Blob([thumbBlob], { type: MIME[tExt] || 'image/jpeg' });
     const prev = $('imagePreview');
     if (prev) {
       if (prev.dataset.lrObj) URL.revokeObjectURL(prev.dataset.lrObj);

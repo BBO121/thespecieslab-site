@@ -125,8 +125,18 @@
 
     let rawData     = [];
     // 연구기록을 사용하는 경매(auction_details.auction_currency='research_records')의 adoption id
-    // — 카드에 [재화거래] 배지만 추가. 「재화거래」 필터는 기존대로 adoption_type='currency' 만 대상.
+    // — 카드에 [재화거래] 배지 추가 + 「재화거래」 필터에도 포함(경매 필터에는 기존대로 포함).
     let researchAuctionIds = new Set();
+
+    // 유형 필터 판정 — 카드 배지와 같은 기준. 재화거래 = 일반 재화거래 + 연구기록 경매.
+    function matchesType(a, type) {
+      if (type === 'all') return true;
+      if (type === 'currency') {
+        return a.adoption_type === 'currency'
+          || (a.adoption_type === 'auction' && researchAuctionIds.has(a.id));
+      }
+      return a.adoption_type === type;
+    }
     let activeStatus = 'open';
     let activeType   = 'all';
     let searchQuery  = '';
@@ -141,7 +151,7 @@
 
         if (activeStatus === 'open'   && !OPEN_STATUSES.includes(status)) return false;
         if (activeStatus === 'closed' && status !== '완료')               return false;
-        if (activeType   !== 'all'    && a.adoption_type !== activeType)  return false;
+        if (!matchesType(a, activeType))                                 return false;
 
         if (q) {
           const inName    = (a.character_name || '').toLowerCase().includes(q);

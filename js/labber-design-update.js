@@ -358,7 +358,7 @@
     }
     if (st === 'submitted') return '<p class="llapp-hint">심사 중이에요. 결과가 나올 때까지 수정할 수 없어요. 선택한 아이템은 심사 동안 예약돼요.</p>';
     if (st === 'approved') {
-      return `<div class="labberlab-app-actions llapp-actions"><p class="llapp-hint">승인되어 LABBER에 새 디자인이 반영됐어요.</p>
+      return `<div class="labberlab-app-actions llapp-actions lldu-approved-actions"><p class="llapp-hint">승인되어 LABBER에 새 디자인이 반영됐어요.</p>
         <a class="btn-secondary llapp-char-link" href="character.html?id=${encodeURIComponent(row.character_id)}">LABBER 보기</a></div>`;
     }
     return '';

@@ -76,13 +76,6 @@
           <div class="labexp-area-grid" id="areaGrid"></div>
         </section>
 
-        <!-- ── 4. 결과 (구역 카드 클릭 → 모달 → 탐험 → 여기 표시) ─ -->
-        <section class="labexp-result" id="exploreResult" hidden>
-          <h2 class="labexp-result-title">탐험 완료</h2>
-          <div id="exploreResultBody"></div>
-          <button type="button" class="labexp-result-close" id="resultCloseBtn">닫기</button>
-        </section>
-
       </div>
     </main>
   </div>
@@ -112,6 +105,23 @@
           <button type="button" class="labexp-explore-btn" id="exploreBtn">탐험하기</button>
           <p class="labexp-action-note" id="exploreNote"></p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 탐험 결과 모달 (탐험 완료 시 열림 — 스테이지 모달과 같은 .labexp-modal 패턴) ── -->
+  <div class="labexp-modal-backdrop" id="resultModalBackdrop" hidden>
+    <div class="labexp-modal" id="resultModal" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
+      <div class="labexp-modal-header">
+        <h2 class="labexp-modal-title" id="resultModalTitle">탐험 결과</h2>
+        <button type="button" class="labexp-modal-close" id="resultModalClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="labexp-modal-body">
+        <section class="labexp-result" id="exploreResult" style="margin-top:0;">
+          <h2 class="labexp-result-title">탐험 완료</h2>
+          <div id="exploreResultBody"></div>
+          <button type="button" class="labexp-result-close" id="resultCloseBtn">닫기</button>
+        </section>
       </div>
     </div>
   </div>

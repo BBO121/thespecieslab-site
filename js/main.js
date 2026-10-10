@@ -232,7 +232,7 @@ function renderDropdown(q, result) {
         ${ddThumb(new URL(resolveCharacterImage(c), location.href).href)}
         <span class="dd-text">
           <span class="dd-label">${highlight(c.name, q)}</span>
-          <span class="dd-meta">${[escapeHtml(c.species_name || ''), escapeHtml(c.owner_nickname || '')].filter(Boolean).join(' · ')}</span>
+          <span class="dd-meta">${[ownerCustomNameMeta(c, q), escapeHtml(c.species_name || ''), escapeHtml(c.owner_nickname || '')].filter(Boolean).join(' · ')}</span>
         </span>
       </a></li>
     `).join('')}
@@ -266,11 +266,21 @@ function renderDropdown(q, result) {
     ${userCount > sortedUsers.length ? `<li class="dd-more" data-href="users.html?q=${encodeURIComponent(q)}">유저 검색 결과 ${userCount}개 전체 보기 →</li>` : ''}
   ` : '';
 
-  searchDropdown.innerHTML = charGroup + speciesGroup + userGroup;
+  // 표시 순서: 종족 → 개체 → 유저 (종족 자체를 찾는 검색이 많아 종족을 맨 위로)
+  searchDropdown.innerHTML = speciesGroup + charGroup + userGroup;
   searchDropdown.querySelectorAll('.dd-more').forEach(li => {
     li.addEventListener('click', () => { window.location.href = li.dataset.href; });
   });
   searchDropdown.classList.add('active');
+}
+
+// 소유주가 붙인 개체명(owner_custom_name)으로 걸린 경우 등록명만 보면 왜 나왔는지 모르므로
+// 검색어가 포함된 경우에만 메타 줄 앞에 하이라이트해서 보여준다(등록명과 같으면 생략).
+function ownerCustomNameMeta(c, q) {
+  const ocn = (c.owner_custom_name || '').trim();
+  if (!ocn || ocn === c.name) return '';
+  if (!ocn.toLowerCase().includes(q.toLowerCase())) return '';
+  return `소유주명 ${highlight(ocn, q)}`;
 }
 
 function escapeHtml(str) {

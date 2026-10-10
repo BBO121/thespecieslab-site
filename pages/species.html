@@ -152,6 +152,7 @@
   <script src="../js/utils.js?v=20260919"></script>
   <script src="../js/main.js"></script>
   <script src="../js/species-character-list.js"></script>
+  <script src="../js/image-zoom-viewer.js"></script>
   <script>
     // AdSense Auto ads 는 js/utils.js 의 loadAdSense() 를 정상 상세 콘텐츠 렌더 완료 후에만 호출한다.
 
@@ -442,6 +443,14 @@
             ${g.content ? `<div class="guide-section-text ql-display">${typeof DOMPurify!=='undefined' ? DOMPurify.sanitize(stripUnsafeRenderedImages(g.content)) : g.content}</div>` : ''}
           `;
           tabPanels.appendChild(panel);
+        });
+
+        // 터치 기기: 가이드 이미지(대표 이미지 + 본문 이미지) 탭 → 확대 뷰어. PC 클릭 동작은 그대로.
+        tabPanels.addEventListener('click', (e) => {
+          const img = e.target.closest('img');
+          if (!img || typeof openImageZoomViewer !== 'function') return;
+          if (!window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+          openImageZoomViewer(img.currentSrc || img.src);
         });
 
         document.getElementById('guideSection').style.display = '';

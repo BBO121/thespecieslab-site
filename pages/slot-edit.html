@@ -293,8 +293,8 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex; gap:8px; align-items:center;';
       row.innerHTML = `
-        <input type="text" class="form-input trait-key" placeholder="항목명" value="${key}" style="flex:1;">
-        <input type="text" class="form-input trait-val" placeholder="값" value="${value}" style="flex:1.5;">
+        <input type="text" class="form-input trait-key" placeholder="항목명" value="${key}" style="flex:1; min-width:0;">
+        <input type="text" class="form-input trait-val" placeholder="값" value="${value}" style="flex:1.5; min-width:0;">
         <button type="button" onclick="this.closest('div').remove()"
           style="padding:0 10px; height:38px; border:1px solid #fca5a5; border-radius:8px; background:#fff; color:#ef4444; font-size:16px; cursor:pointer; flex-shrink:0; font-family:inherit;">✕</button>
       `;

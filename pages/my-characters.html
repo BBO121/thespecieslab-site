@@ -718,7 +718,8 @@
       const filtered = allChars.filter(c => {
         if (activeFolder === 'none' && !isUnclassified(c))                    return false;
         if (typeof activeFolder === 'number' && c.folder_id !== activeFolder) return false;
-        const matchName    = !q || c.name.toLowerCase().includes(q);
+        // 등록명 + 소유주명(owner_custom_name) 둘 다 검색 — 이름 표시 모드와 무관
+        const matchName    = !q || [c.name, c.owner_custom_name].some(n => n && n.toLowerCase().includes(q));
         const matchSpecies = !species || c.species_name === species;
         return matchName && matchSpecies;
       });

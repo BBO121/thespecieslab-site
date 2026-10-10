@@ -74,7 +74,7 @@ async function searchCharacters(query, options = {}) {
 
   try {
     let builder = sb.from('characters').select(
-      'id, name, species_name, owner_nickname, owner_user_id, image_url, thumbnail_url, default_image_index, created_at, is_sensitive, sensitive_note',
+      'id, name, owner_custom_name, species_name, owner_nickname, owner_user_id, image_url, thumbnail_url, default_image_index, created_at, is_sensitive, sensitive_note',
       { count: 'exact' }
     );
 
@@ -86,9 +86,10 @@ async function searchCharacters(query, options = {}) {
     }
 
     if (q.length >= minLength) {
+      // 등록명(name) + 소유주가 붙인 개체명(owner_custom_name, NULL 이면 매칭 안 될 뿐) + 소유주 닉네임 + 종족명
       const pattern = escapeOrValue(`%${escapeIlike(q)}%`);
       builder = builder.or(
-        `name.ilike."${pattern}",owner_nickname.ilike."${pattern}",species_name.ilike."${pattern}"`
+        `name.ilike."${pattern}",owner_custom_name.ilike."${pattern}",owner_nickname.ilike."${pattern}",species_name.ilike."${pattern}"`
       );
     }
     if (speciesName)                    builder = builder.eq('species_name', speciesName);

@@ -57,6 +57,14 @@
           </select>
         </div>
 
+        <!-- 검색 결과 — 종족 (검색어가 있고 유저별 목록이 아닐 때만, 결과 0개면 숨김). 카드는 species-list.html 과 동일 마크업 -->
+        <div id="speciesResultSection" style="display:none; margin-bottom:28px;">
+          <h2 class="search-result-group-title" style="font-size:15px; font-weight:700; color:var(--text); margin:0 0 12px;">종족</h2>
+          <div class="species-grid species-grid--large" id="speciesResultGrid"></div>
+          <a id="speciesResultMore" href="#" style="display:none; margin-top:12px; font-size:13px; font-weight:600; color:var(--sky-deep);"></a>
+        </div>
+        <h2 class="search-result-group-title" id="charResultTitle" style="display:none; font-size:15px; font-weight:700; color:var(--text); margin:0 0 12px;">개체</h2>
+
         <div class="character-grid" id="characterGrid">
           <p class="page-loading">불러오는 중...</p>
         </div>
@@ -184,17 +192,27 @@
       searchController = new AbortController();
       const myToken = ++searchToken;
 
-      const { data, count, error } = await searchCharacters(q, {
-        speciesName: sp || null,
-        ownerUserId: (ownerIdParam && ownerParamId) ? ownerParamId : null,
-        ownerNickname: (!ownerIdParam && ownerParam) ? ownerParam : null,
-        specialBadge: badge || null,
-        sort,
-        limit: 5000,
-        signal: searchController.signal,
-      });
+      // 종족 검색 결과(헤더 Enter 결과 = 종족 → 개체). 유저별 개체 목록(?owner)에서는 하지 않는다.
+      const speciesPromise = (q && SPECIES_RESULT_ENABLED)
+        ? searchSpecies(q, { limit: 50, signal: searchController.signal })
+        : Promise.resolve(null);
+
+      const [{ data, count, error }, speciesRes] = await Promise.all([
+        searchCharacters(q, {
+          speciesName: sp || null,
+          ownerUserId: (ownerIdParam && ownerParamId) ? ownerParamId : null,
+          ownerNickname: (!ownerIdParam && ownerParam) ? ownerParam : null,
+          specialBadge: badge || null,
+          sort,
+          limit: 5000,
+          signal: searchController.signal,
+        }),
+        speciesPromise,
+      ]);
 
       if (myToken !== searchToken) return; // 이전 요청보다 늦게 온 응답은 무시
+
+      const speciesCount = renderSpeciesResults(q, speciesRes);
 
       if (error) {
         document.getElementById('characterGrid').innerHTML = '<p class="page-loading">불러오기 실패</p>';
@@ -203,11 +221,18 @@
       }
 
       const list = data;
-      document.getElementById('charCount').textContent = `총 ${count ?? list.length}개의 개체`;
-      document.getElementById('noResult').style.display = list.length ? 'none' : 'block';
+      const charTotal = count ?? list.length;
+      document.getElementById('charCount').textContent = speciesCount
+        ? `종족 ${speciesCount}개 · 개체 ${charTotal}개`
+        : `총 ${charTotal}개의 개체`;
+      document.getElementById('charResultTitle').style.display = speciesCount ? '' : 'none';
+      // 개체 0개여도 종족 결과가 있으면 정상 검색 결과 — "검색 결과가 없어요"는 둘 다 0개일 때만
+      document.getElementById('noResult').style.display = (list.length || speciesCount) ? 'none' : 'block';
 
       if (!list.length) {
-        document.getElementById('characterGrid').innerHTML = '';
+        document.getElementById('characterGrid').innerHTML = speciesCount
+          ? '<p class="page-loading">일치하는 개체가 없어요.</p>'
+          : '';
         document.getElementById('paginationWrap').innerHTML = '';
         if (q) {
           window.awardAchievement?.('no_char_search');
@@ -237,6 +262,67 @@
     }
 
     const debouncedApplyFilter = debounce(applyFilter, 300);
+
+    // ── 종족 검색 결과 (Enter 결과 페이지 상단) ─────────────────────
+    const SPECIES_RESULT_ENABLED = !ownerParam && !ownerIdParam;
+    const SPECIES_RESULT_SHOW    = 8;
+
+    // 검색어와 정확히 같은 이름 → 앞부분 일치 → 나머지(기존 최신순) 순으로 보여준다.
+    function rankSpecies(list, q) {
+      const lq = q.toLowerCase();
+      const rank = s => {
+        const n = (s.name || '').toLowerCase();
+        return n === lq ? 0 : n.startsWith(lq) ? 1 : 2;
+      };
+      return list.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(x => x.s);
+    }
+
+    // 반환값 = 종족 결과 총 개수(0이면 영역 숨김)
+    function renderSpeciesResults(q, res) {
+      const section = document.getElementById('speciesResultSection');
+      const rows = (res && !res.error && res.data) ? res.data : [];
+      const total = rows.length ? (res.count ?? rows.length) : 0;
+      if (!total) { section.style.display = 'none'; return 0; }
+
+      const shown = rankSpecies(rows, q).slice(0, SPECIES_RESULT_SHOW);
+      document.getElementById('speciesResultGrid').innerHTML = shown.map(s => `
+        <a href="species.html?id=${s.id}" class="species-card">
+          ${speciesImgHtml(s)}
+          <div class="species-info">
+            <p class="species-name">${escapeHtml(s.name)}</p>
+          </div>
+        </a>
+      `).join('');
+
+      const more = document.getElementById('speciesResultMore');
+      if (total > shown.length) {
+        more.href = `species-list.html?q=${encodeURIComponent(q)}`;
+        more.textContent = `종족 검색 결과 ${total}개 전체 보기 →`;
+        more.style.display = 'inline-block';
+      } else {
+        more.style.display = 'none';
+      }
+      section.style.display = '';
+      return total;
+    }
+
+    // species-list.html 의 종족 카드 이미지와 동일(민감 요소 가림 / 연령 배지)
+    function speciesImgHtml(s) {
+      const imgSrc = s.thumbnail_url || s.image_url;
+      if (s.is_sensitive && speciesHasVisibleRealImage(s)) {
+        const ageBadge = s.age_limit > 0 ? `<span class="species-age-badge">${s.age_limit}세 이상</span>` : '';
+        return `
+          <div style="position:relative; overflow:hidden; border-radius:var(--radius);">
+            <div class="species-img blurred" style="background-image:url('${imgSrc}'); background-size:cover; background-position:center;"></div>
+            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${ageBadge}${s.sensitive_note ? '<span class="sensitive-overlay-note">' + s.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+          </div>`;
+      }
+      const displaySrc = resolveSpeciesImage(s);
+      if (s.age_limit > 0) {
+        return `<div class="species-img" style="position:relative; background-image:url('${displaySrc}'); background-size:cover; background-position:center;"><span class="species-age-badge species-age-badge--overlay">${s.age_limit}세 이상</span></div>`;
+      }
+      return `<div class="species-img" style="background-image:url('${displaySrc}'); background-size:cover; background-position:center;"></div>`;
+    }
 
     function render(data) {
       const grid = document.getElementById('characterGrid');

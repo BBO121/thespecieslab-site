@@ -52,9 +52,11 @@ const ERROR_MSG = {
 
 // 마지막 선택 탐험 LABBER 기억 (localStorage, 로그인 유저별 key 분리)
 //   key   = labber_exploration_selected:{user_id}
-//   value = 'npc' (NPC B) | character_id 문자열 (개인 LABBER)
+//   value = character_id 문자열 (개인 LABBER). 'npc' 는 더 이상 저장하지 않는다(이전 버전이 남긴 값은 무시).
+// 기본 선택 정책(2026-10-05): 탐험 가능한 소유 LABBER 가 있으면 항상 LABBER —
+//   1) 저장된 LABBER(현재 목록에 있을 때) 2) 서버 목록 첫 번째(created_at 순) 3) 소유 LABBER 없음 → NPC.
+//   NPC 직접 선택은 그 화면에서만 유효(저장 안 함) → 다음 진입 시 다시 소유 LABBER.
 const EXPLORER_STORE_PREFIX = 'labber_exploration_selected:';
-const EXPLORER_STORE_NPC    = 'npc';
 
 let _user            = null;
 let _explorers        = { default: null, labbers: [] };
@@ -72,6 +74,8 @@ let _stageIndex        = 0;
 let _exploring         = false;
 let _modalOpen         = false;
 let _lastFocused       = null;
+let _resultOpen        = false;   // 탐험 결과 모달
+let _resultLastFocused = null;
 
 // 확률 공개 패널 — stage_code 별 캐시(같은 스테이지 다시 열 때 재요청 안 함)
 let _probCache  = {};   // { stage_code: get_exploration_reward_table() 응답 }
@@ -103,14 +107,17 @@ async function initPage() {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (_modalOpen) closeStageModal();
+      if (_resultOpen) closeResultModal();
+      else if (_modalOpen) closeStageModal();
       else closeExplorerPanel();
     });
     document.addEventListener('click', (e) => {
       if (!e.target.closest('#explorerRow')) closeExplorerPanel();
     });
-    document.getElementById('resultCloseBtn').addEventListener('click', () => {
-      document.getElementById('exploreResult').hidden = true;
+    document.getElementById('resultCloseBtn').addEventListener('click', closeResultModal);
+    document.getElementById('resultModalClose').addEventListener('click', closeResultModal);
+    document.getElementById('resultModalBackdrop').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeResultModal();
     });
 
     document.getElementById('pageLoading').style.display = 'none';
@@ -204,36 +211,33 @@ function explorerStoreKey() {
   return _user && _user.id ? EXPLORER_STORE_PREFIX + _user.id : null;
 }
 
+// 개인 LABBER 선택만 저장한다. NPC(null) 선택은 저장하지 않아 마지막 LABBER 기억이 유지된다.
 function saveSelectedExplorer() {
   const key = explorerStoreKey();
-  if (!key) return;
+  if (!key || _selectedExplorer === null) return;
   try {
-    localStorage.setItem(key, _selectedExplorer === null ? EXPLORER_STORE_NPC : String(_selectedExplorer));
+    localStorage.setItem(key, String(_selectedExplorer));
   } catch (_) { /* 저장 불가(사생활 보호 모드 등) — 선택 자체는 그대로 동작 */ }
 }
 
-// 저장값이 현재 탐험 가능 목록(서버가 본인 소유·204·양도대기 아님·offsite 아님으로 필터)에
-// 있을 때만 선택. 없으면 NPC B 로 되돌리고 저장값도 NPC 로 정리한다.
-// 목록 RPC 자체가 실패한 경우엔 판단 불가 → 이번 화면만 NPC, 저장값은 건드리지 않는다.
+// 기본 선택 결정 — 저장값/날짜/세션과 무관하게 "현재 탐험 가능 목록"(서버가 본인 소유·204·
+// 양도대기 아님·offsite 아님으로 필터) 기준으로 정한다.
+//   1) 저장된 LABBER 가 목록에 있으면 그것  2) 없으면(미저장·'npc'·이전/삭제됨) 목록 첫 번째
+//   3) 목록이 비었거나 목록 RPC 실패 → NPC (실패 시 저장값은 건드리지 않음)
 function restoreSelectedExplorer() {
   _selectedExplorer = null;
-  const key = explorerStoreKey();
-  if (!key) return;
+  if (!_explorersLoaded || !_explorers.labbers.length) return;
 
+  const key = explorerStoreKey();
   let raw = null;
-  try { raw = localStorage.getItem(key); } catch (_) { return; }
-  if (raw === null || raw === EXPLORER_STORE_NPC) return;
-  if (!_explorersLoaded) return;
+  if (key) { try { raw = localStorage.getItem(key); } catch (_) { raw = null; } }
 
   const id = Number(raw);
-  const ok = Number.isSafeInteger(id) && id > 0
+  const saved = raw !== null && Number.isSafeInteger(id) && id > 0
     && _explorers.labbers.some(l => Number(l.character_id) === id);
 
-  if (ok) {
-    _selectedExplorer = id;
-  } else {
-    saveSelectedExplorer();   // 사용 불가 → NPC 로 정리
-  }
+  _selectedExplorer = saved ? id : Number(_explorers.labbers[0].character_id);
+  if (!saved) saveSelectedExplorer();   // 유효하지 않은 저장값 → 현재 유효한 LABBER 로 정리
 }
 
 function selectedExplorerData() {
@@ -746,6 +750,7 @@ async function handleExploreError(code, data, areaCode) {
   }
 
   if (code === 'INVALID_EXPLORER_CHARACTER') {
+    const rejectedId = _selectedExplorer;
     const { data: freshLabbers } = await sb.rpc('get_available_exploration_labbers');
     if (freshLabbers && !freshLabbers.error) {
       _explorers = {
@@ -753,8 +758,9 @@ async function handleExploreError(code, data, areaCode) {
         labbers: freshLabbers.labbers || [],
       };
     }
-    _selectedExplorer = null;
-    saveSelectedExplorer();   // 서버가 거부한 LABBER 는 저장값에서도 정리
+    // 재조회 실패로 옛 목록이 남아도 거부된 LABBER 는 다시 고르지 않게 제외
+    _explorers.labbers = _explorers.labbers.filter(l => Number(l.character_id) !== rejectedId);
+    restoreSelectedExplorer();   // 서버가 거부한 LABBER → 남은 유효 LABBER(없으면 NPC)로 정리
     renderExplorers();
   }
 
@@ -774,7 +780,6 @@ async function handleExploreError(code, data, areaCode) {
 // 기본 보상(항상 지급)과 추가 보상(확률 판정)을 구분해서 보여준다 — 뽀 지시사항:
 // "기본 보상 연구기록 +5 / 탐험 보상 ○○○" 처럼 혼동되지 않게.
 function renderResult(data) {
-  const box  = document.getElementById('exploreResult');
   const body = document.getElementById('exploreResultBody');
 
   const lines = [];
@@ -812,9 +817,31 @@ function renderResult(data) {
 
   lines.push(`<p class="labexp-result-daily">오늘 남은 탐험 ${data.remaining_today} / ${data.daily_limit}</p>`);
 
-  body.innerHTML = lines.join('');
-  box.hidden = false;
-  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  body.innerHTML = lines.join('');   // 매번 통째로 교체 — 이전 결과가 남지 않음
+  openResultModal();
+}
+
+// ── 탐험 결과 모달 ── 스테이지 모달과 같은 방식(body overflow 잠금, 포커스 복원 preventScroll)
+//    페이지 스크롤 위치는 건드리지 않는다(예전 scrollIntoView 제거).
+function openResultModal() {
+  _resultLastFocused = document.activeElement;
+  document.getElementById('resultModalBackdrop').hidden = false;
+  _resultOpen = true;
+  document.body.style.overflow = 'hidden';
+  const modalBody = document.querySelector('#resultModal .labexp-modal-body');
+  if (modalBody) modalBody.scrollTop = 0;
+  const closeBtn = document.getElementById('resultModalClose');
+  try { closeBtn.focus({ preventScroll: true }); } catch (_) { closeBtn.focus(); }
+}
+
+function closeResultModal() {
+  if (!_resultOpen) return;
+  document.getElementById('resultModalBackdrop').hidden = true;
+  _resultOpen = false;
+  document.body.style.overflow = '';
+  if (_resultLastFocused && typeof _resultLastFocused.focus === 'function') {
+    try { _resultLastFocused.focus({ preventScroll: true }); } catch (_) { /* 포커스 복원 생략 */ }
+  }
 }
 
 // ── util ──────────────────────────────────────────────────────────────

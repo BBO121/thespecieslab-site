@@ -348,6 +348,57 @@ function representativeCharacterName(c) {
   return c.owner_custom_name?.trim() || c.name || '';
 }
 
+// 개체 이미지 박스(imgEl)에 프로필 프레임(.profile-avatar-wrap.frame-*)을 겹친다 / styleKey가 없으면 해제.
+// 96px 기준 프레임 레이어를 --char-frame-scale 배율로 확대한다(CSS: .char-frame-layer, style.scss _sidebar).
+// fit:true면 박스의 실제 폭(보더 포함)/96을 배율로 자동 설정 — 폭이 가변인 곳(모바일 메뉴 등)용.
+function applyCharFrame(imgEl, styleKey, { fit = false } = {}) {
+  if (!imgEl) return;
+  let layer = imgEl.querySelector(':scope > .char-frame-layer');
+  if (!layer) {
+    imgEl.insertAdjacentHTML('beforeend', '<div class="char-frame-layer"><div class="profile-avatar-wrap"></div></div>');
+    layer = imgEl.lastElementChild;
+  }
+  const frameEl = layer.firstElementChild;
+  [...frameEl.classList].filter(c => c.startsWith('frame-')).forEach(c => frameEl.classList.remove(c));
+  if (styleKey) frameEl.classList.add(styleKey);
+  imgEl.classList.toggle('has-char-frame', !!styleKey);
+  _syncCharDecoClass(imgEl);
+
+  if (fit && !imgEl._charFrameFit && window.ResizeObserver) {
+    imgEl._charFrameFit = new ResizeObserver(() => {
+      const w = imgEl.offsetWidth;
+      if (w) imgEl.style.setProperty('--char-frame-scale', String(w / 96));
+    });
+    imgEl._charFrameFit.observe(imgEl);
+  }
+}
+
+// 개체 이미지 박스(imgEl)에 프로필 스티커를 겹친다 / url이 없으면 해제.
+// 프로필 이미지 스티커와 같은 비율(이미지 96 : 스티커 116, 가운데 정렬) — %로 지정해 박스 크기에 자동으로 맞음.
+function applyCharSticker(imgEl, url, alt = '') {
+  if (!imgEl) return;
+  let st = imgEl.querySelector(':scope > .char-sticker-layer');
+  if (url) {
+    if (!st) {
+      st = document.createElement('img');
+      st.className = 'char-sticker-layer';
+      imgEl.appendChild(st);
+    }
+    if (st.getAttribute('src') !== url) st.src = url;
+    st.alt = alt || '';
+  } else if (st) {
+    st.remove();
+  }
+  imgEl.classList.toggle('has-char-sticker', !!url);
+  _syncCharDecoClass(imgEl);
+}
+
+// 프레임 또는 스티커가 하나라도 있으면 has-char-deco — 꾸밈 공통 크기/여백 규칙용
+function _syncCharDecoClass(imgEl) {
+  imgEl.classList.toggle('has-char-deco',
+    imgEl.classList.contains('has-char-frame') || imgEl.classList.contains('has-char-sticker'));
+}
+
 // 지금 화면에 "실제 이미지"가 쓰이고 있는지 (연구소 기본 이미지를 지정했다면 false).
 // 블러/나이제한 숨김처럼 실제 콘텐츠에만 적용해야 하는 처리의 조건으로 사용한다.
 function speciesHasVisibleRealImage(sp, { thumb = true } = {}) {
@@ -409,31 +460,65 @@ function autoCenterCropToBlob(file, aspectRatio = 3/4, maxSize = 600, quality = 
 // ============================================
 // character_name_display_mode: 내 캐릭터 목록에서 우선 표시할 이름.
 // 'registered' = 등록명(characters.name), 'owner' = 소유주 설정 개체명(characters.owner_custom_name).
-const DEFAULT_USER_SETTINGS = { hide_sensitive_content: false, character_name_display_mode: 'registered' };
+// auto_reveal_sensitive: 종족·개체의 민감한 이미지(is_sensitive)를 가림 없이 바로 표시 (기본 false = 가림).
+//   hide_sensitive_content(상점·프로필 "장식" 숨김)와는 별개 설정이다.
+const DEFAULT_USER_SETTINGS = {
+  hide_sensitive_content: false, character_name_display_mode: 'registered', auto_reveal_sensitive: false,
+};
+const USER_SETTINGS_COLUMNS = 'hide_sensitive_content, character_name_display_mode, auto_reveal_sensitive';
+
+// 페이지 안에서 같은 사용자 설정을 여러 곳(민감 요소 표시·상점·프로필·개체명 등)이 읽으므로
+// 조회는 사용자별로 한 번만 한다. 실패한 조회는 캐시하지 않는다(다음 호출 때 다시 조회).
+const _userSettingsCache = {};
 
 // 현재 로그인 사용자의 설정 조회. row가 없는 경우(.maybeSingle()이 error 없이 data:null을
 // 반환하는 경우)에만 기본값을 반환한다. RLS/네트워크/DB 오류 등 실제 오류는 절대 기본값으로
 // 위장하지 않고 그대로 throw한다 — 호출부에서 페이지 관례에 맞게 오류 처리해야 한다.
 async function getUserSettings(userId) {
   if (!userId) return { ...DEFAULT_USER_SETTINGS };
-  const { data, error } = await sb.from('user_settings')
-    .select('hide_sensitive_content, character_name_display_mode')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data || { ...DEFAULT_USER_SETTINGS };
+  if (!_userSettingsCache[userId]) {
+    const p = (async () => {
+      const { data, error } = await sb.from('user_settings')
+        .select(USER_SETTINGS_COLUMNS)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return { ...DEFAULT_USER_SETTINGS, ...(data || {}) };
+    })();
+    _userSettingsCache[userId] = p;
+    p.catch(() => { if (_userSettingsCache[userId] === p) delete _userSettingsCache[userId]; });
+  }
+  return { ...(await _userSettingsCache[userId]) };
 }
 
-// 설정 변경 — row가 없으면 새로 생성(upsert)한다.
+// 설정 변경 — row가 없으면 새로 생성(upsert)한다. 보낸 컬럼만 바뀌고 다른 설정은 그대로다.
 async function updateUserSettings(userId, patch) {
   if (!userId) return { data: null, error: new Error('NOT_AUTHENTICATED') };
   const { data, error } = await sb.from('user_settings')
     .upsert({ user_id: userId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    .select('hide_sensitive_content, character_name_display_mode')
+    .select(USER_SETTINGS_COLUMNS)
     .single();
   if (error) console.warn('[updateUserSettings] 오류:', error);
+  else if (data) _userSettingsCache[userId] = Promise.resolve({ ...DEFAULT_USER_SETTINGS, ...data });
   return { data, error };
 }
+
+// ── 민감한 요소 바로 표시 ─────────────────────────────────────
+// 로그인 사용자의 auto_reveal_sensitive 가 true 일 때만 <html> 에 .show-sensitive 를 붙인다.
+// 표시 방식은 css/scss/style.scss 의 html.show-sensitive 규칙이 담당하고, 각 페이지의
+// 민감 요소 마크업(.blurred + .sensitive-overlay)·판정 기준·수동 표시(revealSensitive)는 그대로다.
+// 비로그인 / 설정 로딩 중 / 조회 실패 = 클래스 없음 = 기존처럼 가림(기본 OFF).
+function setSensitiveReveal(on) {
+  document.documentElement.classList.toggle('show-sensitive', on === true);
+}
+
+(function initSensitiveReveal() {
+  if (typeof getUser !== 'function' || typeof sb === 'undefined') return;
+  getUser()
+    .then(user => (user ? getUserSettings(user.id) : null))
+    .then(settings => setSensitiveReveal(settings?.auto_reveal_sensitive === true))
+    .catch(e => console.warn('[민감 요소 표시] 설정 조회 실패 — 기본(가림) 유지:', e?.message || e));
+})();
 
 // ============================================
 // 검색엔진(SEO) 공용 헬퍼

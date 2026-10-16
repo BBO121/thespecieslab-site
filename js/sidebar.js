@@ -590,9 +590,10 @@ async function updateSidebarLogin() {
       if (isSpeciesOwner)                               badges.push(`<span class="badge-role">종족주</span>`);
       if (!admin && !staff && !isTester && !isSpeciesOwner && !isStaffGen1) badges.push(`<span class="badge-user">일반유저</span>`);
 
-      const [{ data: wallet }, { data: repProfile }] = await Promise.all([
+      const [{ data: wallet }, { data: repProfile }, repDeco] = await Promise.all([
         getMyWallet(user.id).catch(() => ({ data: null })),
         sb.from('user_profiles').select('representative_character_id').eq('user_id', user.id).maybeSingle(),
+        loadSidebarRepDeco(user.id).catch(() => null),
       ]);
       const researchAmt = (wallet?.research_records ?? 0).toLocaleString();
       const keysAmt     = (wallet?.keys ?? 0).toLocaleString();
@@ -639,12 +640,60 @@ async function updateSidebarLogin() {
         </a>
         <button class="btn-logout" onclick="showLogoutConfirm()">로그아웃</button>
       `;
+
+      // 대표 캐릭터에 프로필과 같은 프레임 겹치기 (미설정 placeholder에는 적용 안 함)
+      if (repChar) applySidebarRepDeco(block.querySelector('.sidebar-rep-char-img'), repDeco);
     }
   } else {
     if (block) {
       block.innerHTML = `<a href="login.html" class="btn-login">로그인</a>`;
     }
   }
+}
+
+// ── 모바일 메뉴 대표 캐릭터 프레임·스티커 ──────────────
+// 개체 프로필 설정(user_equipment.equipped_char_frame_id / equipped_char_sticker_id — 이미지 프로필과 별도) 기준,
+// 민감 아이템은 본인 설정(hide_sensitive_content)이 숨김이면 표시 안 함(설정 조회 실패 시 안전값=숨김)
+// 반환: { frameKey, sticker: { url, name } | null }
+async function loadSidebarRepDeco(userId) {
+  const { data: equip } = await sb.from('user_equipment')
+    .select('equipped_char_frame_id, equipped_char_sticker_id').eq('user_id', userId).maybeSingle();
+  const ids = [equip?.equipped_char_frame_id, equip?.equipped_char_sticker_id].filter(Boolean);
+  if (!ids.length) return { frameKey: null, sticker: null };
+  const { data: items } = await sb.from('shop_items')
+    .select('id, style_key, image_url, name, is_sensitive').in('id', ids);
+  const byId = {};
+  (items || []).forEach(it => { byId[it.id] = it; });
+  let hide = null;
+  const visible = async (it) => {
+    if (!it) return false;
+    if (!it.is_sensitive) return true;
+    if (hide === null) {
+      hide = true;
+      try { hide = (await getUserSettings(userId)).hide_sensitive_content; } catch (e) {}
+    }
+    return !hide;
+  };
+  const frame   = byId[equip.equipped_char_frame_id];
+  const sticker = byId[equip.equipped_char_sticker_id];
+  return {
+    frameKey: (frame?.style_key && await visible(frame)) ? frame.style_key : null,
+    sticker:  (sticker?.image_url && await visible(sticker)) ? { url: sticker.image_url, name: sticker.name || '' } : null,
+  };
+}
+
+function applySidebarRepDeco(imgEl, deco) {
+  applyCharFrame(imgEl, deco?.frameKey || null, { fit: true });
+  applyCharSticker(imgEl, deco?.sticker?.url || null, deco?.sticker?.name || '');
+}
+
+// 개체 프로필 프레임·스티커 착용·변경·해제 직후 호출 — 메뉴 전체를 다시 그리지 않고 꾸밈만 갱신
+async function refreshSidebarRepFrame() {
+  const imgEl = document.querySelector('#sidebarUserBlock .sidebar-rep-char-img:not(.sidebar-rep-char-img--empty)');
+  if (!imgEl) return;
+  const user = await getUser();
+  if (!user) return;
+  applySidebarRepDeco(imgEl, await loadSidebarRepDeco(user.id).catch(() => null));
 }
 
 // ── 종족 플라이아웃 (PC 전용) ─────────────────────────

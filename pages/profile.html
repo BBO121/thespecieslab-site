@@ -151,7 +151,26 @@
     .rep-char-mobile-tab-info { font-size:12px; color:var(--text-mute); text-align:center; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .rep-char-mobile-tab-empty-text { font-size:12.5px; color:var(--text-mute); text-align:center; line-height:1.5; }
     .rep-char-mobile-tab--empty { cursor:pointer; }
-    .rep-char-mobile-tab-edit { position:absolute; top:-4px; right:-4px; background:var(--white); }
+    .rep-char-mobile-tab-edit { position:absolute; top:-4px; right:-4px; background:var(--white); z-index:3; }
+
+    /* ── 개체 프로필(대표 캐릭터) 프레임 — 프로필 이미지(96px)용 .profile-avatar-wrap.frame-* 규칙과 PNG를 그대로 재사용.
+       96px 프레임 레이어를 개체 이미지 크기에 맞춰 transform으로 비율 그대로 확대한다(utils.js applyCharFrame 공용).
+       개체 이미지는 기존 background-size:cover / background-position:center 크롭을 그대로 유지. ── */
+    .rep-char-card-img, .rep-char-mobile-tab-img, .settings-rep-frame-img { position:relative; }
+    /* .char-frame-layer 공용 규칙은 style.scss(_sidebar) — 모바일 메뉴와 공유 */
+    /* 데스크탑: 200px 유지, 프레임만 200/96배 확대. 모서리 곡률도 프로필 이미지와 같은 비율(20/96)로 맞춰 프레임 안쪽과 정렬.
+       레이어는 1px 보더 바깥(200px 박스) 기준으로 깔고, 아래로 삐져나오는 프레임(약 26px)만큼 개체명과의 간격을 띄움 */
+    /* 스티커(.char-sticker-layer, 공용)도 같은 기준 — 프레임 또는 스티커가 있으면 has-char-deco */
+    .rep-char-card-img { --char-frame-scale:2.083333; --char-deco-border:1px; }
+    .rep-char-card-img.has-char-deco { border-radius:20.8333%; margin-bottom:40px; }
+    .rep-char-card-img > .char-frame-layer { inset:-1px; }
+    /* 모바일: 프레임/스티커 적용 시 프로필 이미지와 같은 96px·20px 곡률 → 프로필 탭과 동일한 크기로 표시 */
+    .rep-char-mobile-tab-img.has-char-deco { width:96px; height:96px; border-radius:20px; margin:4px 0 6px; }
+    /* 설정 > 프로필 꾸미기 미리보기용 (프로필 이미지 미리보기와 같은 96px) */
+    .settings-rep-frame-preview { display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:22px; }
+    .settings-rep-frame-img {
+      width:96px; height:96px; border-radius:20px; background:#e2e8f0 no-repeat center/cover;
+    }
     @media (min-width:641px) {
       .profile-mobile-tabs, .rep-char-mobile-tab, .rep-char-mobile-tab--empty { display:none !important; }
     }
@@ -219,7 +238,7 @@
 
           <!-- 대표 캐릭터 (데스크탑 전용) — 라벨 없이 이미지가 시작점, ⚙는 개체명 줄에만 정렬 -->
           <a class="rep-char-card" id="repCharCard" href="#" style="display:none;">
-            <div class="rep-char-card-img" id="repCharCardImg"></div>
+            <div class="rep-char-card-img" id="repCharCardImg"><div class="char-frame-layer"><div class="profile-avatar-wrap"></div></div></div>
             <div class="rep-char-card-info">
               <div class="rep-char-card-name-row">
                 <p class="rep-char-card-name" id="repCharCardName"></p>
@@ -259,7 +278,7 @@
                 <a class="rep-char-mobile-tab" id="repCharMobileTab" href="#" style="display:none;">
                   <button type="button" class="rep-char-edit-btn rep-char-mobile-tab-edit" id="repCharMobileTabEditBtn"
                     onclick="event.preventDefault(); event.stopPropagation(); openRepCharModal();" title="변경">⚙</button>
-                  <div class="rep-char-mobile-tab-img" id="repCharMobileTabImg"></div>
+                  <div class="rep-char-mobile-tab-img" id="repCharMobileTabImg"><div class="char-frame-layer"><div class="profile-avatar-wrap"></div></div></div>
                   <p class="rep-char-mobile-tab-info" id="repCharMobileTabInfo"></p>
                 </a>
                 <div class="rep-char-mobile-tab rep-char-mobile-tab--empty" id="repCharMobileTabEmpty" style="display:none;">
@@ -416,6 +435,12 @@
                 </div>
 
               </div>
+
+              <!-- 대표 캐릭터(개체 프로필) 프레임 미리보기 — 대표 캐릭터 설정 시에만 표시 -->
+              <div class="settings-rep-frame-preview" id="settingsRepFramePreview" style="display:none;">
+                <span class="bag-ep-item-label">개체 프로필 · 프레임/스티커는 <a href="my-bag.html" style="color:var(--sky-dark);">가방</a>에서 변경</span>
+                <div class="settings-rep-frame-img" id="settingsRepFrameImg"><div class="char-frame-layer"><div class="profile-avatar-wrap"></div></div></div>
+              </div>
             </div>
           </section>
 
@@ -541,6 +566,7 @@
     const viewUserId = new URLSearchParams(window.location.search).get('user');
     let currentUser = null;
     let _repCurrentId = null;
+    let _repCharImgUrl = null; // 설정 > 프로필 꾸미기의 대표 캐릭터 프레임 미리보기용
     let _repPickChars = null;
     // 현재 로그인한 사용자(뷰어)의 "민감한 요소 숨기기" 설정 — 내/타인 프로필 모두 이 값 하나로 판단한다.
     // initProfile()에서 한 번만 조회해 applyProfileFrame()에 전달한다(요청당 반복 조회 금지).
@@ -1448,44 +1474,91 @@
       let equip = prefetchedEquip;
       if (!equip) {
         const { data } = await sb.from('user_equipment')
-          .select('equipped_frame_id, equipped_sticker_id')
+          .select('equipped_frame_id, equipped_sticker_id, equipped_char_frame_id, equipped_char_sticker_id')
           .eq('user_id', userId)
           .maybeSingle();
         equip = data;
       }
 
-      if (!equip) return;
+      if (!equip) { _setRepCharFrame(null); _setRepCharSticker(null); return; }
 
       // 프레임·스티커 병렬 조회 — is_sensitive도 함께 받아 민감요소 숨김 설정 판정에 사용
       // (판정 기준은 shop_items.is_sensitive 하나만 사용, 프로필용 별도 컬럼을 두지 않는다)
-      const [frameRes, stickerRes] = await Promise.all([
+      // 개체 프로필(대표 캐릭터) 프레임은 이미지 프로필과 별도 저장(equipped_char_frame_id) — 같은 아이템이면 조회 1번만
+      const charFrameId   = equip.equipped_char_frame_id   || null;
+      const charStickerId = equip.equipped_char_sticker_id || null;
+      const [frameRes, stickerRes, charFrameRes, charStickerRes] = await Promise.all([
         equip.equipped_frame_id
           ? sb.from('shop_items').select('style_key, is_sensitive').eq('id', equip.equipped_frame_id).maybeSingle()
           : Promise.resolve({ data: null }),
         equip.equipped_sticker_id && stickerEl
           ? sb.from('shop_items').select('image_url, name, is_sensitive').eq('id', equip.equipped_sticker_id).maybeSingle()
           : Promise.resolve({ data: null }),
+        charFrameId && charFrameId !== equip.equipped_frame_id
+          ? sb.from('shop_items').select('style_key, is_sensitive').eq('id', charFrameId).maybeSingle()
+          : Promise.resolve(null),
+        // 개체 프로필 스티커 (이미지 스티커와 같은 아이템이면 그 결과 재사용)
+        charStickerId && !(charStickerId === equip.equipped_sticker_id && stickerEl)
+          ? sb.from('shop_items').select('image_url, name, is_sensitive').eq('id', charStickerId).maybeSingle()
+          : Promise.resolve(null),
       ]);
+      const charStickerData = charStickerId
+        ? (charStickerRes ? charStickerRes.data : stickerRes.data)
+        : null;
+      const charFrameData = charFrameId
+        ? (charFrameRes ? charFrameRes.data : frameRes.data)
+        : null;
 
       // 현재 로그인 사용자(뷰어)의 설정 기준 — 내/타인 프로필 구분 없이 동일하게 적용.
       // 민감 프레임/스티커만 기본 상태로 대체하고, 닉네임·대표 캐릭터 등 나머지 프로필 정보는 항상 그대로 표시한다.
       const frameHidden   = frameRes.data?.is_sensitive   && _hideSensitiveContent;
       const stickerHidden = stickerRes.data?.is_sensitive && _hideSensitiveContent;
 
-      if (frameRes.data?.style_key && !frameHidden) {
-        const frameCls = [...wrapEl.classList].filter(c => c.startsWith('frame-'));
-        frameCls.forEach(c => wrapEl.classList.remove(c));
-        wrapEl.classList.add(frameRes.data.style_key);
-      }
+      // 해제(또는 민감 숨김) 시에도 이전 프레임 클래스가 남지 않도록 항상 제거 후 다시 적용
+      const frameKey = (frameRes.data?.style_key && !frameHidden) ? frameRes.data.style_key : null;
+      _setFrameClass(wrapEl, frameKey);
+      // 개체 프로필(대표 캐릭터)은 자기 프레임 설정 사용 — 민감 숨김 판정은 프로필 이미지와 동일
+      const charFrameHidden = charFrameData?.is_sensitive && _hideSensitiveContent;
+      _setRepCharFrame((charFrameData?.style_key && !charFrameHidden) ? charFrameData.style_key : null);
 
       if (stickerRes.data?.image_url && stickerEl && !stickerHidden) {
         stickerEl.src = stickerRes.data.image_url;
         stickerEl.alt = stickerRes.data.name || '';
         stickerEl.style.display = 'block';
+      } else if (stickerEl) {
+        // 해제(또는 민감 숨김) 시 이전 스티커가 남지 않도록 숨김
+        stickerEl.style.display = 'none';
       }
+
+      // 개체 프로필(대표 캐릭터) 스티커 — 자기 설정 사용, 민감 숨김 판정은 동일
+      const charStickerHidden = charStickerData?.is_sensitive && _hideSensitiveContent;
+      _setRepCharSticker((charStickerData?.image_url && !charStickerHidden) ? charStickerData : null);
 
       // 안내 문구는 "민감 프레임이 실제로 숨겨졌을 때"만 표시 — 스티커만 숨겨진 경우는 표시하지 않음
       if (frameHidden && noticeEl) noticeEl.style.display = '';
+    }
+
+    // el의 frame-* 클래스를 모두 지우고 styleKey(있으면)만 남긴다
+    function _setFrameClass(el, styleKey) {
+      if (!el) return;
+      [...el.classList].filter(c => c.startsWith('frame-')).forEach(c => el.classList.remove(c));
+      if (styleKey) el.classList.add(styleKey);
+    }
+
+    // 개체 프로필(대표 캐릭터) 데스크탑 카드 + 모바일 탭에 스티커 반영 (공용 applyCharSticker — utils.js)
+    function _setRepCharSticker(item) {
+      _repCharSticker = item ? { url: item.image_url, name: item.name || '' } : null;
+      applyCharSticker(document.getElementById('repCharCardImg'), _repCharSticker?.url, _repCharSticker?.name);
+      applyCharSticker(document.getElementById('repCharMobileTabImg'), _repCharSticker?.url, _repCharSticker?.name);
+      _renderSettingsRepFramePreview();
+    }
+
+    // 개체 프로필(대표 캐릭터) 데스크탑 카드 + 모바일 탭에 프레임 반영 (공용 applyCharFrame — utils.js)
+    function _setRepCharFrame(styleKey) {
+      _repCharFrameKey = styleKey || null;
+      applyCharFrame(document.getElementById('repCharCardImg'), styleKey);
+      applyCharFrame(document.getElementById('repCharMobileTabImg'), styleKey);
+      _renderSettingsRepFramePreview();
     }
 
     async function initMyProfile(user) {
@@ -1498,7 +1571,7 @@
       const [{ data: mySpById }, { data: myProfile }, { data: myEquip }] = await Promise.all([
         sb.from('species').select('id').eq('owner_user_id', user.id).limit(1),
         sb.from('user_profiles').select('bio, tos, watermark_url, representative_character_id').eq('user_id', user.id).single(),
-        sb.from('user_equipment').select('equipped_frame_id, equipped_sticker_id').eq('user_id', user.id).maybeSingle(),
+        sb.from('user_equipment').select('equipped_frame_id, equipped_sticker_id, equipped_char_frame_id, equipped_char_sticker_id').eq('user_id', user.id).maybeSingle(),
       ]);
 
       // 워터마크 미리보기 초기화
@@ -1709,6 +1782,8 @@
         _renderRepCharEmpty(emptyEl, emptyIcon, emptyText, isOwnProfile, { hideIconWhenReadonly: true });
         mFilledEl.style.display = 'none';
         _renderRepCharEmpty(mEmptyEl, mEmptyImg, mEmptyText, isOwnProfile);
+        _repCharImgUrl = null;
+        _renderSettingsRepFramePreview();
         return;
       }
 
@@ -1723,6 +1798,8 @@
         _renderRepCharEmpty(emptyEl, emptyIcon, emptyText, isOwnProfile, { hideIconWhenReadonly: true });
         mFilledEl.style.display = 'none';
         _renderRepCharEmpty(mEmptyEl, mEmptyImg, mEmptyText, isOwnProfile);
+        _repCharImgUrl = null;
+        _renderSettingsRepFramePreview();
         return;
       }
 
@@ -1746,6 +1823,9 @@
       mFilledEl.style.display = 'flex';
       mEmptyEl.style.display  = 'none';
       mEmptyEl.onclick = null;
+
+      _repCharImgUrl = imgUrl;
+      _renderSettingsRepFramePreview();
     }
 
     // 모바일 프로필 상단 탭 전환 (프로필 이미지 ↔ 대표 캐릭터) — 같은 자리의 내용만 교체
@@ -2205,6 +2285,21 @@
     let _decoSelectedItemId     = null;
     let _decoItemsCache         = {};
 
+    let _repCharFrameKey        = null; // 개체 프로필(대표 캐릭터) 프레임 style_key — 설정 미리보기용
+    let _repCharSticker         = null; // 개체 프로필(대표 캐릭터) 스티커 { url, name } — 설정 미리보기용
+
+    // 설정 > 프로필 꾸미기: 대표 캐릭터(개체 프로필)에 현재 프레임을 씌운 미리보기 — 대표 캐릭터 미설정이면 숨김
+    function _renderSettingsRepFramePreview() {
+      const wrapEl = document.getElementById('settingsRepFramePreview');
+      const imgEl  = document.getElementById('settingsRepFrameImg');
+      if (!wrapEl || !imgEl) return;
+      if (!_repCharImgUrl) { wrapEl.style.display = 'none'; return; }
+      imgEl.style.backgroundImage = `url('${_repCharImgUrl}')`;
+      applyCharFrame(imgEl, _repCharFrameKey);
+      applyCharSticker(imgEl, _repCharSticker?.url, _repCharSticker?.name);
+      wrapEl.style.display = '';
+    }
+
     function initSettingsDeco(equip) {
       _settingsEquipFrameId   = equip?.equipped_frame_id   ?? null;
       _settingsEquipStickerId = equip?.equipped_sticker_id ?? null;
@@ -2245,6 +2340,7 @@
         if (frameNameEl)    frameNameEl.textContent      = '없음';
         if (frameUnequipEl) frameUnequipEl.style.display = 'none';
       }
+      _renderSettingsRepFramePreview();
 
       // 스티커
       const stickerNameEl    = document.getElementById('settingsStickerName');

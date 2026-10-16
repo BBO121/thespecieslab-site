@@ -27,6 +27,22 @@ async function initPage() {
       }
     });
 
+    // 민감한 요소 바로 표시 (auto_reveal_sensitive) — 장식 숨김(hide_sensitive_content)과 별개 컬럼
+    const revealToggle = document.getElementById('autoRevealSensitiveToggle');
+    revealToggle.checked = settings.auto_reveal_sensitive === true;
+    revealToggle.addEventListener('change', async () => {
+      const next = revealToggle.checked;
+      revealToggle.disabled = true;
+      const { error } = await updateUserSettings(_settingsUserId, { auto_reveal_sensitive: next });
+      revealToggle.disabled = false;
+      if (error) {
+        revealToggle.checked = !next; // 실패 시 되돌리기
+        alert('설정 저장에 실패했어요. 다시 시도해주세요.');
+        return;
+      }
+      if (typeof setSensitiveReveal === 'function') setSensitiveReveal(next); // 배포 직후 구버전 utils.js 캐시 대비
+    });
+
     // 이메일 인증 섹션은 다른 설정 로딩을 막지 않도록 별도로(await 없이) 초기화
     initEmailVerification(user);
 

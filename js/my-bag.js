@@ -4,6 +4,30 @@ let _equippedStickerId = null;
 let _itemsByType       = {};
 let _activeTab         = 'item'; // 'item' | 'decorate'
 
+// 꾸미기 대상 — 'image'(이미지 프로필: equipped_frame_id / equipped_sticker_id)
+//             | 'char'(개체 프로필=대표 캐릭터: equipped_char_frame_id / equipped_char_sticker_id)
+// 프레임·스티커 모두 대상별 독립 저장(서로 덮어쓰지 않음). 꾸미기 탭 맨 위에 두 대상의 변경화면, 그 아래 목록.
+let _equippedCharFrameId   = null;
+let _equippedCharStickerId = null;
+let _bagRepChar          = null;   // 개체 프로필(대표 캐릭터) — 미설정이면 null
+const FRAME_TARGET_LABEL = { image: '이미지 프로필', char: '개체 프로필' };
+const FRAME_RPC = {
+  image: { equip: 'equip_frame',      unequip: 'unequip_frame' },
+  char:  { equip: 'equip_char_frame', unequip: 'unequip_char_frame' },
+};
+
+const STICKER_RPC = {
+  image: { equip: 'equip_sticker',      unequip: 'unequip_sticker' },
+  char:  { equip: 'equip_char_sticker', unequip: 'unequip_char_sticker' },
+};
+
+function equippedFrameIdOf(target) {
+  return target === 'char' ? _equippedCharFrameId : _equippedFrameId;
+}
+function equippedStickerIdOf(target) {
+  return target === 'char' ? _equippedCharStickerId : _equippedStickerId;
+}
+
 const TAB_ITEM_TYPES = {
   item: ['consumable'],
 };
@@ -221,20 +245,38 @@ async function initPage() {
 async function loadData() {
   console.log('[my-bag] loadData 시작, user.id =', _user.id);
 
-  const [userItemsRes, equipRes] = await Promise.all([
+  const [userItemsRes, equipRes, repProfileRes] = await Promise.all([
     sb.from('user_items')
       .select('item_id, purchased_at, item_key, quantity')
       .eq('user_id', _user.id),
     sb.from('user_equipment')
-      .select('equipped_frame_id, equipped_sticker_id')
+      .select('equipped_frame_id, equipped_sticker_id, equipped_char_frame_id, equipped_char_sticker_id')
+      .eq('user_id', _user.id)
+      .maybeSingle(),
+    sb.from('user_profiles')
+      .select('representative_character_id')
       .eq('user_id', _user.id)
       .maybeSingle(),
   ]);
 
   console.log('[my-bag] user_items 조회 결과:', userItemsRes.data, '에러:', userItemsRes.error);
+  if (equipRes.error) console.error('[my-bag] user_equipment 조회 오류:', equipRes.error);
 
-  _equippedFrameId   = equipRes.data?.equipped_frame_id   ?? null;
-  _equippedStickerId = equipRes.data?.equipped_sticker_id ?? null;
+  _equippedFrameId     = equipRes.data?.equipped_frame_id      ?? null;
+  _equippedStickerId   = equipRes.data?.equipped_sticker_id    ?? null;
+  _equippedCharFrameId   = equipRes.data?.equipped_char_frame_id   ?? null;
+  _equippedCharStickerId = equipRes.data?.equipped_char_sticker_id ?? null;
+
+  // 개체 프로필(대표 캐릭터) — 미리보기 이미지 + 개체 프레임 착용 가능 여부 판단용
+  _bagRepChar = null;
+  const repId = repProfileRes.data?.representative_character_id;
+  if (repId) {
+    const { data: c } = await sb.from('characters_public')
+      .select('id, name, owner_custom_name, species_name, image_url, thumbnail_url, default_image_index')
+      .eq('id', repId)
+      .maybeSingle();
+    _bagRepChar = c || null;
+  }
 
   const userItems = userItemsRes.data || [];
   _itemsByType = {};
@@ -451,39 +493,43 @@ function renderEquippedPreview() {
   const el = document.getElementById('equippedPreview');
   if (!el) return;
 
+  // 꾸미기 탭은 각 프로필 꾸미기 영역 안에 미리보기가 있으므로 상단 미리보기는 숨김(중복 표시 방지)
+  if (_activeTab !== 'item') {
+    el.innerHTML = '';
+    el.style.display = 'none';
+    return;
+  }
+
   // 아이템 탭에서는 프레임/스티커 미리보기 대신 안내 문구만 표시
-  // (탭 전환 시 화면 출렁임을 막기 위해 .bag-ep-section 틀 자체는 그대로 유지)
-  if (_activeTab === 'item') {
-    el.innerHTML = `
-      <div class="bag-ep-section">
-        <h2 class="bag-section-title">미리보기</h2>
-        <p class="bag-ep-item-notice">아이템은 미리보기에 적용되지 않습니다.</p>
-      </div>`;
-    return;
-  }
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="bag-ep-section">
+      <h2 class="bag-section-title">미리보기</h2>
+      <p class="bag-ep-item-notice">아이템은 미리보기에 적용되지 않습니다.</p>
+    </div>`;
+}
 
-  const frames        = Object.values(_itemsByType['frame']   || {}).flat();
-  const stickers      = Object.values(_itemsByType['sticker'] || {}).flat();
-  const equippedFrame   = _equippedFrameId   ? frames.find(f => f.id === _equippedFrameId)   : null;
-  const equippedSticker = _equippedStickerId ? stickers.find(s => s.id === _equippedStickerId) : null;
+// ── 프로필 꾸미기 영역 미리보기 (대상별) ─────────────────
+// image: 아바타 + 이미지 프로필 프레임·스티커 / char: 대표 캐릭터 이미지 + 개체 프로필 프레임·스티커
+function bagFramePreviewHtml(target) {
+  const isChar = target === 'char';
+  const frames          = Object.values(_itemsByType['frame']   || {}).flat();
+  const stickers        = Object.values(_itemsByType['sticker'] || {}).flat();
+  const frameId         = equippedFrameIdOf(target);
+  const equippedFrame   = frameId ? frames.find(f => f.id === frameId) : null;
+  const stickerId       = equippedStickerIdOf(target);
+  const equippedSticker = stickerId ? stickers.find(s => s.id === stickerId) : null;
 
-  if (!equippedFrame && !equippedSticker) {
-    el.innerHTML = `
-      <div class="bag-ep-section">
-        <h2 class="bag-section-title">미리보기</h2>
-        <p class="bag-ep-none">착용 중인 아이템이 없습니다</p>
-      </div>`;
-    return;
-  }
-
-  const avatarUrl   = _user?.user_metadata?.avatar_url || '';
-  const avatarStyle = avatarUrl
-    ? `background-image:url('${avatarUrl}');background-size:cover;background-position:center;`
+  const imgUrl = isChar
+    ? resolveCharacterImage(_bagRepChar)
+    : (_user?.user_metadata?.avatar_url || '');
+  const avatarStyle = imgUrl
+    ? `background-image:url('${imgUrl}');background-size:cover;background-position:center;`
     : '';
   const frameCss = equippedFrame ? (equippedFrame.style_key || '') : '';
 
   const stickerOverlay = equippedSticker
-    ? `<img id="bagEpStickerImg" src="${equippedSticker.image_url}" alt="${equippedSticker.name}"
+    ? `<img class="bag-ep-sticker-dyn" data-target="${target}" src="${equippedSticker.image_url}" alt="${equippedSticker.name}"
            style="grid-area:1/1; width:0; height:0; object-fit:contain; z-index:3; pointer-events:none;">`
     : '';
 
@@ -491,45 +537,98 @@ function renderEquippedPreview() {
     ? `<div class="bag-ep-side bag-ep-side--left">
         <span class="bag-ep-item-label">프레임</span>
         <p class="bag-ep-name">${formatBagPreviewName(equippedFrame.name)}</p>
-        <button class="bag-unequip-btn" onclick="unequipFrame()">해제하기</button>
+        <button class="bag-unequip-btn" data-kind="frame" data-target="${target}" onclick="unequipFrame('${target}')">해제하기</button>
       </div>`
-    : `<div class="bag-ep-side bag-ep-side--left"></div>`;
+    : `<div class="bag-ep-side bag-ep-side--left">
+        <span class="bag-ep-item-label">프레임</span>
+        <p class="bag-ep-none">착용 중인 프레임 없음</p>
+      </div>`;
 
   const rightHtml = equippedSticker
     ? `<div class="bag-ep-side bag-ep-side--right">
         <span class="bag-ep-item-label">스티커</span>
         <p class="bag-ep-name">${formatBagPreviewName(equippedSticker.name)}</p>
-        <button class="bag-unequip-btn" onclick="unequipSticker()">해제하기</button>
+        <button class="bag-unequip-btn" data-kind="sticker" data-target="${target}" onclick="unequipSticker('${target}')">해제하기</button>
       </div>`
-    : `<div class="bag-ep-side bag-ep-side--right"></div>`;
+    : `<div class="bag-ep-side bag-ep-side--right">
+        <span class="bag-ep-item-label">스티커</span>
+        <p class="bag-ep-none">착용 중인 스티커 없음</p>
+      </div>`;
 
-  el.innerHTML = `
-    <div class="bag-ep-section">
-      <h2 class="bag-section-title">미리보기</h2>
-      <div class="bag-ep-tricolumn">
-        ${leftHtml}
-        <div class="bag-ep-preview-center" style="display:grid; place-items:center; flex-shrink:0; line-height:0;">
-          <div class="bag-ep-preview-wrap ${frameCss}" style="grid-area:1/1;">
-            <div class="bag-ep-avatar" style="${avatarStyle}"></div>
-          </div>
-          ${stickerOverlay}
+  return `
+    <div class="bag-ep-tricolumn">
+      ${leftHtml}
+      <div class="bag-ep-preview-center" style="display:grid; place-items:center; flex-shrink:0; line-height:0;">
+        <div class="bag-ep-preview-wrap ${frameCss}" style="grid-area:1/1;">
+          <div class="bag-ep-avatar" style="${avatarStyle}"></div>
         </div>
-        ${rightHtml}
+        ${stickerOverlay}
       </div>
+      ${rightHtml}
     </div>`;
+}
 
-  // 렌더 후 실제 아바타 크기 측정 → 프로필과 동일한 비율(116/96) 적용
-  if (equippedSticker) {
-    requestAnimationFrame(() => {
-      const wrap = el.querySelector('.bag-ep-preview-wrap');
-      const img  = document.getElementById('bagEpStickerImg');
-      if (!wrap || !img) return;
-      const avatarPx  = wrap.clientWidth;
-      const stickerPx = Math.round(avatarPx * 116 / 96);
+// ── 꾸미기 탭 맨 위: 변경화면 2개 (이미지 프로필 → 개체 프로필) ──
+function renderFramePreviewsSection() {
+  const block = (target) => {
+    const charName = (target === 'char' && _bagRepChar) ? ` · ${escapeHtml(representativeCharacterName(_bagRepChar))}` : '';
+    const title = `<h3 class="bag-subsection-title">${FRAME_TARGET_LABEL[target]}${charName}</h3>`;
+    // 개체 프로필 미설정 — 설정 안내만 표시 (개체 프레임·스티커 착용 불가)
+    if (target === 'char' && !_bagRepChar) {
+      return `
+        <div class="bag-frame-target-block" data-target="char">
+          ${title}
+          <p class="bag-ep-item-notice"><span>개체 프로필(대표 캐릭터)이 설정되지 않았어요.<br>
+            <a class="bag-ep-notice-link" href="profile.html">프로필에서 대표 캐릭터 설정하기 →</a></span></p>
+        </div>`;
+    }
+    return `
+      <div class="bag-frame-target-block" data-target="${target}">
+        ${title}
+        ${bagFramePreviewHtml(target)}
+      </div>`;
+  };
+  return `
+    <div class="bag-section">
+      <h2 class="bag-section-title">프로필 꾸미기</h2>
+      ${block('image')}
+      ${block('char')}
+    </div>`;
+}
+
+// ── 보유 프레임 목록 1개 — 카드마다 [이미지 착용] [개체 착용] ──
+function renderFrameListSection() {
+  const subEntries = Object.entries(_itemsByType['frame'] || {});
+  const multiSub   = subEntries.length > 1 || (subEntries[0] && subEntries[0][0] !== '기본');
+  const listHtml   = subEntries.length
+    ? subEntries.map(([subLabel, items], i) => `
+        <div class="${i > 0 ? 'bag-subsection-gap' : ''}">
+          ${multiSub ? `<h3 class="bag-subsection-title">${subLabel}</h3>` : ''}
+          <div class="bag-grid">
+            ${items.map(item => renderBagItem(item, 'frame')).join('')}
+          </div>
+        </div>`).join('')
+    : `<p class="bag-ep-none" style="text-align:center; padding:12px 0;">보유한 프레임이 없어요. <a class="bag-ep-notice-link" href="shop.html">상점 바로가기</a></p>`;
+  return `
+    <div class="bag-section">
+      <h2 class="bag-section-title">프레임</h2>
+      ${listHtml}
+    </div>`;
+}
+
+// 스티커 오버레이 크기 — 렌더 후 실제 아바타 크기 측정 → 프로필과 동일한 비율(116/96) 적용
+function bagSizeStickerOverlay() {
+  const imgs = document.querySelectorAll('.bag-ep-sticker-dyn');
+  if (!imgs.length) return;
+  requestAnimationFrame(() => {
+    imgs.forEach(img => {
+      const wrap = img.parentElement?.querySelector('.bag-ep-preview-wrap');
+      if (!wrap) return;
+      const stickerPx = Math.round(wrap.clientWidth * 116 / 96);
       img.style.width  = stickerPx + 'px';
       img.style.height = stickerPx + 'px';
     });
-  }
+  });
 }
 
 // ── 가방 렌더 ────────────────────────────────────────────
@@ -546,17 +645,12 @@ function renderBag() {
     return;
   }
 
-  // 꾸미기 탭 = 기존 로직 그대로 (consumable 제외한 모든 타입)
+  // 꾸미기 탭 = [프로필 꾸미기: 이미지·개체 변경화면] → [프레임 목록 1개] → 프레임 외 타입(스티커 등, 기존 로직 그대로)
   const wrap = document.getElementById('bagSections');
   const itemTabTypes = TAB_ITEM_TYPES.item;
-  const types = Object.keys(_itemsByType).filter(t => !itemTabTypes.includes(t));
+  const types = Object.keys(_itemsByType).filter(t => !itemTabTypes.includes(t) && t !== 'frame');
 
-  if (!types.length) {
-    wrap.innerHTML = `<p class="empty-state" style="padding:60px 0; text-align:center;">보유한 꾸미기 아이템이 없어요.<br><a href="shop.html" style="color:var(--sky-dark); font-weight:700;">상점 바로가기</a></p>`;
-    return;
-  }
-
-  wrap.innerHTML = types.map(type => {
+  wrap.innerHTML = renderFramePreviewsSection() + renderFrameListSection() + types.map(type => {
     const subs      = _itemsByType[type];
     const label     = TYPE_LABEL[type] || type;
     const subEntries = Object.entries(subs);
@@ -576,6 +670,7 @@ function renderBag() {
         `).join('')}
       </div>`;
   }).join('');
+  bagSizeStickerOverlay();
 }
 
 // ── 아이템 탭: 세로형 섹션 렌더 ──────────────────────────
@@ -1315,10 +1410,11 @@ function renderBagItem(item, type) {
 
   const styleKey   = item.style_key || '';
   const cssClass   = styleKey;
+  // 프레임·스티커: 어느 한쪽(이미지/개체)에라도 착용 중이면 착용 표시
   const isEquipped = type === 'frame'
-    ? item.id === _equippedFrameId
+    ? (item.id === _equippedFrameId || item.id === _equippedCharFrameId)
     : type === 'sticker'
-      ? item.id === _equippedStickerId
+      ? (item.id === _equippedStickerId || item.id === _equippedCharStickerId)
       : false;
 
   const previewHtml = cssClass && type !== 'sticker'
@@ -1332,14 +1428,19 @@ function renderBagItem(item, type) {
     : '';
 
   let actionHtml;
-  if (type === 'frame') {
-    actionHtml = isEquipped
-      ? `<span class="shop-thumb-status shop-status--owned">착용중</span>`
-      : `<button class="bag-equip-btn-sm" data-item-id="${item.id}" onclick="event.stopPropagation(); equipFrame('${item.id}')">착용하기</button>`;
-  } else if (type === 'sticker') {
-    actionHtml = isEquipped
-      ? `<span class="shop-thumb-status shop-status--owned">착용중</span>`
-      : `<button class="bag-equip-btn-sm" data-item-id="${item.id}" onclick="event.stopPropagation(); equipSticker('${item.id}')">착용하기</button>`;
+  if (type === 'frame' || type === 'sticker') {
+    // 대상별 착용 — 착용 중이면 상태, 아니면 그 대상에 착용 버튼 (개체 프로필 미설정 시 개체 버튼 비활성)
+    const equippedOf = type === 'frame' ? equippedFrameIdOf : equippedStickerIdOf;
+    const equipFn    = type === 'frame' ? 'equipFrame' : 'equipSticker';
+    const rowFor = (target) => {
+      const short = target === 'char' ? '개체' : '이미지';
+      if (item.id === equippedOf(target)) {
+        return `<span class="shop-thumb-status shop-status--owned bag-frame-status" data-target="${target}">${short} 착용중</span>`;
+      }
+      const blocked = target === 'char' && !_bagRepChar;
+      return `<button class="bag-equip-btn-sm" data-item-id="${item.id}" data-target="${target}"${blocked ? ' disabled title="개체 프로필(대표 캐릭터)을 먼저 설정해주세요"' : ''} onclick="event.stopPropagation(); ${equipFn}('${item.id}', '${target}')">${short} 착용</button>`;
+    };
+    actionHtml = `<div class="bag-frame-actions">${rowFor('image')}${rowFor('char')}</div>`;
   } else if (type === 'consumable') {
     actionHtml = `<span class="shop-thumb-status shop-status--owned">보유 ${item.quantity ?? 0}장</span>`;
   } else {
@@ -1370,9 +1471,9 @@ const TICKET_BUMP_CONDITION_HTML =
 function openItemDetailModal(item) {
   const type = item.item_type;
   const isEquipped = type === 'frame'
-    ? item.id === _equippedFrameId
+    ? (item.id === _equippedFrameId || item.id === _equippedCharFrameId)
     : type === 'sticker'
-      ? item.id === _equippedStickerId
+      ? (item.id === _equippedStickerId || item.id === _equippedCharStickerId)
       : false;
 
   document.getElementById('bagDetailName').textContent = item.name;
@@ -1409,11 +1510,22 @@ function openItemDetailModal(item) {
     qtyEl.textContent    = `보유 ${item.quantity ?? 0}장`;
     actionEl.innerHTML   = `<a href="my-adoptions.html" class="shop-buy-btn-lg">내 분양에서 사용하기</a>`;
   } else if (type === 'frame' || type === 'sticker') {
+    // 프레임·스티커는 대상별로 착용 — 이미지 프로필 / 개체 프로필 버튼(또는 착용중 상태)을 각각 표시
+    const equippedOf = type === 'frame' ? equippedFrameIdOf : equippedStickerIdOf;
+    const equipFn    = type === 'frame' ? 'equipFrameFromModal' : 'equipStickerFromModal';
+    const rowFor = (target) => {
+      const label = FRAME_TARGET_LABEL[target];
+      if (item.id === equippedOf(target)) {
+        return `<span class="shop-detail-status shop-status--owned">${label} 착용중</span>`;
+      }
+      if (target === 'char' && !_bagRepChar) {
+        return `<button class="shop-buy-btn-lg" disabled>개체 프로필 설정 후 착용 가능</button>`;
+      }
+      return `<button class="shop-buy-btn-lg" data-target="${target}" onclick="${equipFn}('${item.id}', '${target}')">${label}에 착용하기</button>`;
+    };
     qtyEl.style.display = 'none';
     qtyEl.textContent    = '';
-    actionEl.innerHTML  = isEquipped
-      ? `<span class="shop-detail-status shop-status--owned">착용중</span>`
-      : `<button class="shop-buy-btn-lg" onclick="${type === 'frame' ? 'equipFrameFromModal' : 'equipStickerFromModal'}('${item.id}')">착용하기</button>`;
+    actionEl.innerHTML  = `<div class="bag-frame-modal-actions">${rowFor('image')}${rowFor('char')}</div>`;
   } else {
     qtyEl.style.display = 'none';
     qtyEl.textContent    = '';
@@ -1427,102 +1539,132 @@ function closeItemDetailModal() {
   document.getElementById('bagDetailModal').style.display = 'none';
 }
 
-// ── 프레임 해제 ──────────────────────────────────────────
-async function unequipFrame() {
-  document.querySelectorAll('.bag-unequip-btn').forEach(btn => {
-    btn.disabled = true; btn.textContent = '처리 중...';
-  });
+// ── 프레임 착용/해제 — 호출한 영역의 대상(target)에만 적용 ──────
+// 이미지 프로필: equip_frame/unequip_frame (equipped_frame_id)
+// 개체 프로필:   equip_char_frame/unequip_char_frame (equipped_char_frame_id) — 서로 덮어쓰지 않음
+function bagFrameErrorMsg(code, action) {
+  if (code === 'NO_REP_CHARACTER') return '개체 프로필(대표 캐릭터)을 먼저 설정해주세요.';
+  if (code === 'NOT_OWNED')        return '보유하지 않은 프레임입니다.';
+  return action === 'unequip' ? '해제 중 오류가 발생했습니다.' : '장착 중 오류가 발생했습니다.';
+}
 
-  const { data, error } = await sb.rpc('unequip_frame');
+function bagApplyFrameResult(target, frameId) {
+  if (target === 'char') _equippedCharFrameId = frameId;
+  else                   _equippedFrameId     = frameId;
+  renderBag();
+  // 모바일 메뉴는 개체 프로필 프레임을 표시 → 개체 대상 변경 시에만 갱신
+  if (target === 'char') refreshSidebarRepFrame();
+}
+
+async function bagEquipFrameRpc(itemId, target) {
+  if (!FRAME_RPC[target]) return false;
+  if (target === 'char' && !_bagRepChar) {
+    alert(bagFrameErrorMsg('NO_REP_CHARACTER'));
+    return false;
+  }
+  const { data, error } = await sb.rpc(FRAME_RPC[target].equip, { p_item_id: itemId });
+  if (error || !data?.success) {
+    console.error('[my-bag] ' + FRAME_RPC[target].equip + ' 오류:', error || data?.error);
+    alert(bagFrameErrorMsg(data?.error, 'equip'));
+    return false;
+  }
+  bagApplyFrameResult(target, target === 'char' ? data.equipped_char_frame_id : data.equipped_frame_id);
+  return true;
+}
+
+// ── 프레임 해제 ──────────────────────────────────────────
+async function unequipFrame(target = 'image') {
+  if (!FRAME_RPC[target]) return;
+  const btns = document.querySelectorAll(`.bag-unequip-btn[data-kind="frame"][data-target="${target}"]`);
+  btns.forEach(btn => { btn.disabled = true; btn.textContent = '처리 중...'; });
+
+  const { data, error } = await sb.rpc(FRAME_RPC[target].unequip);
 
   if (error || !data?.success) {
-    if (btn) { btn.disabled = false; btn.textContent = '해제하기'; }
-    alert('해제 중 오류가 발생했습니다.');
+    btns.forEach(btn => { btn.disabled = false; btn.textContent = '해제하기'; });
+    console.error('[my-bag] ' + FRAME_RPC[target].unequip + ' 오류:', error || data?.error);
+    alert(bagFrameErrorMsg(data?.error, 'unequip'));
     return;
   }
 
-  _equippedFrameId = null;
-  renderBag();
+  bagApplyFrameResult(target, null);
 }
 
 // ── 프레임 장착 ──────────────────────────────────────────
-async function equipFrame(itemId) {
-  const btn = document.querySelector(`.bag-equip-btn-sm[data-item-id="${itemId}"]`);
+async function equipFrame(itemId, target = 'image') {
+  const btn = document.querySelector(`.bag-equip-btn-sm[data-item-id="${itemId}"][data-target="${target}"]`);
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
-
-  const { data, error } = await sb.rpc('equip_frame', { p_item_id: itemId });
-
-  if (error || !data?.success) {
-    if (btn) { btn.disabled = false; btn.textContent = '착용하기'; }
-    console.error('[my-bag] equip_frame 오류:', error || data?.error);
-    alert('장착 중 오류가 발생했습니다.');
-    return;
-  }
-
-  _equippedFrameId = data.equipped_frame_id;
-  renderBag();
+  const ok = await bagEquipFrameRpc(itemId, target);
+  if (!ok && btn) { btn.disabled = false; btn.textContent = target === 'char' ? '개체 착용' : '이미지 착용'; }
 }
 
 // ── 프레임 장착 (상세 모달 전용) ──────────────────────────
-async function equipFrameFromModal(itemId) {
-  const { data, error } = await sb.rpc('equip_frame', { p_item_id: itemId });
-  if (error || !data?.success) {
-    alert('장착 중 오류가 발생했습니다.');
-    return;
-  }
-  _equippedFrameId = data.equipped_frame_id;
-  closeItemDetailModal();
+async function equipFrameFromModal(itemId, target = 'image') {
+  if (await bagEquipFrameRpc(itemId, target)) closeItemDetailModal();
+}
+
+// ── 스티커 착용/해제 — 호출한 대상(target)에만 적용 ──────────
+// 이미지 프로필: equip_sticker/unequip_sticker (equipped_sticker_id)
+// 개체 프로필:   equip_char_sticker/unequip_char_sticker (equipped_char_sticker_id) — 서로 덮어쓰지 않음
+function bagStickerErrorMsg(code, action) {
+  if (code === 'NO_REP_CHARACTER') return '개체 프로필(대표 캐릭터)을 먼저 설정해주세요.';
+  if (code === 'NOT_OWNED')        return '보유하지 않은 스티커입니다.';
+  return action === 'unequip' ? '해제 중 오류가 발생했습니다.' : '장착 중 오류가 발생했습니다.';
+}
+
+function bagApplyStickerResult(target, stickerId) {
+  if (target === 'char') _equippedCharStickerId = stickerId;
+  else                   _equippedStickerId     = stickerId;
   renderBag();
+  // 모바일 메뉴는 개체 프로필 꾸밈을 표시 → 개체 대상 변경 시에만 갱신
+  if (target === 'char') refreshSidebarRepFrame();
+}
+
+async function bagEquipStickerRpc(itemId, target) {
+  if (!STICKER_RPC[target]) return false;
+  if (target === 'char' && !_bagRepChar) {
+    alert(bagStickerErrorMsg('NO_REP_CHARACTER'));
+    return false;
+  }
+  const { data, error } = await sb.rpc(STICKER_RPC[target].equip, { p_item_id: itemId });
+  if (error || !data?.success) {
+    console.error('[my-bag] ' + STICKER_RPC[target].equip + ' 오류:', error || data?.error);
+    alert(bagStickerErrorMsg(data?.error, 'equip'));
+    return false;
+  }
+  bagApplyStickerResult(target, target === 'char' ? data.equipped_char_sticker_id : data.equipped_sticker_id);
+  return true;
 }
 
 // ── 스티커 해제 ──────────────────────────────────────────
-async function unequipSticker() {
-  document.querySelectorAll('.bag-unequip-btn').forEach(btn => {
-    btn.disabled = true; btn.textContent = '처리 중...';
-  });
+async function unequipSticker(target = 'image') {
+  if (!STICKER_RPC[target]) return;
+  const btns = document.querySelectorAll(`.bag-unequip-btn[data-kind="sticker"][data-target="${target}"]`);
+  btns.forEach(btn => { btn.disabled = true; btn.textContent = '처리 중...'; });
 
-  const { data, error } = await sb.rpc('unequip_sticker');
+  const { data, error } = await sb.rpc(STICKER_RPC[target].unequip);
 
   if (error || !data?.success) {
-    document.querySelectorAll('.bag-unequip-btn').forEach(btn => {
-      btn.disabled = false; btn.textContent = '해제하기';
-    });
-    alert('해제 중 오류가 발생했습니다.');
+    btns.forEach(btn => { btn.disabled = false; btn.textContent = '해제하기'; });
+    console.error('[my-bag] ' + STICKER_RPC[target].unequip + ' 오류:', error || data?.error);
+    alert(bagStickerErrorMsg(data?.error, 'unequip'));
     return;
   }
 
-  _equippedStickerId = null;
-  renderBag();
+  bagApplyStickerResult(target, null);
 }
 
 // ── 스티커 장착 ──────────────────────────────────────────
-async function equipSticker(itemId) {
-  const btn = document.querySelector(`.bag-equip-btn-sm[data-item-id="${itemId}"]`);
+async function equipSticker(itemId, target = 'image') {
+  const btn = document.querySelector(`.bag-equip-btn-sm[data-item-id="${itemId}"][data-target="${target}"]`);
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
-
-  const { data, error } = await sb.rpc('equip_sticker', { p_item_id: itemId });
-
-  if (error || !data?.success) {
-    if (btn) { btn.disabled = false; btn.textContent = '착용하기'; }
-    console.error('[my-bag] equip_sticker 오류:', error || data?.error);
-    alert('장착 중 오류가 발생했습니다.');
-    return;
-  }
-
-  _equippedStickerId = data.equipped_sticker_id;
-  renderBag();
+  const ok = await bagEquipStickerRpc(itemId, target);
+  if (!ok && btn) { btn.disabled = false; btn.textContent = target === 'char' ? '개체 착용' : '이미지 착용'; }
 }
 
 // ── 스티커 장착 (상세 모달 전용) ─────────────────────────
-async function equipStickerFromModal(itemId) {
-  const { data, error } = await sb.rpc('equip_sticker', { p_item_id: itemId });
-  if (error || !data?.success) {
-    alert('장착 중 오류가 발생했습니다.');
-    return;
-  }
-  _equippedStickerId = data.equipped_sticker_id;
-  closeItemDetailModal();
-  renderBag();
+async function equipStickerFromModal(itemId, target = 'image') {
+  if (await bagEquipStickerRpc(itemId, target)) closeItemDetailModal();
 }
 
 initPage();

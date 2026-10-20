@@ -186,8 +186,11 @@
       const user = await getUser();
       if (!user) { window.location.href = 'login.html'; return; }
 
+      // 종족주 여부는 metadata role이 아니라 URL species_id 종족의 실제 소유(species.owner_user_id)로 판정한다
+      // — species.html의 "디자인권 등록" 버튼 노출, slot-edit.html 판정과 같은 기준.
+      // (role이 없는 실제 종족주, 예: 1기 스태프도 본인 종족에는 등록 가능 / 타인 종족은 role이 있어도 차단)
       const role = user.user_metadata?.role;
-      if (!isAdminOrStaff(role) && role !== 'species_owner') {
+      if (!isAdminOrStaff(role) && !(await isOwnSpeciesFromUrl(user.id))) {
         window.location.href = 'index.html';
         return;
       }
@@ -208,6 +211,14 @@
       }
 
       await loadUsers();
+    }
+
+    // URL의 species_id 종족 owner_user_id가 userId인지.
+    async function isOwnSpeciesFromUrl(userId) {
+      if (!speciesId) return false;
+      const { data, error } = await sb.from('species').select('owner_user_id').eq('id', speciesId).maybeSingle();
+      if (error || !data) return false;
+      return data.owner_user_id === userId;
     }
 
     async function loadUsers() {

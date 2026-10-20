@@ -175,7 +175,8 @@
 
       const role = user.user_metadata?.role;
 
-      if (role === 'species_owner' || isAdminOrStaff(role)) {
+      // 종족주 여부는 role이 아니라 실제 소유(species.owner_user_id)로도 판정 — role이 없는 실제 종족주도 버튼 노출.
+      if (isAdminOrStaff(role) || await window._cachedIsSpeciesOwner(user.id, role === 'species_owner')) {
         document.getElementById('writeBtn').style.display = 'inline-flex';
       }
 

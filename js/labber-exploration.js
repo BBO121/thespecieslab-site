@@ -58,6 +58,17 @@ const ERROR_MSG = {
 //   NPC 직접 선택은 그 화면에서만 유효(저장 안 함) → 다음 진입 시 다시 소유 LABBER.
 const EXPLORER_STORE_PREFIX = 'labber_exploration_selected:';
 
+// 구역별 스테이지 선택 + "이 스테이지 고정" 기억 (localStorage, 탐험 LABBER 기억과 같은 방식)
+//   key   = labber_exploration_stage:{user_id}
+//   value = JSON { [area_code]: { stage: stage_code, pinned: boolean } }
+// 초기 스테이지 규칙(resolveStageIndex):
+//   1) 고정 ON + 저장 스테이지가 접근 가능 → 그 스테이지
+//   2) 미클리어 스테이지(sequential frontier)가 있음 → frontier (기존 자동 진행)
+//   3) 전부 클리어 / free_select → 마지막 선택 스테이지 → 없으면 frontier → 첫 해금 스테이지
+//   저장 스테이지가 삭제·잠김이면 저장값을 지우고 고정도 해제한다. 최초 이용자는 고정 OFF.
+// 잠금/클리어 판정은 서버 값(is_unlocked / sequence_order / exploration_logs)만 읽는다.
+const STAGE_STORE_PREFIX = 'labber_exploration_stage:';
+
 let _user            = null;
 let _explorers        = { default: null, labbers: [] };
 let _explorersLoaded  = false;    // get_available_exploration_labbers 성공 여부 (실패 시 저장값 보존)
@@ -65,6 +76,7 @@ let _selectedExplorer  = null;    // null = NPC B(기본) / 그 외 = character_
 let _daily             = null;    // { daily_limit, used_today, remaining_today }
 let _areas             = [];      // AREA_META + get_exploration_areas() 병합, AREA_META 순서
 let _stagesByArea      = {};      // { area_code: get_exploration_stages 응답 }
+let _clearedStages     = new Set(); // 1회 이상 탐험 성공한 stage_code (free_select·sequential 마지막 스테이지 판정용)
 let _itemNames         = {};      // { item_code: name }
 let _npcCharacter      = null;    // characters_public id=NPC_DEFAULT_CHARACTER_ID (표시 전용)
 
@@ -100,6 +112,8 @@ async function initPage() {
     document.getElementById('stageNext').addEventListener('click', () => moveStage(1));
     document.getElementById('exploreBtn').addEventListener('click', doExplore);
     document.getElementById('probToggleBtn').addEventListener('click', toggleProbPanel);
+    document.getElementById('stageSelect').addEventListener('change', onStageSelectChange);
+    document.getElementById('stagePinToggle').addEventListener('change', onStagePinChange);
 
     document.getElementById('stageModalClose').addEventListener('click', closeStageModal);
     document.getElementById('stageModalBackdrop').addEventListener('click', (e) => {
@@ -175,6 +189,153 @@ async function loadAll() {
     const r = stageResults[i];
     if (r && r.data && !r.data.error) _stagesByArea[a.code] = r.data;
   });
+
+  await loadClearedStages();
+}
+
+// 클리어 여부 — sequential 은 sequence_order < 해금 최고치면 클리어(서버 해금 규칙 그대로).
+// 서버는 마지막 스테이지 클리어 시 해금치를 올리지 않으므로, 마지막 스테이지와 free_select 는
+// 본인 탐험 로그(성공한 탐험만 기록됨) 존재 여부로 판정한다. 실패해도 화면은 기존처럼 동작(미클리어로 간주).
+async function loadClearedStages() {
+  const codes = [];
+  Object.values(_stagesByArea).forEach(res => {
+    const stages = res.stages || [];
+    if (res.progression_type === 'sequential') {
+      const last = stages[stages.length - 1];
+      if (last && last.is_current_frontier) codes.push(last.stage_code);
+    } else {
+      stages.forEach(s => codes.push(s.stage_code));
+    }
+  });
+  if (!codes.length) return;
+  // exploration_logs RLS 는 "본인 OR 운영진 전체" — 운영진 계정도 본인 기록만 보도록 user_id 명시.
+  const { data, error } = await sb.from('exploration_logs')
+    .select('stage_code')
+    .eq('user_id', _user.id)
+    .in('stage_code', codes);
+  if (error) { console.warn('[labber-exploration] 클리어 기록 조회 실패:', error); return; }
+  (data || []).forEach(r => _clearedStages.add(r.stage_code));
+}
+
+function isStageCleared(stagesRes, stage) {
+  if (!stage || stage.is_unlocked !== true) return false;
+  if (stagesRes.progression_type === 'sequential' && !stage.is_current_frontier) return true;
+  return _clearedStages.has(stage.stage_code);
+}
+
+// ── 구역별 스테이지 선택/고정 저장·복원 ───────────────────────────────
+function stageStoreKey() {
+  return _user && _user.id ? STAGE_STORE_PREFIX + _user.id : null;
+}
+
+function loadStagePrefs() {
+  const key = stageStoreKey();
+  if (!key) return {};
+  try {
+    const obj = JSON.parse(localStorage.getItem(key) || '{}');
+    return obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : {};
+  } catch (_) { return {}; }
+}
+
+function getStagePref(areaCode) {
+  const p = loadStagePrefs()[areaCode];
+  if (!p || typeof p !== 'object') return { stage: null, pinned: false };
+  return { stage: typeof p.stage === 'string' ? p.stage : null, pinned: p.pinned === true };
+}
+
+function setStagePref(areaCode, pref) {
+  const key = stageStoreKey();
+  if (!key || !areaCode) return;
+  const all = loadStagePrefs();
+  if (pref && pref.stage) all[areaCode] = { stage: pref.stage, pinned: pref.pinned === true };
+  else delete all[areaCode];
+  try {
+    localStorage.setItem(key, JSON.stringify(all));
+  } catch (_) { /* 저장 불가(사생활 보호 모드 등) — 이번 화면에서의 선택은 그대로 동작 */ }
+}
+
+// 저장 스테이지가 현재 목록에서 접근 가능한지 확인하고, 아니면 저장값·고정을 정리한다.
+// 반환: 유효한 저장 스테이지의 index (없으면 -1)
+function validStagePrefIndex(areaCode, stages) {
+  const pref = getStagePref(areaCode);
+  if (!pref.stage) {
+    if (pref.pinned) setStagePref(areaCode, null);
+    return -1;
+  }
+  const idx = stages.findIndex(s => s.stage_code === pref.stage && s.is_unlocked === true);
+  if (idx < 0) setStagePref(areaCode, null);   // 삭제·비활성·잠김 → 선택값 제거 + 고정 해제
+  return idx;
+}
+
+function resolveStageIndex(areaCode, stagesRes) {
+  const stages = stagesRes.stages || [];
+  const savedIdx = validStagePrefIndex(areaCode, stages);
+  if (savedIdx >= 0 && getStagePref(areaCode).pinned) return savedIdx;
+
+  const frontierIdx = stages.findIndex(s => s.is_current_frontier);
+  if (frontierIdx >= 0 && !isStageCleared(stagesRes, stages[frontierIdx])) return frontierIdx;
+
+  if (savedIdx >= 0) return savedIdx;
+  if (frontierIdx >= 0) return frontierIdx;
+  const firstOpen = stages.findIndex(s => s.is_unlocked === true);
+  return firstOpen >= 0 ? firstOpen : 0;
+}
+
+// 사용자가 스테이지를 고르면(목록/화살표) 접근 가능한 스테이지만 저장 — 고정 ON 이면 고정 대상도 함께 바뀐다.
+function rememberCurrentStage() {
+  const stage = currentStage();
+  if (!_activeArea || !stage || stage.is_unlocked !== true) return;
+  setStagePref(_activeArea, { stage: stage.stage_code, pinned: getStagePref(_activeArea).pinned });
+}
+
+function onStageSelectChange(e) {
+  const idx = _modalStages.findIndex(s => s.stage_code === e.target.value);
+  if (idx < 0 || _modalStages[idx].is_unlocked !== true) { renderStageCarousel(); return; }
+  _stageIndex = idx;
+  rememberCurrentStage();
+  renderStageCarousel();
+}
+
+function onStagePinChange(e) {
+  const stage = currentStage();
+  if (!_activeArea || !stage || stage.is_unlocked !== true) { e.target.checked = false; renderStagePicker(); return; }
+  setStagePref(_activeArea, { stage: stage.stage_code, pinned: e.target.checked });
+  renderStagePicker();
+  renderAreaGrid();
+}
+
+// 고정된 스테이지(카드 표시용) — 저장값을 바꾸지 않는 읽기 전용 확인
+function pinnedStageOf(areaCode) {
+  const pref = getStagePref(areaCode);
+  if (!pref.pinned || !pref.stage) return null;
+  const res = _stagesByArea[areaCode];
+  return (res?.stages || []).find(s => s.stage_code === pref.stage && s.is_unlocked === true) || null;
+}
+
+function renderStagePicker() {
+  const select = document.getElementById('stageSelect');
+  const pin    = document.getElementById('stagePinToggle');
+  const note   = document.getElementById('stagePinNote');
+  const res    = _stagesByArea[_activeArea] || { stages: _modalStages };
+  const stage  = currentStage();
+
+  select.innerHTML = _modalStages.map(s => {
+    const name = s.display_name || s.stage_code;
+    let tag;
+    if (s.is_unlocked !== true)               tag = '🔒 잠김';
+    else if (isStageCleared(res, s))          tag = '✓ 클리어';
+    else if (s.is_current_frontier === true)  tag = '현재 진행';
+    else                                      tag = '미클리어';
+    return `<option value="${escapeHtml(s.stage_code)}"${s.is_unlocked !== true ? ' disabled' : ''}>${escapeHtml(name)} · ${tag}</option>`;
+  }).join('');
+  select.disabled = !_modalStages.length;
+  if (stage) select.value = stage.stage_code;   // 잠긴 스테이지를 화살표로 보는 중이면 그 항목이 표시된다(선택 불가)
+
+  const pref = getStagePref(_activeArea);
+  const canPin = !!stage && stage.is_unlocked === true;
+  pin.disabled = !canPin;
+  pin.checked  = canPin && pref.pinned && pref.stage === stage.stage_code;
+  note.hidden  = !pin.checked;
 }
 
 async function refreshAreaStages(areaCode) {
@@ -380,7 +541,10 @@ function renderAreaGrid() {
     } else {
       const stagesRes = _stagesByArea[a.code];
       let stageLine = '';
-      if (stagesRes && a.progression_type === 'sequential') {
+      const pinned = stagesRes ? pinnedStageOf(a.code) : null;
+      if (pinned) {
+        stageLine = `<span class="labexp-area-card-stage">고정 스테이지 · ${escapeHtml(pinned.display_name)}</span>`;
+      } else if (stagesRes && a.progression_type === 'sequential') {
         const frontier = (stagesRes.stages || []).find(s => s.is_current_frontier);
         if (frontier) {
           stageLine = `<span class="labexp-area-card-stage">현재 스테이지 · ${escapeHtml(frontier.display_name)}</span>`;
@@ -426,9 +590,8 @@ function openStageModal(areaCode) {
   _activeArea  = areaCode;
   _modalStages = stagesRes.stages || [];
 
-  // sequential: 현재 최전선에서 시작 / free_select: 첫 번째
-  const frontierIdx = _modalStages.findIndex(s => s.is_current_frontier);
-  _stageIndex = frontierIdx >= 0 ? frontierIdx : 0;
+  // 고정 스테이지 → 미클리어 frontier(기존 자동 진행) → 마지막 선택 순 (resolveStageIndex 참고)
+  _stageIndex = resolveStageIndex(areaCode, stagesRes);
 
   document.getElementById('stageModalTitle').textContent = area.name;
   renderStageCarousel();
@@ -455,6 +618,7 @@ function closeStageModal() {
 function moveStage(delta) {
   if (!_modalStages.length) return;
   _stageIndex = (_stageIndex + delta + _modalStages.length) % _modalStages.length;
+  rememberCurrentStage();   // 잠긴 스테이지는 미리보기만 — 저장·고정 대상 변경 없음
   renderStageCarousel();
 }
 
@@ -475,6 +639,7 @@ function renderStageCarousel() {
 
   // 스테이지가 바뀌면 확률 패널은 접어둔다(이전 스테이지 내용이 잠깐 보이는 것 방지).
   closeProbPanel();
+  renderStagePicker();
 
   const stage = currentStage();
   if (!stage) {
@@ -721,6 +886,7 @@ async function doExplore() {
   if (data.newly_unlocked === true && areaCode) {
     await refreshAreaStages(areaCode);
   }
+  _clearedStages.add(stage.stage_code);   // 성공 = 클리어 (마지막 스테이지/free_select 표시용)
 
   closeStageModal();
   renderResult(data);
@@ -742,8 +908,11 @@ async function handleExploreError(code, data, areaCode) {
   if ((code === 'STAGE_LOCKED' || code === 'STAGE_INACTIVE' || code === 'AREA_INACTIVE') && areaCode) {
     const fresh = await refreshAreaStages(areaCode);
     if (fresh && _modalOpen && _activeArea === areaCode) {
+      const prevCode = currentStage()?.stage_code;
       _modalStages = fresh.stages || [];
-      if (_stageIndex >= _modalStages.length) _stageIndex = Math.max(_modalStages.length - 1, 0);
+      const keepIdx = _modalStages.findIndex(s => s.stage_code === prevCode && s.is_unlocked === true);
+      // 보던 스테이지가 사라졌거나 잠겼으면 저장값/고정을 정리하고 접근 가능한 스테이지로 복구
+      _stageIndex = keepIdx >= 0 ? keepIdx : resolveStageIndex(areaCode, fresh);
       renderStageCarousel();
     }
     renderAreaGrid();

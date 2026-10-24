@@ -219,6 +219,89 @@
     .folder-list-drag { color:var(--text-mute); cursor:grab; font-size:14px; flex-shrink:0; user-select:none; touch-action:none; }
     .folder-list-drag:active { cursor:grabbing; }
     .folder-list-item.drag-over { border-color:var(--sky-dark); background:var(--sky-pale); }
+
+    /* ── 내가 정한 순서 ─────────────────────────────── */
+    .order-bar { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin:-12px 0 16px; }
+    .order-bar-hint { font-size:12px; color:var(--text-mute); margin:0 auto 0 0; line-height:1.5; }
+    .order-bar-hint.is-locked { color:#b45309; }
+    .order-edit-btn {
+      padding:6px 14px; border:1.5px solid var(--sky-dark); border-radius:9px;
+      background:#fff; font-size:13px; font-weight:600; color:var(--sky-dark);
+      cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap;
+    }
+    .order-edit-btn:hover    { background:var(--sky-pale); }
+    .order-edit-btn:disabled { border-color:var(--border); color:var(--text-mute); background:#fff; cursor:default; }
+
+    /* 편집 중에는 목록을 바꾸는 컨트롤(검색·필터·정렬·폴더)을 잠근다 */
+    body.is-order-editing .folder-chips,
+    body.is-order-editing .list-controls { opacity:0.45; pointer-events:none; }
+    body.is-order-editing .folder-share-bar { display:none !important; }
+
+    /* 편집 그리드 — 전체 목록을 한 화면에서 옮기므로 카드를 작게(PC 6 / 태블릿 5 / 모바일 3열) */
+    #charGrid.is-ordering { gap:10px; }
+    #charGrid.is-ordering > .order-card { flex:0 1 calc(16.666% - 8.333px); }
+    @media (max-width:1023px) { #charGrid.is-ordering > .order-card { flex-basis:calc(20% - 8px); } }
+    @media (max-width:767px)  { #charGrid.is-ordering { gap:8px; } #charGrid.is-ordering > .order-card { flex-basis:calc(33.333% - 5.333px); } }
+
+    .order-card {
+      position:relative; background:#fff; border:1.5px solid var(--border); border-radius:10px;
+      overflow:hidden; cursor:grab; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+      transition:border-color 0.12s, opacity 0.12s;
+    }
+    .order-card:hover { border-color:var(--sky-light); }
+    .order-card.is-drag-source { opacity:0.3; border-style:dashed; border-color:var(--sky-dark); }
+    .order-card.is-moved { border-color:var(--sky-dark); }
+    .order-card-media { position:relative; aspect-ratio:3/4; background:#f8fafc; }
+    .order-card-img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+    .order-card-sensitive {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:700; color:#b91c1c; text-align:center; padding:4px;
+    }
+    html.show-sensitive .order-card-sensitive { display:none; }
+    .order-card-num {
+      position:absolute; left:5px; top:5px; min-width:22px; padding:2px 6px; border-radius:7px;
+      background:rgba(15,23,42,0.68); color:#fff; font-size:11px; font-weight:700; text-align:center;
+    }
+    /* 터치는 손잡이에서 바로 드래그(손잡이 밖은 길게 눌러 드래그, 짧게 밀면 스크롤) */
+    .order-card-handle {
+      position:absolute; right:4px; top:4px; width:30px; height:30px; border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(255,255,255,0.92); color:var(--text-sub); font-size:16px;
+      touch-action:none; cursor:grab;
+    }
+    .order-card-info { padding:6px 6px 7px; border-top:1px solid var(--border); }
+    .order-card-name { font-size:12px; font-weight:700; color:var(--text); margin:0 0 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .order-card-move { display:flex; gap:4px; }
+    .order-move-btn {
+      flex:1; min-height:30px; padding:0; border:1.5px solid var(--border); border-radius:7px;
+      background:#fff; color:var(--text-sub); font-size:12px; cursor:pointer; font-family:inherit;
+    }
+    .order-move-btn:hover:not(:disabled) { border-color:var(--sky-dark); color:var(--sky-dark); }
+    .order-move-btn:disabled { opacity:0.35; cursor:default; }
+    .order-ghost {
+      position:fixed; z-index:900; pointer-events:none; margin:0;
+      box-shadow:0 10px 24px rgba(0,0,0,0.22); border-color:var(--sky-dark); transform:scale(1.04); opacity:0.95;
+    }
+    body.order-dragging, body.order-dragging * { cursor:grabbing !important; user-select:none; -webkit-user-select:none; }
+
+    /* 저장/취소 바 — 긴 목록을 내려가도 항상 보이도록 하단 고정 */
+    .order-edit-actions {
+      position:sticky; bottom:12px; z-index:300; margin-top:16px;
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      padding:10px 12px; background:#fff; border:1.5px solid var(--sky-dark); border-radius:12px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.12);
+    }
+    .order-edit-status { flex:1; min-width:180px; margin:0; font-size:12px; color:var(--text-sub); line-height:1.5; }
+    .order-edit-status.is-error { color:#ef4444; font-weight:600; }
+    .order-edit-status.is-warn  { color:#b45309; font-weight:600; }
+    .order-edit-btns { display:flex; gap:8px; margin-left:auto; }
+    .order-cancel-btn, .order-save-btn {
+      padding:9px 18px; border-radius:9px; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;
+    }
+    .order-cancel-btn { border:1.5px solid var(--border); background:#fff; color:var(--text-sub); }
+    .order-save-btn   { border:1.5px solid var(--sky-dark); background:var(--sky-dark); color:#fff; }
+    .order-cancel-btn:disabled, .order-save-btn:disabled { opacity:0.55; cursor:default; }
+    .order-flash { font-size:13px; font-weight:600; color:var(--sky-deep); margin:-8px 0 14px; }
   </style>
 </head>
 <body>
@@ -268,11 +351,27 @@
             <option value="species">종족순</option>
             <option value="recent">최신순</option>
             <option value="name">이름순</option>
+            <option value="custom" id="sortOptionCustom">내가 정한 순서</option>
           </select>
         </div>
 
+        <!-- 내가 정한 순서 — 해당 정렬일 때만 노출 -->
+        <div class="order-bar" id="orderBar" style="display:none;">
+          <p class="order-bar-hint" id="orderBarHint"></p>
+          <button type="button" class="order-edit-btn" id="orderEditBtn" onclick="startOrderEdit()">순서 편집</button>
+        </div>
+        <p class="order-flash" id="orderFlash" role="status" style="display:none;"></p>
+
         <div class="character-grid" id="charGrid"></div>
         <div id="paginationWrap"></div>
+
+        <div class="order-edit-actions" id="orderEditActions" style="display:none;">
+          <p class="order-edit-status" id="orderEditStatus" role="status" aria-live="polite"></p>
+          <div class="order-edit-btns">
+            <button type="button" class="order-cancel-btn" id="orderCancelBtn" onclick="cancelOrderEdit()">취소</button>
+            <button type="button" class="order-save-btn" id="orderSaveBtn" onclick="saveOrderEdit()">저장</button>
+          </div>
+        </div>
 
         <div id="emptyState" class="empty-state-wrap" style="display:none;">
           <div class="empty-state-icon">⭐</div>
@@ -353,6 +452,8 @@
     let touchDragSrcEl      = null;
     let isInitialLoad       = true;
     let currentSort         = 'species';
+    let customOrder         = null;   // Map(character_id → sort_index) — null이면 기능 사용 불가(조회 실패)
+    let orderEdit           = null;   // 순서 편집 중 상태 { ids, baseIds, saving }
     let nameDisplayMode     = 'registered'; // 'registered'(등록명) | 'owner'(소유주 설정 개체명) — 계정 설정(user_settings)에 저장
     // 페이지당 칸 수 — #charGrid 열 수(4열 / ≤1023px 3열 / ≤767px 2열)의 공배수여야
     // 어느 화면 크기(회전·리사이즈 포함)에서도 마지막 페이지 외에는 줄이 꽉 찬다.
@@ -401,17 +502,26 @@
       if (!currentUser) { window.location.href = 'login.html'; return; }
 
       const nickname = currentUser.user_metadata?.display_name || currentUser.user_metadata?.nickname || '유저';
-      const [{ data: chars, error }, { data: folders }, settings] = await Promise.all([
+      const [{ data: chars, error }, { data: folders }, settings, orderRes] = await Promise.all([
         getMyCharacters(currentUser.id, nickname),
         sb.from('character_folders').select('*').eq('user_id', currentUser.id).order('created_at'),
         getUserSettings(currentUser.id).catch(e => {
           console.warn('[my-characters] 이름 표시 설정 조회 실패, 기본값(등록명) 사용:', e);
           return { ...DEFAULT_USER_SETTINGS };
         }),
+        loadCustomOrder(currentUser.id),
       ]);
 
       nameDisplayMode = settings.character_name_display_mode === 'owner' ? 'owner' : 'registered';
       updateNameModeButtons();
+
+      // 순서 조회 실패(SQL 미적용·네트워크) 시 "내가 정한 순서"만 숨기고 기존 정렬은 그대로 쓴다
+      if (orderRes.error) {
+        console.warn('[my-characters] 사용자 지정 순서 조회 실패 — 옵션 숨김:', orderRes.error);
+        document.getElementById('sortOptionCustom')?.remove();
+      } else {
+        customOrder = orderRes.map;
+      }
 
       document.getElementById('pageLoading').style.display = 'none';
       document.getElementById('pageContent').style.display  = 'block';
@@ -428,18 +538,26 @@
 
       if (chars.length === 0) { document.getElementById('emptyState').style.display = 'flex'; return; }
 
-      const species = [...new Set(chars.map(c => c.species_name).filter(Boolean))];
-      const sel     = document.getElementById('speciesFilter');
-      species.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s; opt.textContent = s;
-        sel.appendChild(opt);
-      });
+      renderSpeciesOptions();
 
       restoreFilterState();
       renderFolderChips();
       isInitialLoad = true;
       filterCards();
+    }
+
+    // 종족 필터 옵션 — 목록이 바뀌어도(순서 편집 중 재조회) 선택값은 유지
+    function renderSpeciesOptions() {
+      const sel     = document.getElementById('speciesFilter');
+      const current = sel.value;
+      const species = [...new Set(allChars.map(c => c.species_name).filter(Boolean))];
+      sel.innerHTML = '<option value="">전체 종족</option>';
+      species.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        sel.appendChild(opt);
+      });
+      if (species.includes(current)) sel.value = current;
     }
 
     // ── 미분류 판단 헬퍼 ─────────────────────────────
@@ -671,16 +789,33 @@
     // ── 정렬 ─────────────────────────────────────────
     function setSortOrder(val) {
       currentSort = val;
+      hideOrderFlash();
       filterCards();
+    }
+
+    // 최신순 — 등록 시각이 같으면 id 큰 것 먼저(표시 순서가 흔들리지 않게)
+    function cmpRecent(a, b) {
+      return (new Date(b.created_at) - new Date(a.created_at)) || (b.id - a.id);
     }
 
     function sortChars(list) {
       const arr = [...list];
       if (currentSort === 'recent') {
-        return arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        return arr.sort(cmpRecent);
       }
       if (currentSort === 'name') {
-        return arr.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+        return arr.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko') || cmpRecent(a, b));
+      }
+      if (currentSort === 'custom') {
+        // 저장한 순서가 있는 개체 먼저(sort_index 순), 순서가 없는 개체(첫 저장 전·저장 후 새로 받은 개체)는 맨 뒤에 최신순
+        const order = customOrder || new Map();
+        return arr.sort((a, b) => {
+          const ia = order.get(a.id), ib = order.get(b.id);
+          if (ia !== undefined && ib !== undefined) return (ia - ib) || (b.id - a.id);
+          if (ia !== undefined) return -1;
+          if (ib !== undefined) return 1;
+          return cmpRecent(a, b);
+        });
       }
       // 종족순 (기본): species_name 가나다순, 없으면 맨 아래, 같은 종족 안에서는 개체번호순
       const getNumGroup = str => {
@@ -712,6 +847,10 @@
 
     // ── 필터 ─────────────────────────────────────────
     function filterCards() {
+      // 순서 편집 중에는 검색·필터·페이지 없이 전체 목록 편집 화면만 다시 그린다(이름 표시 변경 등)
+      if (orderEdit) { renderOrderEdit(); return; }
+      renderOrderBar();
+
       const q       = document.getElementById('filterInput').value.trim().toLowerCase();
       const species = document.getElementById('speciesFilter').value;
 
@@ -758,7 +897,7 @@
       if (folder === 'none') activeFolder = 'none';
       else if (folder) { const fid = parseInt(folder); if (!isNaN(fid)) activeFolder = fid; }
       const sort = p.get('sort');
-      if (sort && ['species','recent','name'].includes(sort)) {
+      if (sort && (['species','recent','name'].includes(sort) || (sort === 'custom' && customOrder))) {
         currentSort = sort;
         document.getElementById('sortSelect').value = sort;
       }
@@ -1052,6 +1191,417 @@
       }
       touchDragSrcId = null;
       touchDragSrcEl = null;
+    }
+
+    // ── 내가 정한 순서 ───────────────────────────────
+    // 저장 위치: character_custom_order — 조회는 get_my_character_order, 쓰기는 save_my_character_order RPC
+    // 전용(supabase/character_custom_order_1023.sql). 조회 RPC 는 지금도 유효한 행만(저장 이후 양도·외부 소유
+    // 전환된 개체 제외 = 미지정) [[character_id, sort_index], ...] jsonb 한 덩어리로 돌려줘 응답 행 수 상한과 무관하다.
+    // 조회 실패(롤백으로 함수 없음 포함) → map:null → 호출부가 옵션을 숨기고 기존 정렬로 동작.
+    async function loadCustomOrder(userId) {
+      try {
+        const { data, error } = await sb.rpc('get_my_character_order');
+        if (error || !Array.isArray(data)) return { map: null, error: error || new Error('INVALID_RESPONSE') };
+        return { map: new Map(data.map(([id, idx]) => [Number(id), idx])), error: null };
+      } catch (e) { return { map: null, error: e }; }
+    }
+
+    // 검색·종족 필터·폴더가 걸려 있으면 일부 목록만 보이므로 편집을 막는다(전체 목록 기준으로만 저장)
+    function orderEditLockReason() {
+      const q       = document.getElementById('filterInput').value.trim();
+      const species = document.getElementById('speciesFilter').value;
+      return (q || species || activeFolder !== 'all')
+        ? '검색·종족 필터를 지우고 폴더를 "전체"로 바꾸면 순서를 편집할 수 있어요.'
+        : '';
+    }
+
+    function renderOrderBar() {
+      const bar = document.getElementById('orderBar');
+      if (currentSort !== 'custom' || !customOrder || !allChars.length) { bar.style.display = 'none'; return; }
+      const lock = orderEditLockReason();
+      const hint = document.getElementById('orderBarHint');
+      hint.classList.toggle('is-locked', !!lock);
+      hint.textContent = lock || (customOrder.size
+        ? '순서 편집에서 캐릭터를 드래그하거나 ◀ ▶ 버튼으로 옮길 수 있어요.'
+        : '아직 저장한 순서가 없어 최신순으로 보여요. 편집 후 저장하면 순서가 고정돼요.');
+      document.getElementById('orderEditBtn').disabled = !!lock;
+      bar.style.display = 'flex';
+    }
+
+    function showOrderFlash(msg) {
+      const el = document.getElementById('orderFlash');
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(showOrderFlash._t);
+      showOrderFlash._t = setTimeout(hideOrderFlash, 4000);
+    }
+    function hideOrderFlash() { document.getElementById('orderFlash').style.display = 'none'; }
+
+    function setOrderStatus(msg, kind) {
+      const el = document.getElementById('orderEditStatus');
+      el.textContent = msg;
+      el.classList.toggle('is-error', kind === 'error');
+      el.classList.toggle('is-warn',  kind === 'warn');
+    }
+
+    function isOrderDirty() {
+      return !!orderEdit && orderEdit.ids.join(',') !== orderEdit.baseIds.join(',');
+    }
+
+    function updateOrderStatus() {
+      setOrderStatus(isOrderDirty()
+        ? '순서를 바꿨어요. 저장하기 전까지는 이 화면에만 적용돼요.'
+        : `전체 ${orderEdit.ids.length}개 · 드래그(모바일은 ⠿ 손잡이나 길게 누르기) 또는 ◀ ▶ 버튼으로 옮겨주세요.`);
+    }
+
+    function warnUnsavedOrder(e) {
+      if (isOrderDirty() || orderEdit?.saving) { e.preventDefault(); e.returnValue = ''; }
+    }
+
+    function setOrderLocked(on) {
+      document.body.classList.toggle('is-order-editing', on);
+      ['filterInput', 'speciesFilter', 'sortSelect'].forEach(id => { document.getElementById(id).disabled = on; });
+      document.getElementById('orderEditActions').style.display = on ? 'flex' : 'none';
+      document.getElementById('charGrid').classList.toggle('is-ordering', on);
+      if (on) {
+        window.addEventListener('beforeunload', warnUnsavedOrder);
+        document.addEventListener('touchmove', onOrderTouchMove, { passive: false });
+      } else {
+        window.removeEventListener('beforeunload', warnUnsavedOrder);
+        document.removeEventListener('touchmove', onOrderTouchMove, { passive: false });
+      }
+    }
+
+    function startOrderEdit() {
+      if (orderEdit || currentSort !== 'custom' || !customOrder || orderEditLockReason()) return;
+      if (openMenuId) {
+        const el = document.getElementById(openMenuId);
+        if (el) el.style.display = 'none';
+        openMenuId = null;
+      }
+      const ids = sortChars(allChars).map(c => c.id);
+      orderEdit = { ids, baseIds: [...ids], saving: false };
+      hideOrderFlash();
+      document.getElementById('orderBar').style.display = 'none';
+      document.getElementById('noResult').style.display = 'none';
+      setOrderLocked(true);
+      renderOrderEdit();
+      updateOrderStatus();
+      document.getElementById('charGrid').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+
+    function finishOrderEdit() {
+      cleanupOrderDrag();
+      orderEdit = null;
+      setOrderLocked(false);
+      filterCards();
+    }
+
+    function cancelOrderEdit() {
+      if (!orderEdit || orderEdit.saving) return;
+      if (isOrderDirty() && !confirm('편집한 순서를 저장하지 않고 취소할까요?\n편집을 시작하기 전 순서로 돌아가요.')) return;
+      finishOrderEdit();
+    }
+
+    // 편집 화면 — 페이지 나누기 없이 전체 소유 목록. 카드는 링크가 아니라 상세 이동이 없다.
+    function renderOrderEdit() {
+      const byId = new Map(allChars.map(c => [c.id, c]));
+      orderEdit.ids = orderEdit.ids.filter(id => byId.has(id));
+      const total = orderEdit.ids.length;
+      document.getElementById('charGrid').innerHTML = orderEdit.ids.map((id, i) => {
+        const c         = byId.get(id);
+        const name      = displayCharName(c) || '';
+        const sensitive = c.is_sensitive && characterHasVisibleRealImage(c);
+        const src       = sensitive ? (c.thumbnail_url || c.image_url) : resolveCharacterImage(c);
+        return `
+          <div class="order-card" data-id="${c.id}">
+            <div class="order-card-media">
+              <img class="order-card-img${sensitive ? ' blurred' : ''}" src="${escAttr(src || '')}" alt="" loading="lazy" draggable="false">
+              ${sensitive ? '<span class="order-card-sensitive">민감한 요소</span>' : ''}
+              <span class="order-card-num">${i + 1}</span>
+              <span class="order-card-handle" title="드래그해서 옮기기" aria-hidden="true">⠿</span>
+            </div>
+            <div class="order-card-info">
+              <p class="order-card-name" title="${escAttr(name)}">${escHtml(name)}</p>
+              <div class="order-card-move">
+                <button type="button" class="order-move-btn" data-dir="-1" aria-label="${escAttr(name)} 앞으로" ${i === 0 ? 'disabled' : ''}>◀</button>
+                <button type="button" class="order-move-btn" data-dir="1"  aria-label="${escAttr(name)} 뒤로" ${i === total - 1 ? 'disabled' : ''}>▶</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+      document.getElementById('paginationWrap').innerHTML = '';
+    }
+
+    // DOM 순서 → orderEdit.ids, 번호·버튼 상태 갱신
+    function refreshOrderCards() {
+      const cards = [...document.querySelectorAll('#charGrid .order-card')];
+      orderEdit.ids = cards.map(el => Number(el.dataset.id));
+      cards.forEach((el, i) => {
+        el.querySelector('.order-card-num').textContent = i + 1;
+        const [prev, next] = el.querySelectorAll('.order-move-btn');
+        prev.disabled = i === 0;
+        next.disabled = i === cards.length - 1;
+      });
+      updateOrderStatus();
+    }
+
+    function flashMovedCard(card) {
+      card.classList.add('is-moved');
+      setTimeout(() => card.classList.remove('is-moved'), 700);
+    }
+
+    function moveOrderCard(card, dir) {
+      const sib = dir < 0 ? card.previousElementSibling : card.nextElementSibling;
+      if (!sib) return;
+      if (dir < 0) sib.before(card); else sib.after(card);
+      refreshOrderCards();
+      flashMovedCard(card);
+      // 연속으로 누를 수 있게 포커스 유지(끝에 닿아 비활성이면 반대 버튼으로)
+      const btn = card.querySelector(`.order-move-btn[data-dir="${dir}"]`);
+      (btn.disabled ? card.querySelector(`.order-move-btn[data-dir="${-dir}"]`) : btn).focus({ preventScroll: true });
+      card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    // ── 순서 드래그 (마우스 / 터치) ───────────────────
+    // 마우스: 카드를 눌러 5px 이상 끌면 시작.
+    // 터치: ⠿ 손잡이는 바로 시작, 카드 다른 곳은 길게(0.35초) 누르면 시작 — 그 전에 움직이면 일반 스크롤.
+    // 드래그 중에는 카드가 실제 자리로 바로 옮겨지고(손가락 아래 카드와 자리 교체), 화면 위·아래 끝에서 자동 스크롤.
+    let orderDrag  = null;   // { el, ghost, mode, dx, dy, x, y, raf }
+    let orderPress = null;   // 드래그 시작 전 누름 { el, x, y, mode, timer }
+
+    function beginOrderDrag(card, x, y, mode) {
+      if (!orderEdit || orderEdit.saving || orderDrag) return;
+      const rect  = card.getBoundingClientRect();
+      const ghost = card.cloneNode(true);
+      ghost.classList.add('order-ghost');
+      ghost.removeAttribute('data-id');
+      ghost.style.width = rect.width + 'px';
+      ghost.style.left  = rect.left + 'px';
+      ghost.style.top   = rect.top + 'px';
+      document.body.appendChild(ghost);
+      card.classList.add('is-drag-source');
+      document.body.classList.add('order-dragging');
+      orderDrag = { el: card, ghost, mode, dx: x - rect.left, dy: y - rect.top, x, y, raf: 0 };
+      orderDrag.raf = requestAnimationFrame(orderAutoScroll);
+    }
+
+    function moveOrderDrag(x, y) {
+      orderDrag.x = x; orderDrag.y = y;
+      orderDrag.ghost.style.left = (x - orderDrag.dx) + 'px';
+      orderDrag.ghost.style.top  = (y - orderDrag.dy) + 'px';
+      reorderAtPoint(x, y);
+    }
+
+    function reorderAtPoint(x, y) {
+      const target = document.elementFromPoint(x, y)?.closest('#charGrid .order-card');
+      const src    = orderDrag.el;
+      if (!target || target === src) return;
+      const cards = [...document.getElementById('charGrid').children];
+      if (cards.indexOf(src) < cards.indexOf(target)) target.after(src); else target.before(src);
+    }
+
+    function orderAutoScroll() {
+      if (!orderDrag) return;
+      const EDGE = 70, y = orderDrag.y, h = window.innerHeight;
+      let dy = 0;
+      if (y < EDGE)          dy = -Math.ceil((EDGE - y) / 4);
+      else if (y > h - EDGE) dy =  Math.ceil((y - (h - EDGE)) / 4);
+      if (dy) { window.scrollBy(0, dy); reorderAtPoint(orderDrag.x, orderDrag.y); }
+      orderDrag.raf = requestAnimationFrame(orderAutoScroll);
+    }
+
+    function cleanupOrderDrag() {
+      if (orderPress) { clearTimeout(orderPress.timer); orderPress = null; }
+      if (!orderDrag) return null;
+      const d = orderDrag;
+      orderDrag = null;
+      cancelAnimationFrame(d.raf);
+      d.ghost.remove();
+      d.el.classList.remove('is-drag-source');
+      document.body.classList.remove('order-dragging');
+      return d;
+    }
+
+    function endOrderDrag() {
+      const d = cleanupOrderDrag();
+      if (!d || !orderEdit) return;
+      refreshOrderCards();
+      flashMovedCard(d.el);
+    }
+
+    (function bindOrderEditEvents() {
+      const grid = document.getElementById('charGrid');
+
+      // 이동 버튼 / 편집 중 카드 클릭은 상세 이동 없음
+      grid.addEventListener('click', e => {
+        if (!orderEdit) return;
+        e.preventDefault();
+        const btn = e.target.closest('.order-move-btn');
+        if (!btn || btn.disabled || orderEdit.saving) return;
+        moveOrderCard(btn.closest('.order-card'), Number(btn.dataset.dir));
+      });
+
+      // 길게 누를 때 뜨는 이미지 저장 메뉴 등 차단
+      grid.addEventListener('contextmenu', e => {
+        if (orderEdit && e.target.closest('.order-card')) e.preventDefault();
+      });
+
+      // 마우스
+      grid.addEventListener('mousedown', e => {
+        if (!orderEdit || orderEdit.saving || e.button !== 0) return;
+        const card = e.target.closest('.order-card');
+        if (!card || e.target.closest('.order-move-btn')) return;
+        e.preventDefault();   // 텍스트 선택 방지
+        orderPress = { el: card, x: e.clientX, y: e.clientY, mode: 'mouse' };
+      });
+      document.addEventListener('mousemove', e => {
+        if (orderDrag?.mode === 'mouse') { moveOrderDrag(e.clientX, e.clientY); return; }
+        if (orderPress?.mode === 'mouse' && Math.hypot(e.clientX - orderPress.x, e.clientY - orderPress.y) > 5) {
+          const p = orderPress;
+          orderPress = null;
+          beginOrderDrag(p.el, p.x, p.y, 'mouse');
+          if (orderDrag) moveOrderDrag(e.clientX, e.clientY);
+        }
+      });
+      document.addEventListener('mouseup', () => {
+        if (orderPress?.mode === 'mouse') orderPress = null;
+        if (orderDrag?.mode === 'mouse') endOrderDrag();
+      });
+
+      // 터치
+      grid.addEventListener('touchstart', e => {
+        if (!orderEdit || orderEdit.saving || e.touches.length !== 1) return;
+        const card = e.target.closest('.order-card');
+        if (!card || e.target.closest('.order-move-btn')) return;
+        const t = e.touches[0];
+        if (e.target.closest('.order-card-handle')) {
+          e.preventDefault();   // 손잡이: 스크롤 대신 바로 드래그
+          beginOrderDrag(card, t.clientX, t.clientY, 'touch');
+          return;
+        }
+        if (orderPress) clearTimeout(orderPress.timer);
+        orderPress = {
+          el: card, x: t.clientX, y: t.clientY, mode: 'touch',
+          timer: setTimeout(() => {
+            const p = orderPress;
+            orderPress = null;
+            if (!p || !orderEdit) return;
+            if (navigator.vibrate) navigator.vibrate(15);
+            beginOrderDrag(p.el, p.x, p.y, 'touch');
+          }, 350),
+        };
+      }, { passive: false });
+
+      const endTouch = () => {
+        if (orderPress?.mode === 'touch') { clearTimeout(orderPress.timer); orderPress = null; }
+        if (orderDrag?.mode === 'touch') endOrderDrag();
+      };
+      document.addEventListener('touchend',    endTouch);
+      document.addEventListener('touchcancel', endTouch);
+    })();
+
+    // 편집 중에만 등록(non-passive) — 드래그 중 스크롤 막기 / 길게 누르기 전에 움직이면 취소
+    function onOrderTouchMove(e) {
+      const t = e.touches[0];
+      if (!t) return;
+      if (orderDrag?.mode === 'touch') { e.preventDefault(); moveOrderDrag(t.clientX, t.clientY); return; }
+      if (orderPress?.mode === 'touch' && Math.hypot(t.clientX - orderPress.x, t.clientY - orderPress.y) > 10) {
+        clearTimeout(orderPress.timer);
+        orderPress = null;
+      }
+    }
+
+    // ── 순서 저장 ────────────────────────────────────
+    function setOrderSaving(on) {
+      orderEdit.saving = on;
+      const saveBtn = document.getElementById('orderSaveBtn');
+      saveBtn.disabled = on;
+      saveBtn.textContent = on ? '저장 중...' : '저장';
+      document.getElementById('orderCancelBtn').disabled = on;
+      document.getElementById('charGrid').setAttribute('aria-busy', on ? 'true' : 'false');
+    }
+
+    // 서버(save_my_character_order)가 "현재 소유 개체 전체와 정확히 같은 목록"일 때만 저장한다.
+    // 실패해도 편집 내용(orderEdit.ids)은 그대로 두어 다시 저장할 수 있다.
+    async function saveOrderEdit() {
+      if (!orderEdit || orderEdit.saving) return;
+      if (orderDrag) endOrderDrag();
+      const ids = [...orderEdit.ids];
+      setOrderSaving(true);
+      setOrderStatus('저장 중...');
+      let res;
+      try { res = await sb.rpc('save_my_character_order', { p_character_ids: ids }); }
+      catch (e) { res = { data: null, error: e }; }
+      setOrderSaving(false);
+
+      const d = res.data;
+      if (res.error || !d) {
+        console.error('[my-characters] 순서 저장 실패:', res.error);
+        setOrderStatus('저장에 실패했어요. 편집한 순서는 그대로 있으니 다시 저장을 눌러주세요.', 'error');
+        return;
+      }
+      if (d.ok) {
+        // saved_count < 보낸 개수 = 저장 직전에 목록에서 빠진 개체가 있었음 → 목록·순서를 서버 기준으로 다시 읽는다
+        if (typeof d.saved_count === 'number' && d.saved_count < ids.length) {
+          const [fresh, ord] = await Promise.all([getMyCharacters(currentUser.id), loadCustomOrder(currentUser.id)]);
+          if (!fresh.error && fresh.data) {
+            allChars = fresh.data;
+            document.getElementById('charCount').textContent = allChars.length;
+            renderSpeciesOptions();
+            renderFolderChips();
+          }
+          customOrder = ord.map || new Map(ids.map((id, i) => [id, i]));
+        } else {
+          customOrder = new Map(ids.map((id, i) => [id, i]));
+        }
+        finishOrderEdit();
+        showOrderFlash('순서를 저장했어요.');
+        return;
+      }
+      if (d.code === 'list_changed') { await reconcileOrderEdit(); return; }
+      if (d.code === 'not_authenticated') {
+        setOrderStatus('로그인이 만료됐어요. 다른 탭에서 다시 로그인한 뒤 저장을 눌러주세요.', 'error');
+        return;
+      }
+      console.error('[my-characters] 순서 저장 거부:', d);
+      setOrderStatus('저장할 수 없는 순서예요. 취소 후 다시 시도해주세요.', 'error');
+    }
+
+    // 편집 중 개체 추가·삭제·소유권 변경 — 새 목록을 받아 편집한 순서는 유지하고,
+    // 없어진 개체는 빼고 새로 받은 개체는 맨 뒤(최신순)에 붙인 뒤 다시 저장하도록 안내한다(자동 저장 안 함).
+    async function reconcileOrderEdit() {
+      setOrderSaving(true);
+      setOrderStatus('편집하는 동안 캐릭터 목록이 바뀌었어요. 새 목록을 확인하는 중...', 'warn');
+      let fresh;
+      try { fresh = await getMyCharacters(currentUser.id); }
+      catch (e) { fresh = { data: null, error: e }; }
+      setOrderSaving(false);
+      if (!orderEdit) return;
+      if (fresh.error || !fresh.data) {
+        console.error('[my-characters] 목록 재조회 실패:', fresh.error);
+        setOrderStatus('목록이 바뀌었지만 새 목록을 불러오지 못했어요. 편집한 순서는 그대로 있으니 다시 저장을 눌러주세요.', 'error');
+        return;
+      }
+      const freshIds = new Set(fresh.data.map(c => c.id));
+      const kept     = orderEdit.ids.filter(id => freshIds.has(id));
+      const keptSet  = new Set(kept);
+      const added    = fresh.data.filter(c => !keptSet.has(c.id)).sort(cmpRecent).map(c => c.id);
+      const removed  = orderEdit.ids.length - kept.length;
+
+      allChars      = fresh.data;
+      orderEdit.ids = kept.concat(added);
+      document.getElementById('charCount').textContent = allChars.length;
+      renderSpeciesOptions();
+      renderFolderChips();
+      renderOrderEdit();
+
+      const parts = [];
+      if (added.length) parts.push(`새로 받은 캐릭터 ${added.length}개를 맨 뒤에 추가`);
+      if (removed)      parts.push(`더 이상 소유하지 않은 캐릭터 ${removed}개를 제외`);
+      setOrderStatus(parts.length
+        ? `편집하는 동안 목록이 바뀌어 ${parts.join('하고, ')}했어요. 확인 후 다시 저장해주세요.`
+        : '편집하는 동안 목록이 바뀌어 새 목록으로 맞췄어요. 확인 후 다시 저장해주세요.', 'warn');
     }
 
     // ── 유틸 ─────────────────────────────────────────

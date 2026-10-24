@@ -15,6 +15,14 @@
 //   #categoryFilterBarWrap #categoryFilterMoreBtn #categoryFilterMoreLabel #categoryFilterChevron
 //   #characterGrid      개체 카드 그리드
 //
+// 선택 DOM (있으면 사용, 없으면 기존 동작 — labber-records.html 은 아직 미탑재):
+//   #categorySearchClear #categoryEmptyMsg    분류 검색 지우기 버튼 / '검색된 분류가 없어요.'
+//   #charNameSearchInput #charNameSearchClear 개체명 검색창 / 지우기 버튼
+//   #charResultCount     표시 결과 수 (+ 선택 분류 표시 / '전체' 복귀 버튼)
+//
+// 검색 역할 분리(2026-10-22): 분류명 검색은 분류 버튼 목록만, 개체명 검색은 카드 목록만 거른다.
+// 개체명 검색 대상은 mount 때 페이지네이션으로 전부 받아온 allChars(현재 선택 분류 안에서).
+//
 // 개체 수정 / 소유권 이전 은 카드 클릭 → character.html?id=X 이동 후
 // 해당 페이지에서 처리되므로(별도 로직 없음) 카드 링크만 동일하게 유지하면 된다.
 //
@@ -35,6 +43,8 @@
   let manageMode     = false;
   let activeCategory = null;
   let sortWired      = false;
+  let nameSearchWired = false;
+  let nameQuery      = '';   // 정규화된 개체명 검색어 (trim + 소문자)
   let sortDirections = Object.assign({}, DEFAULT_SORT_DIR); // 기준(sortBy)별 현재 방향
 
   const $ = (id) => document.getElementById(id);
@@ -79,6 +89,7 @@
 
     allChars = chars || [];
     renderCategoryFilter();
+    wireNameSearch();
 
     const saved = localStorage.getItem(SORT_KEY);
     if (['recent', 'name', 'charNumber'].includes(saved) && $('charSort')) {
@@ -134,7 +145,8 @@
     allBtn.id = 'filterBtn_all';
     allBtn.textContent = '전체';
     allBtn.style.cssText = `padding:5px 14px; border-radius:20px; border:2px solid var(--border); background:var(--text); color:var(--white); font-size:13px; font-weight:600; cursor:pointer;`;
-    allBtn.onclick = () => { activeCategory = null; updateFilterButtons(); renderChars(); };
+    allBtn.type = 'button';
+    allBtn.onclick = () => selectCategory(null);
     bar.appendChild(allBtn);
 
     cats.forEach(cat => {
@@ -146,7 +158,8 @@
       btn.style.cssText = `padding:5px 14px; border-radius:20px; border:2px solid ${cat.color}; background:var(--white); color:var(--text); font-size:13px; font-weight:600; cursor:pointer;`;
       btn.dataset.color = cat.color;
       btn.dataset.tc = tc;
-      btn.onclick = () => { activeCategory = cat.label; updateFilterButtons(); renderChars(); };
+      btn.type = 'button';
+      btn.onclick = () => selectCategory(cat.label);
       bar.appendChild(btn);
     });
 
@@ -195,12 +208,93 @@
     updateCategoryClamp();
   }
 
+  // 분류 버튼 목록만 거른다 — 개체 카드/선택된 분류(activeCategory)는 건드리지 않음.
+  // '전체' 버튼은 data-cat-label 이 없어 항상 표시된다.
   function filterCategoryButtons(query) {
-    const q = query.trim().toLowerCase();
+    const q = normalizeQuery(query);
+    let visible = 0;
     document.querySelectorAll('#categoryFilterBar [data-cat-label]').forEach(btn => {
-      btn.style.display = (!q || btn.dataset.catLabel.toLowerCase().includes(q)) ? '' : 'none';
+      const show = !q || btn.dataset.catLabel.normalize('NFC').toLowerCase().includes(q);
+      btn.style.display = show ? '' : 'none';
+      if (show) visible++;
     });
+    const emptyMsg = $('categoryEmptyMsg');
+    if (emptyMsg) emptyMsg.hidden = !(q && visible === 0);
+    const clearBtn = $('categorySearchClear');
+    if (clearBtn) clearBtn.hidden = !String(query || '').length;
     updateCategoryClamp();
+  }
+
+  function clearCategorySearch() {
+    const el = $('categorySearchInput');
+    if (!el) return;
+    el.value = '';
+    filterCategoryButtons('');
+    el.focus();
+  }
+
+  function selectCategory(label) {
+    activeCategory = label;
+    updateFilterButtons();
+    renderChars();
+  }
+
+  // ── 개체명 검색 ────────────────────────────────────────
+  function normalizeQuery(v) {
+    return String(v || '').normalize('NFC').trim().toLowerCase();
+  }
+
+  function wireNameSearch() {
+    const el = $('charNameSearchInput');
+    if (!el) return;
+    nameQuery = normalizeQuery(el.value);
+    updateNameClearBtn();
+    if (nameSearchWired) return;
+    let timer = null;
+    el.addEventListener('input', () => {
+      updateNameClearBtn();
+      clearTimeout(timer);
+      timer = setTimeout(() => { nameQuery = normalizeQuery(el.value); renderChars(); }, 120);
+    });
+    nameSearchWired = true;
+  }
+
+  function updateNameClearBtn() {
+    const el = $('charNameSearchInput');
+    const btn = $('charNameSearchClear');
+    if (el && btn) btn.hidden = !el.value.length;
+  }
+
+  function clearNameSearch() {
+    const el = $('charNameSearchInput');
+    if (!el) return;
+    el.value = '';
+    nameQuery = '';
+    updateNameClearBtn();
+    renderChars();
+    el.focus();
+  }
+
+  // 표시 결과 수 + 선택 분류. 분류 버튼이 검색/접기로 가려져도 여기서 확인하고 '전체'로 돌아갈 수 있다.
+  // 사용자 입력/분류명은 textContent 로만 넣는다.
+  function renderResultCount(count) {
+    const box = $('charResultCount');
+    if (!box) return;
+    box.textContent = '';
+    const parts = [];
+    if (activeCategory !== null) parts.push(`분류 ‘${activeCategory}’`);
+    if (nameQuery) parts.push(`‘${$('charNameSearchInput').value.trim()}’ 검색`);
+    const text = document.createElement('span');
+    text.textContent = parts.length ? `${parts.join(' · ')} — ${count}개` : `전체 ${count}개`;
+    box.appendChild(text);
+    if (activeCategory !== null) {
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'char-result-reset';
+      reset.textContent = '전체 분류 보기';
+      reset.onclick = () => selectCategory(null);
+      box.appendChild(reset);
+    }
   }
 
   let _catResizeTimer = null;
@@ -337,14 +431,25 @@
       list = list.filter(c => (c.char_categories || []).some(cat => cat.label === activeCategory));
     }
 
+    if (nameQuery) {
+      list = list.filter(c => {
+        const n = cfg && cfg.labberDisplay ? charDisplayName(c) : (c.name || '');
+        return n.normalize('NFC').toLowerCase().includes(nameQuery);
+      });
+    }
+
     list = sortCharacters(list, sort, dir);
 
-    if ($('charCount')) $('charCount').textContent = list.length;
+    // 결과 수 줄이 있으면 뱃지는 종족 전체 개체 수, 없으면(개체기록실) 기존대로 표시 개수.
+    const hasResultLine = !!$('charResultCount');
+    if ($('charCount')) $('charCount').textContent = hasResultLine ? allChars.length : list.length;
+    renderResultCount(list.length);
 
     const grid = $('characterGrid');
     if (!grid) return;
     if (!list.length) {
-      grid.innerHTML = '<p class="page-loading">등록된 개체가 없어요.</p>';
+      const msg = (nameQuery && allChars.length) ? '검색된 개체가 없어요.' : '등록된 개체가 없어요.';
+      grid.innerHTML = `<p class="page-loading">${msg}</p>`;
       return;
     }
 
@@ -453,6 +558,8 @@
   window.revealSensitive      = window.revealSensitive || revealSensitive;
   window.filterCategoryButtons = filterCategoryButtons;
   window.toggleCategoryFilter  = toggleCategoryFilter;
+  window.clearCategorySearch   = clearCategorySearch;
+  window.clearNameSearch       = clearNameSearch;
 
   window.SpeciesCharList = {
     mount,

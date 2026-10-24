@@ -279,15 +279,34 @@ async function deleteAccount() {
 // anon/authenticated에서 REVOKE돼 있어(privacy_fix_patch2.sql) select('*')가
 // 통째로 실패한다 — my-characters.html이 이 값들을 쓰지 않는 걸 확인하고
 // 명시적 컬럼 목록으로 바꿨다(연락처 3개만 제외, 그 외 전부 유지).
+// 응답 개수 상한(max_rows)에 잘리지 않도록 끝까지 나눠 읽는다(내 캐릭터 "내가 정한 순서"는
+// 전체 소유 목록이 있어야 저장할 수 있다). 서버가 요청보다 적게 돌려줘도 받은 만큼 이어서 읽고,
+// 첫 응답의 전체 개수(count)에 닿거나 빈 응답이 오면 멈춘다. id 보조 정렬로 분할 경계가 흔들리지 않게 한다.
+// 조회 조건(owner_user_id = 본인 AND owner_is_offsite <> true → NULL 제외)은
+// save_my_character_order 의 "owner_is_offsite IS FALSE" 와 같아야 한다(supabase/character_custom_order_1023.sql).
 async function getMyCharacters(userId, nickname) {
   if (!userId) return { data: [], error: null };
-  const { data, error } = await sb
-    .from('characters')
-    .select('id, created_at, name, owner_custom_name, species_name, owner_nickname, description, number, image_url, custom_fields, additional_images, custom_field_values, designer_nickname, is_sensitive, sensitive_note, category_id, category_label, category_color, char_categories, pending_transfer, char_sections, owner_user_id, owner_is_offsite, char_number, allow_free_adoption, allow_resale, allow_paid_adoption, allow_other_adoption, thumbnail_url, folder_id, owner_description, original_image_url, watermark_type, original_additional_images, designer_user_ids, representative_step_id, default_image_index')
-    .eq('owner_user_id', userId)
-    .neq('owner_is_offsite', true)
-    .order('created_at', { ascending: false });
-  return { data, error };
+  const PAGE = 1000;
+  const all = [];
+  let total = null;
+  for (let from = 0; ; ) {
+    const { data, error, count } = await sb
+      .from('characters')
+      .select('id, created_at, name, owner_custom_name, species_name, owner_nickname, description, number, image_url, custom_fields, additional_images, custom_field_values, designer_nickname, is_sensitive, sensitive_note, category_id, category_label, category_color, char_categories, pending_transfer, char_sections, owner_user_id, owner_is_offsite, char_number, allow_free_adoption, allow_resale, allow_paid_adoption, allow_other_adoption, thumbnail_url, folder_id, owner_description, original_image_url, watermark_type, original_additional_images, designer_user_ids, representative_step_id, default_image_index',
+        from === 0 ? { count: 'exact' } : undefined)
+      .eq('owner_user_id', userId)
+      .neq('owner_is_offsite', true)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    if (from === 0) total = count ?? null;
+    if (!data || !data.length) break;
+    all.push(...data);
+    from += data.length;
+    if (total !== null && all.length >= total) break;
+  }
+  return { data: all, error: null };
 }
 
 // 내 종족 조회 — owner_user_id 기준

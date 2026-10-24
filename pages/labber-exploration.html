@@ -93,6 +93,15 @@
       </div>
       <div class="labexp-modal-body">
         <p class="labexp-modal-eyebrow">SELECT STAGE</p>
+        <div class="labexp-stage-picker">
+          <select class="labexp-stage-select" id="stageSelect" aria-label="스테이지 선택"></select>
+          <label class="labexp-pin-toggle">
+            <input type="checkbox" id="stagePinToggle">
+            <span class="labexp-pin-switch" aria-hidden="true"></span>
+            <span class="labexp-pin-label">이 스테이지 고정</span>
+          </label>
+        </div>
+        <p class="labexp-pin-note" id="stagePinNote" hidden>고정한 스테이지에서 반복 탐험합니다.</p>
         <div class="labexp-carousel">
           <button type="button" class="labexp-carousel-nav" id="stagePrev" aria-label="이전 스테이지">&#8249;</button>
           <div class="labexp-stage-card-wrap" id="stageCardWrap"></div>

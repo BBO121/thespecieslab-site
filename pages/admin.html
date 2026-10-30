@@ -7,6 +7,42 @@
   <meta name="robots" content="noindex, nofollow">
   <title>어드민 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* 월급계산기 */
+    .salary-form { flex-direction:row; flex-wrap:wrap; align-items:flex-end; gap:10px; }
+    .salary-form .form-group { margin:0; flex:1 1 160px; min-width:0; }
+    .salary-form .form-group.salary-task-group { flex:2 1 220px; }
+    .salary-filters { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; color:var(--text-sub); }
+    .salary-filters label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+    .salary-size { flex-shrink:0; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:#f1f5f9; color:#475569; }
+    .salary-size-small  { background:#ecfdf5; color:#047857; }
+    .salary-size-medium { background:#eff6ff; color:#1d4ed8; }
+    .salary-size-large  { background:#fdf4ff; color:#a21caf; }
+    .salary-task { font-size:13px; color:var(--text-sub); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 120px; }
+    .salary-draw-btn { padding:6px 14px; border:none; border-radius:8px; background:var(--sky-deep, #0284c7); color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .salary-draw-btn:disabled { background:#e2e8f0; color:#94a3b8; cursor:not-allowed; }
+    .salary-result { font-size:14px; font-weight:800; color:var(--text); }
+    .salary-status { font-size:12px; font-weight:700; padding:3px 9px; border-radius:7px; }
+    .salary-status-wait_draw { background:#f1f5f9; color:#64748b; }
+    .salary-status-wait_pay  { background:#fef3c7; color:#b45309; }
+    .salary-status-paid      { background:#dcfce7; color:#15803d; }
+    .salary-status-canceled  { background:#fee2e2; color:#b91c1c; }
+    .salary-result-canceled  { color:var(--text-mute, #94a3b8); text-decoration:line-through; }
+    .salary-guide { background:#f8fafc; border:1.5px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin-bottom:16px; }
+    .salary-guide p { margin:0; }
+    .salary-guide-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:12px !important; }
+    .salary-guide-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; }
+    .salary-guide-item { background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+    .salary-guide-head { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:13px; font-weight:700; color:var(--text); }
+    .salary-guide-desc { font-size:12px; color:var(--text-sub); margin-top:4px !important; line-height:1.5; }
+    .salary-guide-note { font-size:12px; color:var(--text-mute, #94a3b8); margin-top:10px !important; }
+    .salary-guide-extra { border-top:1px dashed var(--border); margin-top:14px; padding-top:12px; }
+    .salary-guide-range { font-weight:700; color:var(--text-sub); }
+    @media (max-width: 640px) {
+      .salary-guide-grid { grid-template-columns:1fr; }
+    }
+    #salarySqlPre { margin:0; flex:1; overflow:auto; background:#0f172a; color:#e2e8f0; font-size:12px; line-height:1.5; padding:12px; border-radius:10px; white-space:pre; font-family:monospace; }
+  </style>
 </head>
 <body>
 
@@ -44,6 +80,7 @@
           <button class="profile-tab" data-tab="Characters">개체 관리</button>
           <button class="profile-tab" data-tab="Adoptions">분양 관리</button>
           <button class="profile-tab" data-tab="AdminLogs">관리자 로그</button>
+          <button class="profile-tab" data-tab="Salary">월급계산기</button>
         </div>
 
         <!-- 공지 관리 탭 -->
@@ -302,6 +339,70 @@
           </section>
         </div>
 
+        <!-- 월급계산기 탭 (관리자·스태프. 권한은 서버 RPC 가 판정) -->
+        <div id="tabSalary" class="tab-content" style="display:none;">
+          <section class="section">
+            <div class="section-header" style="margin-bottom:12px;">
+              <h2 class="settings-section-title" style="margin-bottom:0;">월급계산기</h2>
+            </div>
+
+            <!-- 지급 기준 안내 (관리자·스태프 공통, 정적 안내) -->
+            <div class="salary-guide">
+              <p class="salary-guide-title">아트워크 1개당 월급 가챠권 지급</p>
+              <div class="salary-guide-grid">
+                <div class="salary-guide-item">
+                  <p class="salary-guide-head"><span class="salary-size salary-size-small">소형</span> 10~30 연구기록</p>
+                  <p class="salary-guide-desc">└ 재화, 파비콘 등 작은 디자인</p>
+                </div>
+                <div class="salary-guide-item">
+                  <p class="salary-guide-head"><span class="salary-size salary-size-medium">중형</span> 30~70 연구기록</p>
+                  <p class="salary-guide-desc">└ 프레임, 스티커, 아이템 등</p>
+                </div>
+                <div class="salary-guide-item">
+                  <p class="salary-guide-head"><span class="salary-size salary-size-large">대형</span> 50~100 연구기록</p>
+                  <p class="salary-guide-desc">└ 큰 전신 아트워크 등</p>
+                </div>
+              </div>
+              <p class="salary-guide-note">※ 작업물 규모에 따라 지급 등급이 결정됩니다.</p>
+              <div class="salary-guide-extra">
+                <p class="salary-guide-head">소장 월급 <span class="salary-guide-range">50~100 연구기록</span></p>
+                <p class="salary-guide-desc">└ 정기 업데이트 시 지급</p>
+              </div>
+            </div>
+
+            <!-- 관리자 전용 등록 폼 -->
+            <div id="salaryAdminForm" class="admin-write-form salary-form" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">대상 (관리자·스태프) <span class="required">*</span></label>
+                <select id="salaryStaff" class="form-input"><option value="">대상 선택</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">규모 <span class="required">*</span></label>
+                <select id="salarySize" class="form-input">
+                  <option value="small">소형 (10~30)</option>
+                  <option value="medium">중형 (30~70)</option>
+                  <option value="large">대형 (50~100)</option>
+                </select>
+              </div>
+              <div class="form-group salary-task-group">
+                <label class="form-label">작업명 <span class="required">*</span></label>
+                <input type="text" id="salaryTask" class="form-input" maxlength="100" placeholder="작업명">
+              </div>
+              <button class="btn-secondary" id="salarySubmitBtn" onclick="submitStaffSalary()">가챠권 지급</button>
+              <p class="auth-error" id="salaryFormError" style="flex-basis:100%; margin:0;"></p>
+            </div>
+
+            <div class="salary-filters">
+              <label><input type="checkbox" id="salaryFilterMine" onchange="applySalaryFilter()"> 내 가챠권만</label>
+              <label><input type="checkbox" id="salaryFilterWaitPay" onchange="applySalaryFilter()"> 지급 대기만</label>
+              <label><input type="checkbox" id="salaryFilterCanceled" onchange="applySalaryFilter()"> 취소 포함</label>
+            </div>
+            <div class="admin-card-list" id="salaryTableBody" style="margin-top:12px;"></div>
+            <p id="salaryEmpty" class="empty-state" style="display:none;">등록된 가챠권이 없어요.</p>
+            <div id="pgSalary"></div>
+          </section>
+        </div>
+
       </div>
     </main>
   </div>
@@ -364,6 +465,22 @@
     </div>
   </div>
 
+  <!-- 월급 지급 SQL 모달 -->
+  <div id="salarySqlModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#fff; border-radius:16px; padding:20px; width:min(100%, 720px); max-height:88vh; display:flex; flex-direction:column; gap:12px; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+      <h3 style="margin:0; font-size:16px; font-weight:700;">지급 SQL</h3>
+      <p id="salarySqlNote" style="margin:0; font-size:13px; color:var(--text-sub); word-break:break-all;"></p>
+      <p style="margin:0; font-size:12px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; line-height:1.5;">
+        복사만으로는 지급 완료가 되지 않아요. SQL Editor 에서 실행한 뒤 이 페이지를 새로고침하면 지급 완료로 바뀝니다.
+      </p>
+      <pre id="salarySqlPre"></pre>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn-ghost" onclick="closeSalarySql()">닫기</button>
+        <button class="btn-secondary" onclick="copySalarySql(salarySqlTicket, this)">복사</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.3</span></p>
   </footer>
@@ -376,6 +493,7 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
+  <script src="../js/admin-staff-salary.js"></script>
   <script>
     let adminUser = null;
 
@@ -441,6 +559,9 @@
         }
         if (btn.dataset.tab === 'AdminLogs' && !tabLoaded.AdminLogs) {
           tabLoaded.AdminLogs = true; loadAdminLogs();
+        }
+        if (btn.dataset.tab === 'Salary' && !tabLoaded.Salary) {
+          tabLoaded.Salary = true; loadStaffSalary();
         }
       });
     });

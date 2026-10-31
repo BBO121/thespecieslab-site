@@ -37,6 +37,15 @@
     .search-input:focus { border-color: var(--sky-dark); }
     /* 배지가 3개([경매][재화거래][상태])일 때 좁은 모바일 카드에서 넘치지 않도록 줄바꿈 */
     .adoption-card-badges { flex-wrap: wrap; row-gap: 4px; }
+    /* 분양완료 탭 이벤트 분양 접힘 — .adoption-grid 열 수(4/3/2)와 같은 브레이크포인트로 한 줄만 표시 */
+    .event-adoption-box.is-collapsed .adoption-card:nth-child(n+5) { display: none; }
+    @media (max-width: 1023px) {
+      .event-adoption-box.is-collapsed .adoption-card:nth-child(n+4) { display: none; }
+    }
+    @media (max-width: 767px) {
+      .event-adoption-box.is-collapsed .adoption-card:nth-child(n+3) { display: none; }
+    }
+    .event-adoption-more { text-align: center; margin-top: 14px; }
   </style>
 </head>
 <body>
@@ -94,6 +103,10 @@
       <div id="adoptionEventBox" class="event-adoption-box" style="display:none;">
         <p class="event-adoption-label">이벤트 분양</p>
         <div id="adoptionEventGrid" class="adoption-grid"></div>
+        <div id="adoptionEventMoreWrap" class="event-adoption-more" style="display:none;">
+          <button type="button" class="btn-ghost" id="adoptionEventMoreBtn"
+            aria-expanded="false" aria-controls="adoptionEventGrid">이벤트 분양 더보기</button>
+        </div>
       </div>
       <div id="adoptionGrid" class="adoption-grid"></div>
       <div id="paginationWrap"></div>
@@ -107,7 +120,7 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.3</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.4</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -254,15 +267,90 @@
 
     // 이벤트 분양 — 카드 개별 강조가 아니라 이 영역(box) 전체가 이벤트 구역임을 표시.
     // 이벤트가 하나도 없으면 박스 자체를 렌더링하지 않는다(빈 박스 노출 금지).
+    // 분양완료 탭에서만 기본 접힘(한 줄). 상태·유형·검색이 바뀌면 applyFilters → 여기로 와서 다시 접힌다.
     function renderEventItems(list) {
       const box  = document.getElementById('adoptionEventBox');
       const grid = document.getElementById('adoptionEventGrid');
-      if (!list.length) { box.style.display = 'none'; grid.innerHTML = ''; return; }
+      eventCollapsible = activeStatus === 'closed';
+      eventExpanded    = false;
+      if (!list.length) { box.style.display = 'none'; grid.innerHTML = ''; updateEventMore(); return; }
       box.style.display = 'block';
       grid.innerHTML = list.map(buildAdoptionCard).join('');
+      updateEventMore();
     }
 
-    const pager = createPager(renderItems);
+    // ── 이벤트 분양 더보기/접기 (분양완료 탭 전용) ──
+    // 한 줄 개수는 .adoption-grid 열 수와 같은 브레이크포인트(>1023: 4, 768~1023: 3, ≤767: 2)
+    const EVENT_ROW_MQ_TABLET = window.matchMedia('(max-width: 1023px)');
+    const EVENT_ROW_MQ_MOBILE = window.matchMedia('(max-width: 767px)');
+    let eventCollapsible = false;
+    let eventExpanded    = false;
+
+    function eventRowCount() {
+      if (EVENT_ROW_MQ_MOBILE.matches) return 2;
+      if (EVENT_ROW_MQ_TABLET.matches) return 3;
+      return 4;
+    }
+
+    function updateEventMore() {
+      const box  = document.getElementById('adoptionEventBox');
+      const wrap = document.getElementById('adoptionEventMoreWrap');
+      const btn  = document.getElementById('adoptionEventMoreBtn');
+      const count = document.getElementById('adoptionEventGrid').children.length;
+      const needsToggle = eventCollapsible && count > eventRowCount();
+      box.classList.toggle('is-collapsed', eventCollapsible && !eventExpanded);
+      wrap.style.display = needsToggle ? '' : 'none';
+      btn.textContent = eventExpanded ? '접기' : '이벤트 분양 더보기';
+      btn.setAttribute('aria-expanded', eventExpanded ? 'true' : 'false');
+    }
+
+    document.getElementById('adoptionEventMoreBtn').addEventListener('click', () => {
+      eventExpanded = !eventExpanded;
+      updateEventMore();
+      if (!eventExpanded) {
+        // 접은 뒤 이벤트 영역 위쪽이 화면 밖(헤더 뒤 포함)이면 영역 시작점으로 맞춘다 — 일반 목록으로 튀지 않게.
+        const box    = document.getElementById('adoptionEventBox');
+        const header = document.querySelector('.header');
+        const hPos   = header ? getComputedStyle(header).position : '';
+        const offset = (hPos === 'fixed' || hPos === 'sticky') ? header.offsetHeight : 0;
+        const top    = box.getBoundingClientRect().top;
+        if (top < offset) window.scrollTo({ top: window.scrollY + top - offset - 12 });
+      }
+    });
+
+    // 화면 폭이 바뀌어 한 줄 개수가 달라지면 버튼 노출 여부만 다시 계산(펼침 상태는 유지)
+    [EVENT_ROW_MQ_TABLET, EVENT_ROW_MQ_MOBILE].forEach(mq => mq.addEventListener('change', updateEventMore));
+
+    // 페이지당 36개 — PC 4열·태블릿 3열·모바일 2열 모두 마지막 행이 꽉 차는 수(공배수).
+    // (공용 기본값 30은 4열에서 7행+2개로 마지막 행이 비었음)
+    const ADOPTION_PER_PAGE = 36;
+    const pager = createPager(renderItems, 'paginationWrap', 'page', ADOPTION_PER_PAGE);
+
+    // 전체 분양글 조회 — PostgREST 1회 응답 상한(1000행)에 잘리지 않도록 1000건씩 나눠 받는다.
+    // 모든 배치를 created_at desc + id desc(동률 보조키)로 정렬하고, offset 대신 직전 배치 마지막 행
+    // (created_at, id) "다음"부터 받는 keyset 방식 → 조회 도중 글이 추가·삭제돼도 중복·누락이 없다.
+    // 중간 배치가 하나라도 실패하면 일부 데이터는 버리고 error 반환(부분 목록·총 개수 표시 금지).
+    async function fetchAllAdoptions() {
+      const CHUNK = 1000;
+      const all = [];
+      let last = null;
+      for (;;) {
+        let q = sb.from('adoptions')
+          .select('*, characters(is_sensitive, sensitive_note)')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(CHUNK);
+        if (last) {
+          q = q.or(`created_at.lt."${last.created_at}",and(created_at.eq."${last.created_at}",id.lt.${last.id})`);
+        }
+        const { data, error } = await q;
+        if (error || !Array.isArray(data)) return { data: null, error: error || new Error('invalid response') };
+        all.push(...data);
+        if (data.length < CHUNK) break;   // 마지막 배치가 정확히 1000개면 다음 조회가 0건 → 여기서 종료
+        last = data[data.length - 1];
+      }
+      return { data: all, error: null };
+    }
 
     // ── 이벤트 ─────────────────────────────────────
     document.getElementById('statusFilterRow').addEventListener('click', e => {
@@ -294,16 +382,20 @@
       if (user) document.getElementById('writeBtn').style.display = 'inline-flex';
 
       const [{ data, error }, { data: researchAuctions }] = await Promise.all([
-        sb.from('adoptions')
-          .select('*, characters(is_sensitive, sensitive_note)')
-          .order('created_at', { ascending: false }),
+        fetchAllAdoptions(),
         sb.from('auction_details')
           .select('adoption_id')
           .eq('auction_currency', 'research_records'),
       ]);
       researchAuctionIds = new Set((researchAuctions || []).map(d => d.adoption_id));
 
-      if (error || !data || data.length === 0) {
+      if (error) {
+        // 조회 실패 — "등록된 글 없음"으로 오인되지 않게 별도 안내, 총 개수·목록은 표시하지 않는다.
+        document.getElementById('emptyStateMsg').textContent = '분양 목록을 불러오지 못했어요. 잠시 후 새로고침해 주세요.';
+        document.getElementById('emptyState').style.display = 'flex';
+        return;
+      }
+      if (!data || data.length === 0) {
         document.getElementById('emptyState').style.display = 'flex';
         return;
       }

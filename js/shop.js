@@ -273,6 +273,12 @@ function renderThumb(item) {
   // item 전달 시 실제 DB UUID 사용
   const itemJson = JSON.stringify(item).replace(/'/g, "\\'");
 
+  // 프레임 미리보기 버튼 — 카드 클릭(상세 모달)으로 전파되지 않게 막음
+  const framePreviewBtn = isFramePreviewable(item)
+    ? `<button type="button" class="shop-thumb-preview-btn"
+         onclick="event.stopPropagation(); openFramePreview('${item.id}')">미리보기</button>`
+    : '';
+
   return `
     <div class="shop-thumb shop-thumb--${state}"
          onclick='openDetailModal(${itemJson})'>
@@ -283,6 +289,7 @@ function renderThumb(item) {
       ${adminOnlyBadge ? `<div class="shop-thumb-badge-row">${adminOnlyBadge}</div>` : ''}
       <p class="shop-thumb-name">${formatShopNameThumb(item.name)}</p>
       ${statusHtml}
+      ${framePreviewBtn}
     </div>`;
 }
 
@@ -357,6 +364,12 @@ function openDetailModal(item) {
   } else {
     actionEl.innerHTML = `<span class="shop-detail-status shop-status--insufficient">재화 부족</span>`;
   }
+  if (isFramePreviewable(item)) {
+    actionEl.innerHTML = `<div class="shop-detail-action-row">
+      <button type="button" class="shop-preview-btn-lg"
+        onclick="closeDetailModal(); openFramePreview('${item.id}')">미리보기</button>
+      ${actionEl.innerHTML}</div>`;
+  }
 
   document.getElementById('shopDetailModal').style.display = 'flex';
 }
@@ -364,6 +377,95 @@ function openDetailModal(item) {
 function closeDetailModal() {
   document.getElementById('shopDetailModal').style.display = 'none';
 }
+
+// ── 프레임 미리보기 모달 ──────────────────────────────────
+// 화면 표시만 변경한다 — 프로필/인벤토리/착용 상태(user_equipment)에 쓰기 요청을 보내지 않음.
+// 실제 프로필(profile.html)과 같은 DOM(.profile-avatar-wrap.frame-* > .profile-avatar)·CSS를 써서
+// 비율·위치·레이어·애니메이션이 착용 화면과 동일하고, 확대는 .shop-fp-stage의 transform만 담당.
+let _fpReturnFocus = null;
+
+// 스티커도 같은 방식 — 프로필의 .profile-avatar-outer(grid) 안에 img.profile-sticker를 겹친다.
+function isFramePreviewable(item) {
+  return (item.item_type === 'frame' && !!item.style_key)
+      || (item.item_type === 'sticker' && !!item.image_url);
+}
+
+function openFramePreview(itemId) {
+  const item = _allItems.find(i => String(i.id) === String(itemId));
+  if (!item || !isFramePreviewable(item)) return;
+
+  const state     = getItemState(item);
+  const isSticker = item.item_type === 'sticker';
+  const stageEl   = document.getElementById('fpStage');
+
+  // 매번 새로 그려 이전 상품의 프레임 클래스·스티커·보유 상태가 남지 않게 함
+  if (item.is_sensitive && !_showSensitive) {
+    stageEl.innerHTML = SENSITIVE_PLACEHOLDER_LARGE_HTML;
+  } else {
+    stageEl.innerHTML = '<div class="profile-avatar-outer"><div class="profile-avatar-wrap"><div class="profile-avatar"></div></div></div>';
+    if (isSticker) {
+      const stickerEl = document.createElement('img');
+      stickerEl.className = 'profile-sticker';
+      stickerEl.src = item.image_url;
+      stickerEl.alt = item.name || '';
+      stageEl.firstElementChild.appendChild(stickerEl);
+    } else {
+      stageEl.querySelector('.profile-avatar-wrap').classList.add(item.style_key);
+    }
+    // 프로필 이미지가 없으면 프로필 페이지와 동일하게 기본 .profile-avatar 배경 사용
+    const avatarUrl = _user?.user_metadata?.avatar_url;
+    if (avatarUrl) {
+      const avatarEl = stageEl.querySelector('.profile-avatar');
+      avatarEl.style.backgroundImage    = `url(${JSON.stringify(avatarUrl)})`;
+      avatarEl.style.backgroundSize     = 'cover';
+      avatarEl.style.backgroundPosition = 'center';
+    }
+  }
+
+  document.getElementById('fpName').innerHTML = formatShopName(item.name);
+  document.getElementById('fpHint').textContent = state === 'owned'
+    ? `보유 중인 ${isSticker ? '스티커' : '프레임'}이에요. 착용은 내 가방에서 할 수 있어요.`
+    : '미리보기는 실제 착용 상태를 바꾸지 않아요.';
+
+  const priceEl  = document.getElementById('fpPrice');
+  const actionEl = document.getElementById('fpAction');
+  if (state === 'owned') {
+    priceEl.innerHTML  = '';
+    actionEl.innerHTML = `<span class="shop-detail-status shop-status--owned">보유 중</span>`;
+  } else {
+    const discount = item.original_price && item.original_price > item.price
+      ? `<s class="shop-price-original">${item.original_price.toLocaleString()}</s> `
+      : '';
+    const priceHtml = buildPriceHtml(item, discount);
+    priceEl.innerHTML = state === 'insufficient'
+      ? `<span style="color:#ef4444;">${priceHtml}</span>`
+      : priceHtml;
+    actionEl.innerHTML = {
+      coming:       `<span class="shop-detail-status shop-status--coming">준비중</span>`,
+      insufficient: `<span class="shop-detail-status shop-status--insufficient">재화 부족</span>`,
+      // 기존 구매 확인 모달(openShopModal → doPurchase/purchase_item RPC)로 연결 — 검증 로직 그대로
+      available:    `<button type="button" class="shop-buy-btn-lg"
+                       onclick="closeFramePreview(); openShopModal(_allItems.find(i => String(i.id) === '${item.id}'))">구매하기</button>`,
+    }[state] || '';
+  }
+
+  _fpReturnFocus = document.activeElement;
+  document.getElementById('shopFramePreviewModal').style.display = 'flex';
+  document.getElementById('fpCloseBtn').focus();
+}
+
+function closeFramePreview() {
+  const modal = document.getElementById('shopFramePreviewModal');
+  if (modal.style.display === 'none') return;
+  modal.style.display = 'none';
+  document.getElementById('fpStage').innerHTML = '';
+  if (_fpReturnFocus && document.contains(_fpReturnFocus)) _fpReturnFocus.focus();
+  _fpReturnFocus = null;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeFramePreview();
+});
 
 // ── 구매 확인 모달 ────────────────────────────────────────
 function openShopModal(item) {

@@ -121,6 +121,132 @@
       #charGrid > .add-char-placeholder { flex-basis:calc(50% - 4px); }
     }
 
+    /* ── 보기 설정(열 수) — data-cols가 있을 때만 화면 크기와 무관하게 선택한 열 수 적용.
+       '기본'은 data-cols를 지워 위의 반응형 규칙(4/3/2열)을 그대로 따른다. */
+    #charGrid[data-cols] { --char-cols:4; --char-gap:18px; gap:var(--char-gap); }
+    #charGrid[data-cols="2"] { --char-cols:2; }
+    #charGrid[data-cols="3"] { --char-cols:3; }
+    #charGrid[data-cols="5"] { --char-cols:5; --char-gap:12px; }
+    #charGrid[data-cols="6"] { --char-cols:6; --char-gap:12px; }
+    #charGrid[data-cols="7"] { --char-cols:7; --char-gap:10px; }
+    #charGrid[data-cols="8"] { --char-cols:8; --char-gap:10px; }
+    @media (max-width:1023px) {
+      #charGrid[data-cols] { --char-gap:14px; }
+      #charGrid[data-cols="5"], #charGrid[data-cols="6"] { --char-gap:10px; }
+      #charGrid[data-cols="7"], #charGrid[data-cols="8"] { --char-gap:8px; }
+    }
+    @media (max-width:767px) {
+      #charGrid[data-cols] { --char-gap:6px; }
+      #charGrid[data-cols="2"] { --char-gap:12px; }
+      #charGrid[data-cols="3"] { --char-gap:8px; }
+      #charGrid[data-cols="6"], #charGrid[data-cols="7"], #charGrid[data-cols="8"] { --char-gap:4px; }
+    }
+    @media (max-width:400px) {
+      #charGrid[data-cols="2"] { --char-gap:8px; }
+      #charGrid[data-cols="3"] { --char-gap:6px; }
+    }
+    #charGrid[data-cols] > .character-card,
+    #charGrid[data-cols] > .add-char-placeholder {
+      flex:0 1 calc((100% - (var(--char-cols) - 1) * var(--char-gap)) / var(--char-cols));
+      min-width:0;
+    }
+
+    /* 카드 모서리 — 실제 카드 폭에 비례해 줄인다(화면 폭이 아니라 선택한 열 수에 따라 달라짐).
+       #charGrid를 컨테이너로 두고 100cqi(목록 폭)에서 카드 폭을 계산 → px 길이라 세로로 긴 카드도 원형 모서리 유지
+       (% radius는 가로·세로 비율이 달라 타원이 됨). 비율은 기본 배치 모바일 2열(약 155px·12px)의 7.8%,
+       기존 --radius(12px)보다 커지지 않고 최소 3px. 이미지는 카드 overflow:hidden으로 같은 모서리에 잘린다. */
+    #charGrid[data-cols] {
+      container-type:inline-size;
+      --char-card-w:calc((100cqi - (var(--char-cols) - 1) * var(--char-gap)) / var(--char-cols));
+      --char-card-radius:clamp(3px, calc(var(--char-card-w) * 0.078), var(--radius));
+    }
+    #charGrid[data-cols] > .character-card,
+    #charGrid[data-cols] > .add-char-placeholder { border-radius:var(--char-card-radius); }
+
+    /* 좁은 카드 — 열 수를 직접 고른 경우에만, 카드 자체 폭 기준(container query)으로 간격·글자를 줄인다.
+       '기본' 배치는 기존 스타일 그대로(container 미지정 → 아래 @container 규칙 미적용). */
+    #charGrid[data-cols] > .character-card,
+    #charGrid[data-cols] > .add-char-placeholder { container-type:inline-size; }
+    #charGrid[data-cols] .character-name,
+    #charGrid[data-cols] .character-species { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    @container (max-width:139px) {
+      .character-info { padding:8px 8px 9px; }
+      .character-name { font-size:12px; }
+      .character-species { font-size:11px; margin-top:2px; }
+      .card-menu-btn { width:18px; height:18px; font-size:13px; }
+      .sensitive-overlay { padding:6px; }
+      .sensitive-overlay svg { width:20px; height:19px; }
+      .sensitive-overlay .so-label { font-size:12px !important; }
+      .sensitive-overlay-note, .sensitive-overlay-hint { font-size:10px; padding:2px 6px; }
+      .acp-plus  { font-size:24px; }
+      .acp-label { font-size:12px; }
+    }
+    @container (max-width:99px) {
+      .character-info { padding:5px 5px 6px; }
+      .character-name { font-size:11px; }
+      .character-species { font-size:10px; margin-top:1px; }
+      .card-name-row { gap:2px; }
+      .card-menu-btn { width:15px; height:15px; font-size:12px; }
+      .sensitive-overlay { padding:3px; }
+      .sensitive-overlay svg { width:15px; height:14px; }
+      .sensitive-overlay .so-label { font-size:10px !important; }
+      .sensitive-overlay-note, .sensitive-overlay-hint { display:none; }
+      .acp-label { display:none; }
+    }
+    @container (max-width:59px) {
+      .character-info { padding:3px 3px 4px; }
+      .character-name { font-size:10px; }
+      .character-species { font-size:9px; }
+      .card-name-row { gap:1px; }
+      .card-menu-btn { width:12px; height:14px; font-size:11px; }
+      .sensitive-overlay .so-label { display:none; }
+      .acp-plus { font-size:18px; }
+    }
+
+    /* 보기 설정 버튼 + 드롭다운 */
+    .name-mode-row { gap:8px; align-items:center; }
+    .view-cols { position:relative; flex-shrink:0; }
+    .view-cols-btn {
+      display:flex; align-items:center; gap:7px;
+      padding:6px 10px; border:1.5px solid var(--border); border-radius:9px;
+      background:#fff; font-size:13px; font-weight:600; color:var(--text-sub);
+      cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap;
+    }
+    .view-cols-btn:hover, .view-cols-btn[aria-expanded="true"] { border-color:var(--sky-dark); color:var(--sky-dark); }
+    .view-cols-caret { font-size:9px; opacity:0.7; }
+    .view-cols-panel {
+      position:absolute; top:calc(100% + 6px); right:0; z-index:300;
+      width:244px; max-width:calc(100vw - 32px); box-sizing:border-box;
+      background:#fff; border:1px solid var(--border); border-radius:12px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.12); padding:8px;
+      display:grid; grid-template-columns:1fr 1fr; gap:6px;
+    }
+    .view-cols-panel[hidden] { display:none; }
+    .view-cols-opt {
+      position:relative; display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:9px 8px; border:1.5px solid var(--border); border-radius:9px; background:#fff;
+      cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; color:var(--text-sub);
+      transition:border-color 0.12s, background 0.12s;
+    }
+    .view-cols-opt--default { grid-column:1 / -1; justify-content:space-between; padding:9px 12px; }
+    .view-cols-opt:hover, .view-cols-opt:focus-visible { border-color:var(--sky-dark); outline:none; }
+    .view-cols-opt[aria-selected="true"] { border-color:var(--sky-dark); background:var(--sky-pale); color:var(--sky-deep); }
+    .view-cols-check {
+      position:absolute; top:-6px; right:-6px; width:16px; height:16px; border-radius:50%;
+      background:var(--sky-dark); color:#fff; font-size:10px; line-height:16px; text-align:center;
+      display:none;
+    }
+    .view-cols-opt[aria-selected="true"] .view-cols-check { display:block; }
+    /* 배치 미리보기 — 같은 너비 안에 n열 × 2줄 회색 네모 */
+    .vc-prev {
+      display:grid; grid-template-columns:repeat(var(--n), 1fr); gap:2px;
+      width:60px; flex-shrink:0;
+    }
+    .vc-prev i { display:block; aspect-ratio:1; background:#cbd5e1; border-radius:2px; }
+    .view-cols-opt[aria-selected="true"] .vc-prev i { background:var(--sky-dark); opacity:0.55; }
+    .vc-prev--btn { width:26px; gap:1px; }
+    .vc-prev--btn i { border-radius:1px; background:currentColor; opacity:0.45; }
+
     /* 개체 추가 플레이스홀더 — 액션 카드 */
     .add-char-placeholder {
       position:relative;
@@ -340,6 +466,14 @@
             <button type="button" class="name-mode-btn active" id="nameModeBtn_registered" onclick="setNameDisplayMode('registered')">등록명</button>
             <button type="button" class="name-mode-btn" id="nameModeBtn_owner" onclick="setNameDisplayMode('owner')">소유주명</button>
           </div>
+          <!-- 보기 설정(열 수) — 이 기기·브라우저(localStorage)에만 저장 -->
+          <div class="view-cols" id="viewCols">
+            <button type="button" class="view-cols-btn" id="viewColsBtn"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="viewColsPanel">
+              <span id="viewColsBtnPrev"></span>보기<span class="view-cols-caret" aria-hidden="true">▼</span>
+            </button>
+            <div class="view-cols-panel" id="viewColsPanel" role="listbox" aria-label="목록 보기 설정" hidden></div>
+          </div>
         </div>
 
         <div class="list-controls">
@@ -385,7 +519,7 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.3</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.4</span></p>
   </footer>
 
   <!-- 폴더 관리 모달 -->
@@ -455,15 +589,21 @@
     let customOrder         = null;   // Map(character_id → sort_index) — null이면 기능 사용 불가(조회 실패)
     let orderEdit           = null;   // 순서 편집 중 상태 { ids, baseIds, saving }
     let nameDisplayMode     = 'registered'; // 'registered'(등록명) | 'owner'(소유주 설정 개체명) — 계정 설정(user_settings)에 저장
-    // 페이지당 칸 수 — #charGrid 열 수(4열 / ≤1023px 3열 / ≤767px 2열)의 공배수여야
-    // 어느 화면 크기(회전·리사이즈 포함)에서도 마지막 페이지 외에는 줄이 꽉 찬다.
+    // 페이지당 칸 수 = 현재 실제 열 수 × 기준 행 수 — 마지막 페이지 외에는 줄이 항상 꽉 찬다.
+    // 기준 행 수는 기존 기본 배치(데스크탑 4열 × 36칸)의 9행. 보기 설정(2~8열)·'기본'의 반응형 열 수 모두 같은 계산.
     // 폴더 보기는 매 페이지 끝에 "개체 추가" 카드가 1칸 붙으므로 개체는 1개 덜 담는다.
-    const CHAR_PAGE_SLOTS = 36;
-    let pagerSize = CHAR_PAGE_SLOTS;
+    const CHAR_PAGE_ROWS = 9;
+    let pagerSize = 4 * CHAR_PAGE_ROWS;
     let pager = createPager(renderCards, 'paginationWrap', 'page', pagerSize);
 
+    function currentPageSize() {
+      const cols  = viewCols === 'default' ? defaultViewCols() : viewCols;
+      const slots = cols * CHAR_PAGE_ROWS;
+      return typeof activeFolder === 'number' ? slots - 1 : slots;
+    }
+
     function ensurePagerSize() {
-      const size = typeof activeFolder === 'number' ? CHAR_PAGE_SLOTS - 1 : CHAR_PAGE_SLOTS;
+      const size = currentPageSize();
       if (size === pagerSize) return;
       pagerSize = size;
       pager = createPager(renderCards, 'paginationWrap', 'page', pagerSize);
@@ -495,6 +635,152 @@
         alert('이름 표시 설정 저장에 실패했어요. 다시 시도해주세요.');
       }
     }
+
+    // ── 보기 설정(열 수) ──────────────────────────────
+    // 'default'(반응형 4/3/2열) 또는 2~8열. 이 기기·브라우저의 localStorage에만 저장(DB 변경 없음).
+    // 카드 배치(#charGrid[data-cols])와 페이지당 개수(열 수 × CHAR_PAGE_ROWS)에 적용 — 정렬·필터·검색은 그대로.
+    const VIEW_COLS_KEY     = 'my_characters_view_cols';
+    const VIEW_COLS_OPTIONS = ['default', 2, 3, 4, 5, 6, 7, 8];
+    const VIEW_COLS_MQ_TABLET = window.matchMedia('(max-width:1023px)');
+    const VIEW_COLS_MQ_MOBILE = window.matchMedia('(max-width:767px)');
+    let viewCols = 'default';
+
+    function parseViewCols(raw) {
+      if (raw === 'default') return 'default';
+      if (typeof raw === 'string' && /^[2-8]$/.test(raw)) return Number(raw);
+      return null;
+    }
+    function loadViewCols() {
+      try { return parseViewCols(localStorage.getItem(VIEW_COLS_KEY)) || 'default'; }
+      catch (e) { return 'default'; }
+    }
+    function saveViewCols(val) {
+      try { localStorage.setItem(VIEW_COLS_KEY, String(val)); } catch (e) { /* 저장 불가 — 이번 방문에만 적용 */ }
+    }
+    // 현재 화면 크기의 기본 열 수 — #charGrid 반응형 규칙(4 / ≤1023px 3 / ≤767px 2)과 동일
+    function defaultViewCols() {
+      return VIEW_COLS_MQ_MOBILE.matches ? 2 : VIEW_COLS_MQ_TABLET.matches ? 3 : 4;
+    }
+    function viewColsLabel(val) {
+      return val === 'default' ? '기본 배치' : `${val}열로 보기`;
+    }
+    function colsPreviewHtml(n, extraClass = '') {
+      return `<span class="vc-prev ${extraClass}" style="--n:${n}" aria-hidden="true">${'<i></i>'.repeat(n * 2)}</span>`;
+    }
+
+    function renderViewColsPanel() {
+      const panel = document.getElementById('viewColsPanel');
+      // 열려 있는 동안 다시 그려도(화면 크기 변경) 포커스 위치를 유지
+      const focusedVal = panel.contains(document.activeElement) ? document.activeElement.dataset.val : null;
+      panel.innerHTML = VIEW_COLS_OPTIONS.map(val => {
+        const selected = val === viewCols;
+        const isDefault = val === 'default';
+        return `<button type="button" role="option" class="view-cols-opt${isDefault ? ' view-cols-opt--default' : ''}"
+            data-val="${val}" aria-selected="${selected}" tabindex="-1"
+            title="${viewColsLabel(val)}" aria-label="${viewColsLabel(val)}${isDefault ? ` (현재 화면 ${defaultViewCols()}열)` : ''}">
+            ${isDefault ? '<span>기본</span>' : ''}${colsPreviewHtml(isDefault ? defaultViewCols() : val)}
+            <span class="view-cols-check" aria-hidden="true">✓</span>
+          </button>`;
+      }).join('');
+      if (focusedVal) panel.querySelector(`[data-val="${focusedVal}"]`)?.focus();
+    }
+
+    function applyViewCols() {
+      const grid = document.getElementById('charGrid');
+      if (viewCols === 'default') grid.removeAttribute('data-cols');
+      else grid.setAttribute('data-cols', String(viewCols));
+      const btn   = document.getElementById('viewColsBtn');
+      const label = viewColsLabel(viewCols);
+      document.getElementById('viewColsBtnPrev').innerHTML =
+        colsPreviewHtml(viewCols === 'default' ? defaultViewCols() : viewCols, 'vc-prev--btn');
+      btn.title = `보기 설정: ${label}`;
+      btn.setAttribute('aria-label', `보기 설정: ${label}`);
+      renderViewColsPanel();
+    }
+
+    function viewColsOptions() {
+      return [...document.querySelectorAll('#viewColsPanel .view-cols-opt')];
+    }
+    function openViewCols() {
+      const panel = document.getElementById('viewColsPanel');
+      panel.hidden = false;
+      document.getElementById('viewColsBtn').setAttribute('aria-expanded', 'true');
+      const opts = viewColsOptions();
+      (opts.find(o => o.getAttribute('aria-selected') === 'true') || opts[0]).focus();
+    }
+    function closeViewCols(returnFocus = true) {
+      const panel = document.getElementById('viewColsPanel');
+      if (panel.hidden) return;
+      panel.hidden = true;
+      document.getElementById('viewColsBtn').setAttribute('aria-expanded', 'false');
+      if (returnFocus) document.getElementById('viewColsBtn').focus();
+    }
+    // 목록이 로드된 뒤에만 다시 그린다(초기화 전·개체 0개일 때는 initPage가 처리)
+    function viewColsListReady() {
+      return !isInitialLoad && allChars.length > 0;
+    }
+
+    function selectViewCols(val) {
+      const changed = val !== viewCols;
+      viewCols = val;
+      saveViewCols(val);
+      applyViewCols();
+      closeViewCols(true);
+      // 열 수가 바뀌면 페이지 크기도 바뀌므로 1페이지부터 다시 표시(검색·필터·정렬 유지)
+      if (changed && viewColsListReady()) filterCards();
+    }
+
+    function initViewCols() {
+      viewCols = loadViewCols();
+      applyViewCols();
+
+      const btn   = document.getElementById('viewColsBtn');
+      const panel = document.getElementById('viewColsPanel');
+      btn.addEventListener('click', () => panel.hidden ? openViewCols() : closeViewCols(true));
+      btn.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openViewCols(); }
+      });
+      panel.addEventListener('click', e => {
+        const opt = e.target.closest('.view-cols-opt');
+        if (opt) selectViewCols(parseViewCols(opt.dataset.val));
+      });
+      panel.addEventListener('keydown', e => {
+        const opts = viewColsOptions();
+        const i = opts.indexOf(document.activeElement);
+        let next = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = opts[Math.min(i + 1, opts.length - 1)];
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = opts[Math.max(i - 1, 0)];
+        else if (e.key === 'Home') next = opts[0];
+        else if (e.key === 'End')  next = opts[opts.length - 1];
+        else if (e.key === 'Escape') { e.preventDefault(); closeViewCols(true); return; }
+        else if (e.key === 'Tab') { closeViewCols(false); return; }
+        if (next) { e.preventDefault(); next.focus(); }
+        // Enter/Space는 button 기본 동작(click)으로 선택
+      });
+      document.addEventListener('click', e => {
+        if (!e.target.closest('#viewCols')) closeViewCols(false);
+      });
+      // 화면 크기 변경으로 기본 열 수가 바뀌면 미리보기 갱신 + ('기본' 모드면) 페이지 크기 갱신.
+      // 회전·리사이즈로 보던 위치를 잃지 않도록, 현재 페이지 첫 개체가 들어 있는 페이지로 옮긴다.
+      let lastDefaultCols = defaultViewCols();
+      window.addEventListener('resize', () => {
+        const n = defaultViewCols();
+        if (n === lastDefaultCols) return;
+        lastDefaultCols = n;
+        applyViewCols();
+        if (viewCols !== 'default' || !viewColsListReady()) return;
+        const newSize = currentPageSize();
+        if (newSize === pagerSize) return;
+        const url      = new URL(location.href);
+        const oldPage  = parseInt(url.searchParams.get('page')) || 1;
+        const firstIdx = (oldPage - 1) * pagerSize;
+        const newPage  = Math.floor(firstIdx / newSize) + 1;
+        if (newPage > 1) url.searchParams.set('page', newPage); else url.searchParams.delete('page');
+        history.replaceState(null, '', url);
+        filterCards({ keepPage: true });
+      });
+    }
+    initViewCols();
 
     // ── 초기화 ─────────────────────────────────────────
     async function initPage() {
@@ -676,7 +962,7 @@
         const imgHtml = c.is_sensitive && characterHasVisibleRealImage(c)
           ? `<div style="position:relative;overflow:hidden;border-radius:0;">
                <div class="character-img blurred" ${imgDiv}></div>
-               <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + c.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+               <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span class="so-label" style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + c.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
              </div>`
           : `<div class="character-img" ${displayImgDiv}></div>`;
 
@@ -705,7 +991,15 @@
     }
 
     // ── ⋮ 메뉴 토글 ──────────────────────────────────
+    // 보기 설정으로 카드가 좁아져 드롭다운(min-width 140px)이 카드 overflow에 잘리는 경우에는
+    // 같은 기능(폴더 변경 — 목록에 '미분류' 포함)의 폴더 선택 모달을 바로 연다. '기본' 배치는 기존 동작 그대로.
+    const CARD_MENU_MIN_CARD_WIDTH = 150;
     function toggleCardMenu(charId) {
+      const card = document.getElementById(`cmenu_${charId}`)?.closest('.character-card');
+      if (viewCols !== 'default' && card && card.clientWidth < CARD_MENU_MIN_CARD_WIDTH) {
+        openFolderSelectModal(charId);
+        return;
+      }
       const menuId = `cmenu_${charId}`;
       if (openMenuId && openMenuId !== menuId) {
         const prev = document.getElementById(openMenuId);
@@ -846,7 +1140,7 @@
     }
 
     // ── 필터 ─────────────────────────────────────────
-    function filterCards() {
+    function filterCards(opts = {}) {
       // 순서 편집 중에는 검색·필터·페이지 없이 전체 목록 편집 화면만 다시 그린다(이름 표시 변경 등)
       if (orderEdit) { renderOrderEdit(); return; }
       renderOrderBar();
@@ -878,7 +1172,8 @@
         return;
       }
       ensurePagerSize();
-      if (isInitialLoad) {
+      if (isInitialLoad || opts.keepPage) {
+        // 초기 로드·화면 크기 변경 — URL ?page= 값으로 위치 복원(범위 밖이면 1페이지)
         isInitialLoad = false;
         pager.init(sortChars(filtered));
       } else {

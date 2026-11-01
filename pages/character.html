@@ -863,10 +863,13 @@
       const title    = escapeHtml(hasIndiv ? indiv : typeName);
       const p        = card.progress || null;
 
-      const hasImg = typeof card.image_url === 'string' && /^https?:\/\//.test(card.image_url);
+      // 카드 아트웍 = 정사각 썸네일 우선(2026-11-02 SUBJECT 디자인 업데이트), 없으면 전체 디자인
+      const isUrl = (u) => typeof u === 'string' && /^https?:\/\//.test(u);
+      const cardImg = isUrl(card.thumbnail_url) ? card.thumbnail_url : card.image_url;
+      const hasImg = isUrl(cardImg);
       const imgHtml = hasImg ? `
         <div class="labber-subject-img">
-          <img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(typeName)} 아트웍" loading="lazy"${isSensitive ? ' class="blurred"' : ''}
+          <img src="${escapeHtml(cardImg)}" alt="${escapeHtml(typeName)} 아트웍" loading="lazy"${isSensitive ? ' class="blurred"' : ''}
                onerror="labberSubjectImgFallback(this)">
           ${isSensitive ? `<div class="sensitive-overlay" onclick="revealSensitive(this,event)"><span style="color:#b91c1c;font-size:11px;font-weight:700;text-align:center;line-height:1.5;">민감한 요소<br><span style="font-weight:400;color:#aaa;">누르면 보기</span></span></div>` : ''}
         </div>` : `

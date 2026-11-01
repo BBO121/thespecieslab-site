@@ -328,7 +328,7 @@ const LABBER_SHOP_PRODUCTS = [
     description: '빈 카트리지. 무언가 만들 수 있을 것 같다.',
   },
   // ── 디자인 키트 (2026-11, 1회용 — 신청 시 예약, 승인 시 소비) ──
-  //   표본장식키트 = 개인연구실 SUBJECT 이미지 업데이트 신청 / 배양환경키트 = LABBER 관리소 디자인 업데이트
+  //   표본장식키트 = 개인연구실 SUBJECT 디자인 업데이트 신청 / 배양환경키트 = LABBER 관리소 디자인 업데이트
   //   서버: supabase/labber_1101_launch.sql [B][C] (listing 연구기록 150, 상시 판매)
   {
     code: 'labber_kit_specimen_decoration',
@@ -339,7 +339,7 @@ const LABBER_SHOP_PRODUCTS = [
     currency: 'research_records',
     price: 150,
     designer: '이상어',
-    description: '개인연구실 SUBJECT 이미지 업데이트 신청에서 SUBJECT에 직접 닿는 장식(리본·케이프·붕대 등)을 키트 1개당 1종 추가하거나 교체할 수 있다. 신청 1회 최대 3종 · SUBJECT Lv.3 이상 · 1회용.',
+    description: '개인연구실 SUBJECT 디자인 업데이트 신청 1회에 1개를 사용해, SUBJECT에 직접 닿는 장식(리본·케이프·붕대 등)을 최대 3종까지 추가하거나 교체할 수 있다. 레벨 제한 없음 · 1회용.',
   },
   {
     code: 'labber_kit_culture_environment',

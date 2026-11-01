@@ -435,7 +435,7 @@
                    SUBJECT 보관소에 등록해 둔 내 SUBJECT 개체 중 미배정 상태인 것만 선택(선택사항). -->
               <div class="form-group" id="subjectInstanceGroup">
                 <label class="form-label">SUBJECT <span class="llapp-optional">선택</span></label>
-                <p class="form-hint">디자인에 SUBJECT를 함께 표현하고 싶다면, 먼저 가방에서 해당 SUBJECT를 등록 신청하고, 운영진 승인으로 SUBJECT 보관소에 등록된 뒤 선택해주세요.<br>등록된 SUBJECT는 이후 자유롭게 변경할 수 있으며, SUBJECT 변경만으로는 별도의 디자인 변경 승인이 필요하지 않습니다.</p>
+                <p class="form-hint">디자인에 SUBJECT를 함께 표현하고 싶다면, 먼저 가방에서 해당 SUBJECT를 등록 신청하고 운영진 승인 후 SUBJECT 보관소에서 선택해주세요. 개체에 연결할 SUBJECT 교체에는 별도의 디자인 변경 승인이 필요하지 않습니다.<br>SUBJECT 자체의 디자인을 바꾸려면 개인연구실 → SUBJECT → 「SUBJECT 디자인 업데이트」에서 따로 신청해주세요.</p>
                 <div id="subjectInstancePicker"></div>
               </div>
 
@@ -483,7 +483,6 @@
           <div id="approvalSubjectView" hidden style="display:none;">
             <p class="labberlab-panel-desc">
               가방에서 신청된 SUBJECT 등록을 확인하고 승인/반려합니다. 승인하면 예약된 SUBJECT 아이템이 소비되고 개인연구실 보관소에 SUBJECT 개체가 생성되며, 반려하면 예약만 해제돼요(사유 필수).
-              개인연구실에서 신청된 <b>SUBJECT 이미지 업데이트</b>도 함께 표시돼요 — 현재/신청 이미지와 장식 변경 내역을 비교해 승인하면 이미지·장식만 바뀌고(표본장식키트 소비), 반려하면 예약만 해제돼요.
             </p>
             <div class="shop-tab-row labberlab-status-row" id="subjectApprovalStatusRow"></div>
             <div id="subjectApprovalList" class="labberlab-app-list"></div>
@@ -579,16 +578,16 @@
                 <div id="updItemPickers"></div>
               </div>
 
+              <!-- 4-2. 배양환경키트 (선택, CARTRIDGE 아래·SUBJECT 위) — 서버 기능이 있을 때만 표시. SUBJECT 장식(표본장식키트)은 개인연구실 SUBJECT 디자인 업데이트 -->
+              <div class="form-group" id="updAddonGroup" hidden style="display:none;">
+                <label class="form-label">배양환경키트 <span class="llapp-optional">선택</span></label>
+                <div id="updAddonPicker"></div>
+              </div>
+
               <!-- 5. SUBJECT (보관소 미배정 instance, 선택) -->
               <div class="form-group" id="updSubjectGroup" hidden style="display:none;">
                 <label class="form-label">SUBJECT <span class="llapp-optional">선택</span></label>
                 <div id="updSubjectPicker"></div>
-              </div>
-
-              <!-- 5-2. POD 데코 (배양환경키트, 선택) — 서버 기능이 있을 때만 표시. SUBJECT 액세서리(표본장식키트)는 개인연구실 SUBJECT 이미지 업데이트 신청 -->
-              <div class="form-group" id="updAddonGroup" hidden style="display:none;">
-                <label class="form-label">POD 데코 <span class="llapp-optional">선택</span></label>
-                <div id="updAddonPicker"></div>
               </div>
 
               <!-- 6. 개체 제작자 -->
@@ -629,6 +628,9 @@
             <p class="labberlab-panel-desc">
               신청된 LABBER 디자인 업데이트를 현재 디자인과 비교해 승인/반려합니다. 승인하면 새 디자인·썸네일이 LABBER에 반영되고 예약된 아이템이 소비돼요.
               반려하면 현재 디자인은 그대로이고 예약만 해제돼요(사유 필수 · 신청자에게 알림).
+            </p>
+            <p class="labberlab-panel-desc">
+              <b>SUBJECT 디자인 업데이트</b> — 신청된 서브젝트 디자인 업데이트를 현재 디자인과 비교해 승인/반려합니다. 승인하면 새 디자인·썸네일이 서브젝트에 반영되고 예약된 아이템이 소비돼요. 반려하면 현재 디자인은 그대로이고 예약만 해제돼요(사유 필수 · 신청자에게 알림).
             </p>
             <div class="shop-tab-row labberlab-status-row" id="updAdminStatusRow"></div>
             <div id="updAdminList" class="labberlab-app-list"></div>

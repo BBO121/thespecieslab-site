@@ -101,10 +101,12 @@ window.PersonalLabSubject = (function () {
     wrap.innerHTML = '<span class="labber-subject-img-empty">아트웍 없음</span>';
   }
 
-  function imgHtml(r) {
-    if (r.image_url) {
+  // 목록 카드(100×100)는 정사각 썸네일 우선(2026-11-02 디자인 업데이트), 상세는 전체 디자인
+  function imgHtml(r, useThumb) {
+    const src = (useThumb && r.thumbnail_url) || r.image_url;
+    if (src) {
       return `<div class="labber-subject-img">
-        <img src="${escapeHtml(r.image_url)}" alt="${escapeHtml(displayName(r))} 아트웍" loading="lazy"
+        <img src="${escapeHtml(src)}" alt="${escapeHtml(displayName(r))} 아트웍" loading="lazy"
              onerror="PersonalLabSubject.imgFallback(this)"></div>`;
     }
     return `<div class="labber-subject-img is-empty"><span class="labber-subject-img-empty">아트웍 없음</span></div>`;
@@ -158,7 +160,7 @@ window.PersonalLabSubject = (function () {
   function renderCard(r) {
     return `
       <div class="labber-subject-card" onclick="PersonalLabSubject.openDetail(${r.instance_id})">
-        ${imgHtml(r)}
+        ${imgHtml(r, true)}
         <div class="labber-subject-body">
           <div class="labber-subject-head">
             <p class="labber-subject-name">${escapeHtml(displayName(r))}</p>
@@ -319,62 +321,19 @@ window.PersonalLabSubject = (function () {
     openDetail(r.instance_id);
   }
 
-  // ── 크레딧 편집 (이미지는 읽기 전용) — 2026-09-30 / 2026-10-01 ────────────────
-  // 정책(뽀 확정 2026-10-01): SUBJECT 이미지는 가방 등록 신청 때 첨부하고 운영진이 승인한 이미지가 그대로
-  // instance 이미지가 된다. 승인 후 사용자는 이미지를 바꾸거나 지울 수 없다 — 이 화면에는 이미지 편집 UI 가 없고,
-  // 서버도 set/delete_labber_subject_instance_image 를 admin/staff 전용으로 막는다(supabase/labber_subject_image_approval_1001.sql).
-  // 이름·크레딧 편집 권한 = 현재 instance 소유자 OR admin/staff — 서버 RPC(_labber_subject_instance_edit_check)가 검사한다
-  // (supabase/labber_subject_instance_edit_0930.sql). 이 화면은 본인 소유 instance(my_subject_instances)만 보여준다.
-  //   크레딧: get_labber_subject_instance_credits_for_edit / set_labber_subject_instance_credits
-  //           (js/creator-picker.js 재사용, 디자이너·아티스트 모두 선택). 종족형의 연결 종족은 표시만(편집 없음).
-  let _editBusy = false;
-  let _creditDesigner = null;   // CreatorPicker
-  let _creditArtist   = null;   // CreatorPicker
-  let _creditsLoadedFor = null; // 크레딧 편집기에 값을 채운 instance_id
-
-  const EDIT_ERR = {
-    NOT_AUTHENTICATED:  '로그인이 필요해요.',
-    NOT_INSTANCE_OWNER: '이 SUBJECT를 편집할 권한이 없어요. (소유자가 바뀌었을 수 있어요)',
-    INSTANCE_NOT_FOUND: 'SUBJECT 개체를 찾을 수 없어요.',
-    INVALID_IMAGE_URL:  '이미지 정보가 올바르지 않아요. 다시 업로드해주세요.',
-    INVALID_IMAGE_PATH: '이미지 정보가 올바르지 않아요. 다시 업로드해주세요.',
-    IMAGE_NOT_UPLOADED: '이미지 업로드가 완료되지 않았어요. 잠시 후 다시 시도해주세요.',
-    INVALID_CREATOR:    '디자이너/아티스트 정보가 올바르지 않아요. (연구소 유저는 실제 존재하는 유저여야 하고, 이름은 40자, 연락처는 100자 이하예요)',
-  };
-  const editErrMsg = (code, action) => EDIT_ERR[code] || `${action} 중 오류가 발생했어요.${code ? `\n[${code}]` : ''}`;
-
+  // ── 크레딧 (표시 전용) — 2026-09-30 / 2026-10-07 / 2026-11-02 ─────────────
+  // 승인된 SUBJECT 디자이너·아티스트는 이 화면에서 바꿀 수 없다(2026-11-02 편집 UI 제거, 뽀 확정).
+  // 서버 set_labber_subject_instance_credits 도 admin/staff 전용(STAFF_ONLY) — 크레딧 수정은 운영진 도구에서만.
+  //   조회: get_labber_subject_instance_credits_for_edit (현재 소유자 OR admin/staff). 종족형은 연결 종족도 표시.
   function renderEditBox(r) {
     const box = document.getElementById('labberSubjectEditBox');
     if (!box) return;
-    // 아트웍은 편집 영역에 두지 않는다(2026-10-01) — 운영진이 승인한 신청 이미지가 위 상세 아트웍에 읽기 전용으로 표시된다.
     box.innerHTML = `
       <div class="subj-edit-section">
-        <div class="subj-edit-head">
-          <p class="subj-edit-title">크레딧</p>
-          <button type="button" class="subj-edit-toggle" id="labberSubjectCreditToggle" onclick="PersonalLabSubject.toggleCredits()" hidden>편집</button>
-        </div>
+        <div class="subj-edit-head"><p class="subj-edit-title">크레딧</p></div>
         <p class="subj-credit-summary" id="labberSubjectCreditSummary">불러오는 중...</p>
-        <div id="labberSubjectCreditEditor" hidden>
-          <div id="labberSubjectCreditDesigner"></div>
-          <div class="cp-divider"></div>
-          <div id="labberSubjectCreditArtist"></div>
-          <p class="auth-error" id="labberSubjectCreditError"></p>
-          <div class="subj-edit-row">
-            <button type="button" id="labberSubjectCreditSaveBtn" onclick="PersonalLabSubject.saveCredits()">크레딧 저장</button>
-          </div>
-        </div>
       </div>`;
-    _creditDesigner = null;
-    _creditArtist = null;
-    _creditsLoadedFor = null;
     loadCredits(r.instance_id);
-    // 2026-10-07 핫픽스: 승인된 크레딧(제작자)은 소유자가 바꿀 수 없다 — 편집 버튼은 운영진(app_metadata.role)에게만.
-    // 서버(set_labber_subject_instance_credits)도 admin/staff 전용으로 막는다(supabase/labber_subject_bag_creator_required_1007.sql).
-    getUser().then(user => {
-      const role = user && user.app_metadata && user.app_metadata.role;
-      const btn = document.getElementById('labberSubjectCreditToggle');
-      if (btn && _openDetailInstanceId === r.instance_id) btn.hidden = !isAdminOrStaff(role);
-    }).catch(() => {});
   }
 
   function creditNames(list) {
@@ -397,99 +356,64 @@ window.PersonalLabSubject = (function () {
       data.subject_code === 'labber_subject_species'
         ? `<span>연결 종족</span> ${data.species_name ? escapeHtml(data.species_name) : '<em>없음</em>'}` : '',
     ].filter(Boolean).join('<br>');
-
-    if (window.CreatorPicker && !_creditDesigner) {
-      _creditDesigner = CreatorPicker.create(document.getElementById('labberSubjectCreditDesigner'), {
-        kind: 'designer', required: false, label: 'SUBJECT 디자이너', hint: '사이트 유저 검색 또는 사이트 밖 제작자 · 선택',
-      });
-      _creditArtist = CreatorPicker.create(document.getElementById('labberSubjectCreditArtist'), {
-        kind: 'artist', required: false, label: 'SUBJECT 아티스트', hint: '이 SUBJECT 아트웍을 그린 사람 · 선택',
-      });
-    }
-    if (_creditDesigner) _creditDesigner.setValue(data.designers || []);
-    if (_creditArtist)   _creditArtist.setValue(data.artists || []);
-    _creditsLoadedFor = instanceId;
-  }
-
-  function toggleCredits() {
-    const ed = document.getElementById('labberSubjectCreditEditor');
-    const btn = document.getElementById('labberSubjectCreditToggle');
-    if (!ed) return;
-    ed.hidden = !ed.hidden;
-    if (btn) btn.textContent = ed.hidden ? '편집' : '닫기';
-  }
-
-  async function saveCredits() {
-    const instanceId = _openDetailInstanceId;
-    if (_editBusy || !instanceId || _creditsLoadedFor !== instanceId || !_creditDesigner) return;
-    const btn = document.getElementById('labberSubjectCreditSaveBtn');
-    const err = document.getElementById('labberSubjectCreditError');
-    if (err) err.textContent = '';
-    _editBusy = true;
-    if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
-    try {
-      const { data, error } = await sb.rpc('set_labber_subject_instance_credits', {
-        p_instance_id: instanceId,
-        p_designers: _creditDesigner.getValue(),
-        p_artists: _creditArtist ? _creditArtist.getValue() : [],
-      });
-      if (error) throw new Error(`저장에 실패했어요. (${error.message})`);
-      if (!data || data.success !== true) throw new Error(editErrMsg(data && data.error, '크레딧 저장'));
-      await loadCredits(instanceId);
-      toggleCredits();
-    } catch (e) {
-      console.error('[personal-lab-subject] 크레딧 저장 오류:', e);
-      if (err) err.textContent = e.message || '저장 중 오류가 발생했어요.';
-    } finally {
-      _editBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = '크레딧 저장'; }
-    }
   }
 
   // (이미지 업로드/교체/삭제 경로는 2026-10-01 제거 — 승인된 SUBJECT 이미지는 운영진만 변경. set/delete_labber_subject_instance_image 는 서버에서 admin/staff 전용)
 
-  // ── SUBJECT 이미지 업데이트 신청 + 표본장식키트 — 2026-11 ─────────────────
-  // 정책(뽀 확정 2026-10-31): 등록된 SUBJECT 도 정체성을 유지하는 범위에서 새 디자인 이미지를 신청 → 운영진 승인 시
-  // instance 이미지·액세서리만 갱신(레벨·EXP·소유권·LABBER 연결 유지). 즉시 교체 아님. 일반 업데이트는 레벨 제한·키트 없음.
-  //   아이템 사용 = 표본장식키트: 1개당 SUBJECT 에 직접 닿는 장식 1종 추가/교체, 신청 1회 최대 3종, instance Lv.3 이상.
-  //   서버: get_my_subject_image_update_form / submit_ / cancel_labber_subject_image_update (supabase/labber_1101_launch.sql [C])
-  //   신청 이미지는 가방 등록 신청과 같은 public images 버킷 경로(labber-subject-instance/{uid}/...)로 올린다.
+  // ── SUBJECT 디자인 업데이트 (표본장식키트) — 2026-11-02 ───────────────────
+  // 정책(뽀 확정 2026-11-01): 등록된 SUBJECT 에 장식을 더한 새 디자인을 신청 → 운영진 승인 시 instance 디자인·썸네일·장식만
+  // 갱신(레벨·EXP·소유자·LABBER 연결·크레딧 유지). 즉시 교체 아님.
+  //   표본장식키트 필수 · 신청 1건당 1개(예약 → 승인 시 소비 · 반려/취소 시 해제) · 레벨 제한 없음
+  //   적용 장식 1~3종(추가 또는 기존 장식 교체) · 변경 내용 필수 · 새 디자인 + 정사각(1:1) 썸네일 필수
+  //   서버: get_my_subject_image_update_form / submit_(5인자) / cancel_labber_subject_image_update (supabase/labber_subject_design_1102.sql)
+  //   이미지는 가방 SUBJECT 등록과 같은 public images 버킷 경로(labber-subject-instance/{uid}/...)로 올린다.
   const UPD_NOTE_MAX = 500;
   const UPD_NAME_MAX = 40;
+  const UPD_THUMB_SIZE = 400;   // 정사각 썸네일 400×400 (카드 100×100 표시)
   const UPD_ERR = {
     NOT_AUTHENTICATED: '로그인이 필요해요.',
-    NOT_INSTANCE_OWNER: '내가 소유한 SUBJECT만 이미지 업데이트를 신청할 수 있어요.',
-    OPEN_REQUEST_EXISTS: '이 SUBJECT는 이미 승인 대기 중인 이미지 업데이트 신청이 있어요.',
+    NOT_INSTANCE_OWNER: '내가 소유한 SUBJECT만 디자인 업데이트를 신청할 수 있어요.',
+    OPEN_REQUEST_EXISTS: '이 SUBJECT는 이미 승인 대기 중인 디자인 업데이트 신청이 있어요.',
     IMAGE_REQUIRED: '새 디자인 이미지를 첨부해주세요.',
+    THUMBNAIL_REQUIRED: '정사각 썸네일을 만들어주세요.',
     INVALID_IMAGE_URL: '이미지 정보가 올바르지 않아요. 다시 첨부해주세요.',
     INVALID_IMAGE_PATH: '이미지 정보가 올바르지 않아요. 다시 첨부해주세요.',
     IMAGE_NOT_UPLOADED: '이미지 업로드가 완료되지 않았어요. 잠시 후 다시 시도해주세요.',
-    SAME_IMAGE: '현재 이미지와 같은 이미지예요. 새 이미지를 첨부해주세요.',
-    NOTE_REQUIRED: '변경 설명을 입력해주세요.',
-    NOTE_TOO_LONG: `변경 설명은 ${UPD_NOTE_MAX}자 이하로 입력해주세요.`,
-    INVALID_ACCESSORY: '장식은 신청 1회에 최대 3종까지 신청할 수 있어요.',
+    SAME_IMAGE: '현재 디자인과 같은 이미지예요. 새 디자인을 첨부해주세요.',
+    NOTE_REQUIRED: '변경 내용을 입력해주세요.',
+    NOTE_TOO_LONG: `변경 내용은 ${UPD_NOTE_MAX}자 이하로 입력해주세요.`,
+    ACCESSORY_REQUIRED: '적용할 장식을 1종 이상 입력해주세요.',
+    INVALID_ACCESSORY: '장식은 신청 1회에 1~3종까지 신청할 수 있어요.',
     INVALID_ADDON_NAME: `장식 설명을 1~${UPD_NAME_MAX}자로 입력해주세요.`,
     INVALID_ACCESSORY_REPLACE: '교체할 기존 장식이 현재 SUBJECT와 맞지 않아요. 새로고침 후 다시 선택해주세요.',
-    ACCESSORY_LEVEL: '표본장식키트는 SUBJECT Lv.3 이상부터 사용할 수 있어요.',
     INSUFFICIENT_ITEM: '표본장식키트의 사용 가능한 수량이 부족해요. (보유하지 않았거나 다른 신청에 예약되어 있어요)',
     INVALID_ITEM: '표본장식키트 정보를 찾을 수 없어요. 운영진에게 문의해주세요.',
     NOT_FOUND: '신청서를 찾을 수 없어요.',
     INVALID_STATUS: '이미 처리된 신청이에요. 새로고침해 확인해주세요.',
   };
   const updErr = (code) => UPD_ERR[code] || `처리에 실패했어요.${code ? ` [${code}]` : ''}`;
-  let _upd = null;   // { instanceId, form, open: bool, useKit, ops: [{op, from, name}], pending: {blob, url, ext}, busy }
+  // { instanceId, form, open, ops: [{op, from, name}], pending: {blob, url, ext}, thumb: {blob, url, ext}, note, busy }
+  let _upd = null;
+  let _updCropper = null;
+  let _updCropSrcUrl = null;
+
+  function updRevoke(u) {
+    if (!u) return;
+    if (u.pending) URL.revokeObjectURL(u.pending.url);
+    if (u.thumb) URL.revokeObjectURL(u.thumb.url);
+  }
 
   async function renderUpdateBox(r) {
     const box = document.getElementById('labberSubjectUpdateBox');
     if (!box) return;
     box.innerHTML = '';
-    if (_upd && _upd.pending) URL.revokeObjectURL(_upd.pending.url);
-    _upd = { instanceId: r.instance_id, form: null, open: false, useKit: false, ops: [], pending: null, busy: false };
+    updRevoke(_upd);
+    _upd = { instanceId: r.instance_id, form: null, open: false, ops: [], pending: null, thumb: null, note: '', busy: false };
     const { data, error } = await sb.rpc('get_my_subject_image_update_form', { p_instance_id: r.instance_id });
     if (!_upd || _upd.instanceId !== r.instance_id) return;
     if (error || !data || data.success !== true) {
-      // 서버 기능(11/1 [C]) 적용 전이거나 권한 없음 → 섹션을 그리지 않는다
-      if (error) console.warn('[personal-lab-subject] 이미지 업데이트 정보 조회 실패:', error.message);
+      // 서버 기능 적용 전이거나 권한 없음 → 섹션을 그리지 않는다
+      if (error) console.warn('[personal-lab-subject] 디자인 업데이트 정보 조회 실패:', error.message);
       return;
     }
     _upd.form = data;
@@ -507,36 +431,51 @@ window.PersonalLabSubject = (function () {
       : `<b>${escapeHtml(o.name)}</b> <span class="subj-upd-tag">추가</span>`).join('<br>');
   }
 
+  function updFig(caption, url, empty, square) {
+    return `<figure${square ? ' class="is-square"' : ''}><figcaption>${caption}</figcaption>${url
+      ? `<img src="${escapeHtml(url)}" alt="${caption}">` : `<span>${empty}</span>`}</figure>`;
+  }
+
+  function updKitAvail(f) { return f && f.kit ? Number(f.kit.available) || 0 : 0; }
+
   function drawUpdateBox() {
     const box = document.getElementById('labberSubjectUpdateBox');
     const f = _upd && _upd.form;
     if (!box || !f) return;
     const open = f.open_request;
     const last = f.last_closed;
+    const kitName = (f.kit && f.kit.name) || '표본장식키트';
     let body;
     if (open) {
       body = `
         <p class="subj-upd-status">승인 대기 중 · ${formatDate(open.created_at)} 신청</p>
         <div class="subj-upd-compare">
-          <figure><figcaption>현재</figcaption>${f.image_url ? `<img src="${escapeHtml(f.image_url)}" alt="현재 이미지">` : '<span>없음</span>'}</figure>
-          <figure><figcaption>신청</figcaption><img src="${escapeHtml(open.image_url)}" alt="신청 이미지"></figure>
+          ${updFig('현재 디자인', f.image_url, '없음')}
+          ${updFig('신청 디자인', open.image_url, '없음')}
         </div>
-        <p class="subj-upd-line"><span>변경 설명</span> ${escapeHtml(open.note || '')}</p>
-        ${(open.accessory_ops || []).length ? `<p class="subj-upd-line"><span>장식 변경</span> ${updOpsHtml(open.accessory_ops)}</p>
-        <p class="subj-upd-line"><span>표본장식키트</span> ${open.kit_qty}개 예약 중 (승인 시 소비 · 반려/취소 시 해제)</p>` : ''}
-        <p class="subj-name-edit-note">승인 전까지 현재 이미지·장식이 그대로 유지돼요.</p>
+        <div class="subj-upd-compare">
+          ${updFig('현재 썸네일', f.thumbnail_url || f.image_url, '없음', true)}
+          ${updFig('신청 썸네일', open.thumbnail_url, '없음', true)}
+        </div>
+        <p class="subj-upd-line"><span>변경 내용</span> ${escapeHtml(open.note || '')}</p>
+        ${(open.accessory_ops || []).length ? `<p class="subj-upd-line"><span>적용 장식</span> ${updOpsHtml(open.accessory_ops)}</p>` : ''}
+        ${open.kit_qty ? `<p class="subj-upd-line"><span>${escapeHtml(kitName)}</span> ${open.kit_qty}개 예약 중 (승인 시 소비 · 반려/취소 시 해제)</p>` : ''}
+        <p class="subj-name-edit-note">승인 전까지 현재 디자인·썸네일·장식이 그대로 유지돼요.</p>
         <div class="subj-edit-row"><button type="button" class="is-ghost" onclick="PersonalLabSubject.cancelUpdate('${open.id}')">신청 취소</button></div>`;
     } else if (!_upd.open) {
+      const avail = updKitAvail(f);
       body = `
         ${last && last.status === 'rejected' ? `<p class="subj-upd-reject"><span>최근 신청 반려</span> ${escapeHtml(last.rejection_reason || '')}</p>` : ''}
-        <p class="subj-name-edit-note">정체성을 유지하는 범위에서 새 디자인 이미지로 바꾸도록 신청할 수 있어요. 운영진이 승인하면 바뀌어요.</p>
-        <div class="subj-edit-row"><button type="button" onclick="PersonalLabSubject.openUpdateForm()">이미지 업데이트 신청</button></div>`;
+        <p class="subj-name-edit-note">${escapeHtml(kitName)} 1개로 SUBJECT에 장식을 더한 새 디자인을 신청할 수 있어요. 운영진이 승인하면 바뀌어요.</p>
+        <p class="subj-upd-line"><span>${escapeHtml(kitName)}</span> 보유 ${f.kit ? f.kit.quantity : 0} · 사용 가능 ${avail}</p>
+        <div class="subj-edit-row"><button type="button" ${avail < 1 ? 'disabled' : ''} onclick="PersonalLabSubject.openUpdateForm()">디자인 업데이트 신청</button></div>
+        ${avail < 1 ? `<p class="subj-name-edit-note">${escapeHtml(kitName)}가 있어야 신청할 수 있어요.</p>` : ''}`;
     } else {
       body = updFormHtml(f);
     }
     box.innerHTML = `
       <div class="subj-edit-section subj-upd">
-        <div class="subj-edit-head"><p class="subj-edit-title">이미지 업데이트</p></div>
+        <div class="subj-edit-head"><p class="subj-edit-title">SUBJECT 디자인 업데이트</p></div>
         <p class="subj-upd-line"><span>현재 장식</span> ${updAccessoryList(f)}</p>
         ${body}
       </div>`;
@@ -545,11 +484,9 @@ window.PersonalLabSubject = (function () {
   function updFormHtml(f) {
     const kit = f.kit;
     const kitName = (kit && kit.name) || '표본장식키트';
-    const lvOk = Number(f.level) >= Number(f.kit_level || 3);
     const max = Number(f.max_per_request || 3);
     const cur = f.accessories || [];
-    const need = _upd.useKit ? _upd.ops.length : 0;
-    const avail = kit ? kit.available : 0;
+    const avail = updKitAvail(f);
     const opsHtml = _upd.ops.map((o, i) => {
       // 교체 대상 = 현재 장식 − 다른 행이 이미 고른 교체 대상 (같은 이름이 여러 개면 개수만큼 고를 수 있다)
       const left = [...cur];
@@ -565,51 +502,53 @@ window.PersonalLabSubject = (function () {
         <select onchange="PersonalLabSubject.setUpdateOp(${i}, this.value)">${options.join('')}</select>
         <input type="text" maxlength="${UPD_NAME_MAX}" value="${escapeHtml(o.name)}" placeholder="예: 머리 리본 / 케이프 / 발목 붕대"
                oninput="PersonalLabSubject.setUpdateOpName(${i}, this.value)">
-        <button type="button" class="is-ghost" onclick="PersonalLabSubject.removeUpdateOp(${i})">삭제</button>
+        ${_upd.ops.length > 1 ? `<button type="button" class="is-ghost" onclick="PersonalLabSubject.removeUpdateOp(${i})">삭제</button>` : ''}
       </div>`;
     }).join('');
-    const prev = (_upd.pending && _upd.pending.url) || null;
+    const prev = _upd.pending && _upd.pending.url;
+    const thumb = _upd.thumb && _upd.thumb.url;
     return `
-      <p class="subj-name-edit-note">허용: 그림체·포즈·구도 변경, 작화 보완, 기존 특징을 유지한 세부 표현 조정 · 불가: 원본 생물·연결 종족 변경, 핵심 신체 구조·대표 특징을 바꿔 다른 개체처럼 보이는 변경.
+      <p class="subj-name-edit-note">허용: SUBJECT에 직접 닿는 장식 추가·교체, 그림체·포즈·구도 변경, 작화 보완 · 불가: 원본 생물·연결 종족 변경, 핵심 신체 구조·대표 특징을 바꿔 다른 개체처럼 보이는 변경.
         기존 SUBJECT 디자인 규정(POD 액체 안에 완전히 잠김 · SD·모에화 가능 · 과도한 크리쳐화 불가 · 원본 생물 특징 유지)도 그대로 적용돼요.</p>
       <div class="subj-upd-compare">
-        <figure><figcaption>현재</figcaption>${f.image_url ? `<img src="${escapeHtml(f.image_url)}" alt="현재 이미지">` : '<span>없음</span>'}</figure>
-        <figure><figcaption>신청할 이미지</figcaption>${prev ? `<img src="${escapeHtml(prev)}" alt="신청 이미지 미리보기">` : '<span>이미지를 첨부해주세요</span>'}</figure>
+        ${updFig('현재 디자인', f.image_url, '없음')}
+        ${updFig('새 디자인', prev, '이미지를 첨부해주세요')}
       </div>
       <input type="file" id="labberSubjectUpdFile" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="PersonalLabSubject.pickUpdateImage(this)">
-      <div class="subj-edit-row"><button type="button" class="is-ghost" onclick="document.getElementById('labberSubjectUpdFile').click()">${prev ? '이미지 다시 선택' : '이미지 첨부'}</button></div>
-      <p class="subj-upd-label">변경 설명 <em>필수</em></p>
-      <textarea id="labberSubjectUpdNote" class="subj-upd-note" rows="3" maxlength="${UPD_NOTE_MAX}" placeholder="무엇을 바꿨는지 적어주세요. 예: 포즈 변경, 꼬리 작화 보완">${escapeHtml(_upd.note || '')}</textarea>
-      <p class="subj-upd-label">아이템 사용 <em>선택</em></p>
-      <label class="subj-upd-kit${lvOk ? '' : ' is-disabled'}">
-        <input type="checkbox" ${_upd.useKit ? 'checked' : ''} ${lvOk ? '' : 'disabled'} onchange="PersonalLabSubject.toggleUpdateKit(this.checked)">
-        <span>${escapeHtml(kitName)} <em>보유 ${kit ? kit.quantity : 0} · 사용 가능 ${avail}</em></span>
-      </label>
-      <p class="subj-name-edit-note">SUBJECT에 직접 닿는 장식을 키트 1개당 1종 추가하거나 교체해요. 신청 1회 최대 ${max}종 · 기존 장식 유지에는 키트가 필요 없어요 · SUBJECT Lv.${f.kit_level || 3} 이상 (현재 Lv.${f.level}).
-        신청 이미지에 신청한 장식이 반영되어 있어야 해요.</p>
-      ${_upd.useKit ? `
-        ${opsHtml}
-        <div class="subj-edit-row"><button type="button" class="is-ghost" ${_upd.ops.length >= max ? 'disabled' : ''} onclick="PersonalLabSubject.addUpdateOp()">+ 장식 추가</button></div>
-        <p class="subj-upd-need">${need ? `${escapeHtml(kitName)} <b>${need}개</b> 사용 (사용 가능 ${avail})` : '장식을 추가해주세요.'}</p>` : ''}
+      <div class="subj-edit-row"><button type="button" class="is-ghost" onclick="document.getElementById('labberSubjectUpdFile').click()">${prev ? '새 디자인 다시 선택' : '새 디자인 첨부'}</button></div>
+      <p class="subj-upd-label">정사각 썸네일 <em>필수 · 카드에 표시돼요</em></p>
+      <div class="subj-upd-compare">
+        ${updFig('현재 썸네일', f.thumbnail_url || f.image_url, '없음', true)}
+        ${updFig('새 썸네일', thumb, prev ? '썸네일을 만들어주세요' : '새 디자인을 먼저 첨부해주세요', true)}
+      </div>
+      ${prev ? `<div class="subj-edit-row"><button type="button" class="is-ghost" onclick="PersonalLabSubject.editUpdateThumb()">${thumb ? '썸네일 다시 편집' : '썸네일 만들기'}</button></div>` : ''}
+      <p class="subj-upd-label">적용할 장식 <em>필수 · 1~${max}종</em></p>
+      ${opsHtml}
+      <div class="subj-edit-row"><button type="button" class="is-ghost" ${_upd.ops.length >= max ? 'disabled' : ''} onclick="PersonalLabSubject.addUpdateOp()">+ 장식 추가</button></div>
+      <p class="subj-name-edit-note">새 디자인에 적은 장식이 그려져 있어야 해요. 기존 장식을 바꾸려면 '교체'를 골라주세요.</p>
+      <p class="subj-upd-label">변경 내용 <em>필수</em></p>
+      <textarea id="labberSubjectUpdNote" class="subj-upd-note" rows="3" maxlength="${UPD_NOTE_MAX}" placeholder="무엇을 바꿨는지 적어주세요. 예: 머리에 리본 장식 추가, 꼬리 작화 보완">${escapeHtml(_upd.note || '')}</textarea>
+      <p class="subj-upd-label">사용 아이템 <em>필수</em></p>
+      <p class="subj-upd-need">${escapeHtml(kitName)} <b>1개</b> 사용 <em>보유 ${kit ? kit.quantity : 0} · 사용 가능 ${avail}</em></p>
+      <p class="subj-name-edit-note">신청하면 1개가 예약되고, 승인되면 소비돼요. 반려되거나 취소하면 예약이 풀려요.</p>
       <p class="auth-error" id="labberSubjectUpdError"></p>
       <div class="subj-edit-row">
         <button type="button" class="is-ghost" onclick="PersonalLabSubject.closeUpdateForm()">닫기</button>
-        <button type="button" id="labberSubjectUpdSubmitBtn" onclick="PersonalLabSubject.submitUpdate()">신청하기</button>
+        <button type="button" id="labberSubjectUpdSubmitBtn" ${avail < 1 ? 'disabled' : ''} onclick="PersonalLabSubject.submitUpdate()">신청하기</button>
       </div>`;
   }
 
   function keepNote() { const el = document.getElementById('labberSubjectUpdNote'); if (el && _upd) _upd.note = el.value; }
-  function openUpdateForm() { if (!_upd || !_upd.form) return; _upd.open = true; drawUpdateBox(); }
-  function closeUpdateForm() {
-    if (!_upd) return;
-    if (_upd.pending) URL.revokeObjectURL(_upd.pending.url);
-    Object.assign(_upd, { open: false, useKit: false, ops: [], pending: null, note: '' });
+  function openUpdateForm() {
+    if (!_upd || !_upd.form) return;
+    _upd.open = true;
+    if (!_upd.ops.length) _upd.ops.push({ op: 'add', from: null, name: '' });
     drawUpdateBox();
   }
-  function toggleUpdateKit(on) {
-    keepNote();
-    _upd.useKit = !!on;
-    if (_upd.useKit && !_upd.ops.length) _upd.ops.push({ op: 'add', from: null, name: '' });
+  function closeUpdateForm() {
+    if (!_upd) return;
+    updRevoke(_upd);
+    Object.assign(_upd, { open: false, ops: [], pending: null, thumb: null, note: '' });
     drawUpdateBox();
   }
   function addUpdateOp() {
@@ -618,7 +557,7 @@ window.PersonalLabSubject = (function () {
     _upd.ops.push({ op: 'add', from: null, name: '' });
     drawUpdateBox();
   }
-  function removeUpdateOp(i) { keepNote(); _upd.ops.splice(i, 1); drawUpdateBox(); }
+  function removeUpdateOp(i) { keepNote(); if (_upd.ops.length > 1) _upd.ops.splice(i, 1); drawUpdateBox(); }
   function setUpdateOpName(i, v) { if (_upd.ops[i]) _upd.ops[i].name = v; }
   function setUpdateOp(i, v) {
     keepNote();
@@ -628,69 +567,153 @@ window.PersonalLabSubject = (function () {
     drawUpdateBox();
   }
 
+  function updSetError(m) { const err = document.getElementById('labberSubjectUpdError'); if (err) err.textContent = m || ''; }
+
   async function pickUpdateImage(input) {
     const file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
     keepNote();
-    const err = document.getElementById('labberSubjectUpdError');
     try {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.');
       const blob = await compressImage(file, 800, 0.85, { keepAlpha: true });   // 가방 SUBJECT 등록과 같은 800px · 투명 유지
       const ext = imageExtOfBlob(blob);
       if (!['jpg', 'png', 'webp'].includes(ext)) throw new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.');
-      if (_upd.pending) URL.revokeObjectURL(_upd.pending.url);
+      updRevoke(_upd);
       _upd.pending = { blob, url: URL.createObjectURL(blob), ext };
+      _upd.thumb = null;   // 새 디자인을 고르면 썸네일도 다시 만든다
       drawUpdateBox();
+      openUpdCrop();
     } catch (e) {
-      if (err) err.textContent = e.message || '이미지를 처리할 수 없어요.';
+      updSetError(e.message || '이미지를 처리할 수 없어요.');
     }
   }
+
+  // ── 정사각 썸네일 크롭 (Cropper.js 1:1 — 디자인 승인 신청 크롭 모달과 같은 마크업/클래스) ──
+  function editUpdateThumb() { keepNote(); openUpdCrop(); }
+
+  function updSetThumb(blob) {
+    if (_upd.thumb) URL.revokeObjectURL(_upd.thumb.url);
+    _upd.thumb = { blob, url: URL.createObjectURL(blob), ext: imageExtOfBlob(blob) };
+    drawUpdateBox();
+  }
+
+  function updSquareCanvasToBlob(canvas, alpha) {
+    if (alpha && canvasHasAlpha(canvas)) return encodeAlphaCanvas(canvas);
+    return new Promise((resolve, reject) => {
+      const out = document.createElement('canvas');
+      out.width = canvas.width; out.height = canvas.height;
+      const ctx = out.getContext('2d');
+      ctx.fillStyle = '#F8FAFC';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(canvas, 0, 0);
+      out.toBlob(b => b ? resolve(b) : reject(new Error('썸네일 생성에 실패했어요.')), 'image/jpeg', 0.85);
+    });
+  }
+
+  async function updAutoThumb() {
+    const src = _upd && _upd.pending && _upd.pending.blob;
+    if (!src) return;
+    try { updSetThumb(await autoCenterCropToBlob(src, 1, UPD_THUMB_SIZE, 0.85, { keepAlpha: true })); }
+    catch (e) { updSetError(e.message); }
+  }
+
+  function openUpdCrop() {
+    const src = _upd && _upd.pending && _upd.pending.blob;
+    if (!src) return;
+    const modal = document.getElementById('subjUpdCropModal');
+    const img = document.getElementById('subjUpdCropImage');
+    if (typeof Cropper === 'undefined' || !modal || !img) { updAutoThumb(); return; }   // Cropper 로딩 실패 → 중앙 자동 크롭
+    if (_updCropSrcUrl) URL.revokeObjectURL(_updCropSrcUrl);
+    _updCropSrcUrl = URL.createObjectURL(src);
+    img.onerror = () => { updSetError('이미지 파일을 읽을 수 없어요.'); closeUpdCrop(); };
+    img.onload = () => {
+      modal.style.display = 'flex';
+      if (_updCropper) { _updCropper.destroy(); _updCropper = null; }
+      _updCropper = new Cropper(img, {
+        aspectRatio: 1,
+        viewMode: 1,
+        dragMode: 'move',
+        autoCropArea: 0.85,
+        guides: true,
+        center: true,
+        highlight: true,
+        cropBoxMovable: false,
+        cropBoxResizable: false,
+        toggleDragModeOnDblclick: false,
+      });
+    };
+    img.src = _updCropSrcUrl;
+  }
+
+  function closeUpdCrop() {
+    const modal = document.getElementById('subjUpdCropModal');
+    if (modal) modal.style.display = 'none';
+    if (_updCropper) { _updCropper.destroy(); _updCropper = null; }
+    if (_updCropSrcUrl) { URL.revokeObjectURL(_updCropSrcUrl); _updCropSrcUrl = null; }
+  }
+
+  async function confirmUpdCrop() {
+    if (!_updCropper) return;
+    try {
+      const canvas = _updCropper.getCroppedCanvas({
+        width: UPD_THUMB_SIZE, height: UPD_THUMB_SIZE, imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
+      });
+      if (!canvas) throw new Error('크롭에 실패했어요.');
+      const blob = await updSquareCanvasToBlob(canvas, blobMayHaveAlpha(_upd.pending && _upd.pending.blob));
+      closeUpdCrop();
+      updSetThumb(blob);
+    } catch (e) { closeUpdCrop(); updSetError(e.message); }
+  }
+
+  async function useUpdCropAsIs() { closeUpdCrop(); await updAutoThumb(); }
 
   async function submitUpdate() {
     if (!_upd || _upd.busy || !_upd.form) return;
     keepNote();
-    const err = document.getElementById('labberSubjectUpdError');
     const btn = document.getElementById('labberSubjectUpdSubmitBtn');
-    const fail = (m) => { if (err) err.textContent = m; };
+    const fail = updSetError;
     fail('');
     const note = String(_upd.note || '').trim();
+    const ops = _upd.ops.map(o => ({ op: o.op, from: o.op === 'replace' ? o.from : undefined, name: String(o.name || '').trim() }));
     if (!_upd.pending) return fail('새 디자인 이미지를 첨부해주세요.');
-    if (!note) return fail('변경 설명을 입력해주세요.');
-    const ops = _upd.useKit ? _upd.ops.map(o => ({ op: o.op, from: o.op === 'replace' ? o.from : undefined, name: String(o.name || '').trim() })) : [];
-    if (_upd.useKit && !ops.length) return fail('장식을 1종 이상 추가하거나 아이템 사용을 해제해주세요.');
+    if (!_upd.thumb) return fail('정사각 썸네일을 만들어주세요.');
+    if (!ops.length) return fail('적용할 장식을 1종 이상 입력해주세요.');
     if (ops.some(o => !o.name)) return fail('장식 설명을 입력해주세요.');
-    const kit = _upd.form.kit;
-    if (ops.length && (!kit || kit.available < ops.length)) return fail(`표본장식키트가 부족해요. (필요 ${ops.length} · 사용 가능 ${kit ? kit.available : 0})`);
-    const confirmMsg = `SUBJECT 이미지 업데이트를 신청할까요?\n운영진이 승인하면 이미지${ops.length ? '와 장식' : ''}이 바뀌어요. 승인 전까지는 현재 이미지가 유지돼요.`
-      + (ops.length ? `\n표본장식키트 ${ops.length}개가 예약되고, 승인되면 소비돼요. (반려·취소 시 해제)` : '');
-    if (!confirm(confirmMsg)) return;
+    if (!note) return fail('변경 내용을 입력해주세요.');
+    const kitName = (_upd.form.kit && _upd.form.kit.name) || '표본장식키트';
+    if (updKitAvail(_upd.form) < 1) return fail(`${kitName}가 부족해요. (사용 가능 0)`);
+    if (!confirm(`SUBJECT 디자인 업데이트를 신청할까요?\n운영진이 승인하면 디자인·썸네일·장식이 바뀌어요. 승인 전까지는 현재 디자인이 유지돼요.\n${kitName} 1개가 예약되고, 승인되면 소비돼요. (반려·취소 시 해제)`)) return;
 
     _upd.busy = true;
     if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
-    let uploadedPath = null;
+    const uploaded = [];
     try {
       const user = await getUser();
       if (!user) throw new Error('로그인이 필요해요.');
-      const path = `labber-subject-instance/${user.id}/${crypto.randomUUID()}.${_upd.pending.ext}`;
-      const { error: upErr } = await sb.storage.from('images').upload(path, _upd.pending.blob, {
-        contentType: _upd.pending.blob.type || 'image/jpeg', upsert: false,
-      });
-      if (upErr) throw new Error(`이미지 업로드에 실패했어요. (${upErr.message})`);
-      uploadedPath = path;
-      const imageUrl = sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+      const upload = async (part) => {
+        const path = `labber-subject-instance/${user.id}/${crypto.randomUUID()}.${part.ext}`;
+        const { error: upErr } = await sb.storage.from('images').upload(path, part.blob, {
+          contentType: part.blob.type || 'image/jpeg', upsert: false,
+        });
+        if (upErr) throw new Error(`이미지 업로드에 실패했어요. (${upErr.message})`);
+        uploaded.push(path);
+        return sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+      };
+      const imageUrl = await upload(_upd.pending);
+      const thumbUrl = await upload(_upd.thumb);
       const { data, error } = await sb.rpc('submit_labber_subject_image_update', {
-        p_instance_id: _upd.instanceId, p_image_url: imageUrl, p_note: note, p_accessories: ops,
+        p_instance_id: _upd.instanceId, p_image_url: imageUrl, p_thumbnail_url: thumbUrl, p_note: note, p_accessories: ops,
       });
       if (error) throw new Error(`신청에 실패했어요. (${error.message})`);
       if (!data || data.success !== true) throw new Error(updErr(data && data.error));
-      uploadedPath = null;   // 신청 이미지로 쓰인다
-      alert('SUBJECT 이미지 업데이트를 신청했어요.\n운영진이 확인해 승인하면 반영돼요.');
+      uploaded.length = 0;   // 신청 이미지로 쓰인다
+      alert('SUBJECT 디자인 업데이트를 신청했어요.\n운영진이 확인해 승인하면 반영돼요.');
       const r = _rows.find(x => x.instance_id === _upd.instanceId);
       if (r) await renderUpdateBox(r);
     } catch (e) {
-      console.error('[personal-lab-subject] 이미지 업데이트 신청 오류:', e);
-      if (uploadedPath) sb.storage.from('images').remove([uploadedPath]).catch(() => {});
+      console.error('[personal-lab-subject] 디자인 업데이트 신청 오류:', e);
+      if (uploaded.length) sb.storage.from('images').remove(uploaded).catch(() => {});
       fail(e.message || '신청 중 오류가 발생했어요.');
     } finally {
       if (_upd) _upd.busy = false;
@@ -699,7 +722,7 @@ window.PersonalLabSubject = (function () {
   }
 
   async function cancelUpdate(id) {
-    if (!confirm('이미지 업데이트 신청을 취소할까요?\n예약된 표본장식키트는 해제돼요.')) return;
+    if (!confirm('디자인 업데이트 신청을 취소할까요?\n예약된 표본장식키트는 해제돼요.')) return;
     const { data, error } = await sb.rpc('cancel_labber_subject_image_update', { p_id: id });
     if (error || !data || data.success !== true) {
       alert(error ? `취소에 실패했어요. (${error.message})` : updErr(data && data.error));
@@ -813,16 +836,17 @@ window.PersonalLabSubject = (function () {
     closeDetail,
     toggleHistory,
     saveIndividualName,
-    toggleCredits,
-    saveCredits,
     openUpdateForm,
     closeUpdateForm,
-    toggleUpdateKit,
     addUpdateOp,
     removeUpdateOp,
     setUpdateOp,
     setUpdateOpName,
     pickUpdateImage,
+    editUpdateThumb,
+    closeUpdCrop,
+    confirmUpdCrop,
+    useUpdCropAsIs,
     submitUpdate,
     cancelUpdate,
     detach,

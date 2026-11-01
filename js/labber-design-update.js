@@ -789,9 +789,9 @@
     const head = `
       <label class="lldu-remove lldu-deco-toggle">
         <input type="checkbox" data-deco-use${S.deco.use ? ' checked' : ''}>
-        <span>${esc(kitName)} 사용 <span class="llapp-optional">POD 내부 데코 구성·변경</span></span>
+        <span>${esc(kitName)} 사용 <span class="llapp-optional">적용 환경 구성·변경</span></span>
       </label>
-      <p class="form-hint">키트 1개로 데코를 최대 ${DECO_MAX}개까지 한 번에 구성해요. 기존 데코를 바꿀 때도 1개로 전체를 다시 구성해요. 신청 이미지에 변경할 데코가 반영되어 있어야 해요.</p>
+      <p class="form-hint">디자인에 반영한 배양환경을 최대 ${DECO_MAX}개까지 입력해주세요. 키트 1개로 한 번에 구성하고, 기존 환경을 바꿀 때도 1개로 전체를 다시 구성해요.</p>
       <p class="llapp-cart-summary">${stock}</p>`;
     if (!S.deco.use) { host.innerHTML = head; return; }
 
@@ -804,7 +804,7 @@
           if (keep) pool.splice(pi, 1);
           return `<label class="lldu-remove"><input type="checkbox" data-deco-keep="${ci}"${keep ? ' checked' : ''}><span>${esc(name)}</span></label>`;
         }).join('')}</div>`
-      : '<p class="llapp-hint">현재 데코가 없어요.</p>';
+      : '<p class="llapp-hint">현재 적용 환경이 없어요.</p>';
     const fresh = S.deco.list.map((a, i) => ({ a, i })).filter(x => !x.a.keep);
     const freshHtml = fresh.map(x => `
       <div class="lldu-addon-row">
@@ -817,12 +817,12 @@
     const need = decoNeed();
     host.innerHTML = `${head}
       <div class="lldu-addon">
-        <p class="lldu-addon-sub">현재 데코 <span class="llapp-optional">체크 해제 = 이번 디자인에서 제거 (제거만 할 땐 키트 불필요)</span></p>
+        <p class="lldu-addon-sub">현재 적용 환경 <span class="llapp-optional">체크 해제 = 이번 디자인에서 제거 (제거만 할 땐 키트 불필요)</span></p>
         ${curHtml}
-        <p class="lldu-addon-sub">새 데코 <span class="llapp-optional">반복 소형 장식(별가루·반짝이 등)은 1개, 독립 대형 오브젝트(인형·이불·베개 등)는 각각 1개 · 최종 개수는 운영진 심사</span></p>
+        <p class="lldu-addon-sub">새 적용 환경 <span class="llapp-optional">반복 소형 장식(별가루·반짝이 등)은 1개, 독립 대형 오브젝트(인형·이불·베개 등)는 각각 1개 · 최종 개수는 운영진 심사</span></p>
         ${freshHtml}
-        <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-add${addDisabled ? ' disabled' : ''}>+ 데코 추가</button>
-        <p class="llapp-cart-summary">신청 후 데코 ${S.deco.list.length} / ${DECO_MAX}${need ? ` → 이번 신청에 ${esc(kitName)} <b>1개</b> 사용` : ' · 키트 사용 없음'}</p>
+        <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-add${addDisabled ? ' disabled' : ''}>+ 환경 추가</button>
+        <p class="llapp-cart-summary">신청 후 적용 환경 ${S.deco.list.length} / ${DECO_MAX}${need ? ` → 이번 신청에 ${esc(kitName)} <b>1개</b> 사용` : ' · 키트 사용 없음'}</p>
       </div>
       <p class="form-hint lldu-addon-warn">⚠ 제거한 데코를 다시 넣으려면 키트가 새로 필요해요. 이미 사용한 키트는 돌아오지 않으니 신중히 제거해주세요.</p>`;
   }
@@ -1128,7 +1128,15 @@
     try { data = await rpc('list_labber_design_update_requests', { p_scope: 'admin' }); }
     catch (e) { listEl.innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${esc(e.message)})</p>`; return; }
     if (!data || !data.success) { listEl.innerHTML = `<p class="auth-error">${esc(errText(data))}</p>`; return; }
-    S.adminRows = data.requests || [];
+    S.adminRows = (data.requests || []).map(r => Object.assign(r, { _type: 'labber' }));
+    // 2026-11-02 SUBJECT 디자인 업데이트(표본장식키트) — 같은 목록·상태 탭·대기 건수에 포함, 유형 배지로 구분
+    try {
+      const sd = await rpc('list_labber_subject_image_updates', { p_scope: 'admin' });
+      if (sd && sd.success) {
+        (sd.requests || []).forEach(u => S.adminRows.push(Object.assign(u, { _type: 'subject', submitted_at: u.created_at })));
+      }
+    } catch (e) { console.warn('[design-update] SUBJECT 디자인 업데이트 목록 생략:', e.message || e); }
+    S.adminRows.sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
     $('updAdminStatusRow').querySelectorAll('[data-utab]').forEach(btn => {
       const t = ADMIN_TABS.find(x => x.key === btn.dataset.utab);
       const n = t.statuses ? S.adminRows.filter(r => t.statuses.includes(r.status)).length : S.adminRows.length;
@@ -1143,8 +1151,9 @@
     const rows = t.statuses ? S.adminRows.filter(r => t.statuses.includes(r.status)) : S.adminRows;
     if (!rows.length) { listEl.innerHTML = ''; $('updAdminEmpty').style.display = 'flex'; return; }
     $('updAdminEmpty').style.display = 'none';
-    const urls = await signedUrlMap(rowPaths(rows));
+    const urls = await signedUrlMap(rowPaths(rows.filter(r => r._type !== 'subject')));
     listEl.innerHTML = rows.map(row => {
+      if (row._type === 'subject') return subjectCardHtml(row);
       const footer = row.status === 'submitted'
         ? `<div class="labberlab-admin-controls" data-uctl="${row.id}">
              <label class="form-label">반려 사유 <span class="llapp-optional">반려할 때만 필수 · 신청자에게 그대로 표시돼요</span></label>
@@ -1166,8 +1175,9 @@
     if (!btn) return;
     const ctl = btn.closest('[data-uctl]');
     if (!ctl) return;
-    if (btn.dataset.uact === 'approve') adminApprove(ctl.dataset.uctl, ctl);
-    else adminReject(ctl.dataset.uctl, ctl);
+    const isSubject = ctl.dataset.utype === 'subject';
+    if (btn.dataset.uact === 'approve') (isSubject ? subjectApprove : adminApprove)(ctl.dataset.uctl, ctl);
+    else (isSubject ? subjectReject : adminReject)(ctl.dataset.uctl, ctl);
   }
 
   function ctlBusy(ctl, busy) { ctl.querySelectorAll('button').forEach(b => { b.disabled = busy; }); }
@@ -1285,6 +1295,163 @@
       if (row.user_id === _llUser.id) await loadMyList();
     } catch (err) {
       console.error('[design-update] 반려 오류:', err);
+      errEl.textContent = `반려에 실패했어요. (${err.message})`;
+    } finally {
+      S.adminBusy = false;
+      ctlBusy(ctl, false);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 관리자 — SUBJECT 디자인 업데이트 (2026-11-02, 개인연구실에서 신청 · 표본장식키트 1개)
+  //   서버: list/approve/reject_labber_subject_image_update (supabase/labber_subject_design_1102.sql)
+  //   현재 디자인·썸네일 ↔ 신청 디자인·썸네일, 대상 SUBJECT·신청자·변경 내용·적용 장식·키트·일시·상태
+  // ══════════════════════════════════════════════════════════
+  const SUBJ_STATUS_KO = { submitted: '승인 대기', approved: '승인', rejected: '반려', cancelled: '취소' };
+  const SUBJ_STATUS_CLASS = { submitted: 'is-pending', approved: 'is-registered', rejected: 'is-rejected', cancelled: 'is-rejected' };
+  const SUBJ_ERR = {
+    OWNER_CHANGED: '신청 이후 SUBJECT 소유자가 바뀌었어요. 이 신청은 반려해주세요.',
+    INSTANCE_NOT_FOUND: '대상 SUBJECT를 찾을 수 없어요.',
+    INVALID_ACCESSORY_REPLACE: '교체할 기존 장식이 현재 SUBJECT에 없어요. 이 신청은 반려해주세요.',
+    RESERVATION_MISSING: '표본장식키트 예약 정보가 올바르지 않아요.',
+  };
+  const subjErrText = (res) => SUBJ_ERR[res && res.error] || errText(res);
+
+  function subjAccAfter(cur, ops) {
+    const out = [...(cur || [])];
+    (ops || []).forEach(o => {
+      if (o.op === 'replace') { const i = out.indexOf(o.from); if (i >= 0) out[i] = o.name; }
+      else out.push(o.name);
+    });
+    return out;
+  }
+
+  function subjectCardHtml(row) {
+    const st = row.status;
+    const inst = row.instance || {};
+    const done = st === 'approved';
+    const curImg = done ? row.previous_image_url : inst.image_url;
+    const curThumb = done ? row.previous_thumbnail_url : inst.thumbnail_url;
+    const curAcc = done ? (row.previous_accessories || []) : (inst.accessories || []);
+    const ops = row.accessory_ops || [];
+    const after = done ? (row.applied_accessories || []) : subjAccAfter(curAcc, ops);
+    const list = (a) => a.length ? a.map(esc).join(' · ') : '없음';
+    const opsHtml = ops.length
+      ? ops.map(o => o.op === 'replace' ? `${esc(o.from)} → <b>${esc(o.name)}</b> (교체)` : `<b>${esc(o.name)}</b> (추가)`).join('<br>')
+      : '없음';
+    const kitState = { reserved: '예약', consumed: '소비됨', released: '해제됨' }[row.kit_state] || '';
+    const box = (label, url, empty) => `
+      <figure class="lldu-compare-col">
+        <figcaption>${label}</figcaption>
+        <div class="lldu-compare-img">${url ? `<img src="${esc(url)}" alt="${label}" loading="lazy" data-open-url="${esc(url)}" title="클릭하면 원본이 새 탭에서 열려요">` : `<span>${empty}</span>`}</div>
+      </figure>`;
+    const footer = st === 'submitted'
+      ? `<div class="labberlab-admin-controls" data-uctl="${row.id}" data-utype="subject">
+           <label class="form-label">반려 사유 <span class="llapp-optional">반려할 때만 필수 · 신청자 알림에 포함돼요</span></label>
+           <textarea class="form-textarea llapp-reject-reason" rows="3" maxlength="500" placeholder="예: 원본 생물의 대표 특징이 바뀌었어요. / 신청한 장식이 이미지에 보이지 않아요."></textarea>
+           <p class="auth-error labberlab-admin-err"></p>
+           <div class="llapp-admin-btns">
+             <button type="button" class="btn-ghost llapp-reject-btn" data-uact="reject">반려</button>
+             <button type="button" class="btn-secondary" data-uact="approve">승인 (디자인 반영${row.kit_qty ? ' · 키트 소비' : ''})</button>
+           </div>
+         </div>`
+      : (row.reviewed_at ? `<p class="llapp-hint">처리 ${fmtDateTime(row.reviewed_at)}</p>` : '');
+    const reason = (st === 'rejected' && row.rejection_reason)
+      ? `<div class="labberlab-app-comment is-strong"><span class="labberlab-app-comment-label">반려 사유</span><p>${esc(row.rejection_reason).replace(/\n/g, '<br>')}</p></div>`
+      : '';
+    const subjName = inst.individual_name ? `${inst.individual_name} · ${inst.subject_name || ''}` : (inst.subject_name || 'SUBJECT');
+    return `
+    <article class="labberlab-app-card llapp-card lldu-card" data-id="${row.id}">
+      <div class="labberlab-app-thumb">
+        ${(row.thumbnail_url || row.image_url) ? `<img src="${esc(row.thumbnail_url || row.image_url)}" alt="신청 썸네일" loading="lazy" data-full="${esc(row.image_url || row.thumbnail_url)}">` : '<span>이미지 없음</span>'}
+      </div>
+      <div class="labberlab-app-main">
+        <div class="labberlab-app-top">
+          <span class="llapp-legacy lldu-type-subject">SUBJECT 디자인 업데이트</span>
+          <span class="labberlab-app-status ${SUBJ_STATUS_CLASS[st] || ''}">${SUBJ_STATUS_KO[st] || st}</span>
+          <span class="labberlab-app-no">No. ${shortId(row.id)}</span>
+          <span class="labberlab-app-date">신청 ${fmtDateTime(row.created_at)}</span>
+          <span class="labberlab-app-applicant">${esc(row.applicant_nickname || '신청자')}</span>
+        </div>
+        <p class="lldu-card-target">대상 SUBJECT · <b>${esc(subjName)}</b> <span class="lldu-card-no">Lv.${Number(inst.level) || 1}</span>${inst.owner_user_id && inst.owner_user_id !== row.user_id ? ' · <b>신청 후 소유자 변경됨</b>' : ''}</p>
+        <div class="lldu-compare">
+          ${box(done ? '이전 디자인' : '현재 디자인', curImg, '이미지 없음')}
+          <span class="lldu-compare-arrow" aria-hidden="true">→</span>
+          ${box('신청 디자인', row.image_url, '이미지 없음')}
+        </div>
+        <div class="lldu-compare">
+          ${box(done ? '이전 썸네일' : '현재 썸네일', curThumb || curImg, '썸네일 없음')}
+          <span class="lldu-compare-arrow" aria-hidden="true">→</span>
+          ${box('신청 썸네일', row.thumbnail_url, '썸네일 없음')}
+        </div>
+        <dl class="labberlab-app-fields">
+          <div><dt>변경 내용</dt><dd>${esc(row.note || '')}</dd></div>
+          <div><dt>${done ? '이전 장식' : '현재 장식'}</dt><dd>${list(curAcc)}</dd></div>
+          <div><dt>적용 장식</dt><dd>${opsHtml}</dd></div>
+          <div><dt>${done ? '반영된 장식' : '승인 후 장식'}</dt><dd>${list(after)}</dd></div>
+          <div><dt>사용 아이템</dt><dd>${row.kit_qty ? `${esc(row.kit_name || '표본장식키트')} ${row.kit_qty}개 ${kitState}` : '없음'}</dd></div>
+        </dl>
+        <p class="llapp-hint">신청 디자인의 장식이 신청 내용과 같은지, 기본 디자인을 전면 변경하지 않았는지 확인해주세요.</p>
+        ${reason}
+        ${footer}
+      </div>
+    </article>`;
+  }
+
+  async function subjectApprove(id, ctl) {
+    if (S.adminBusy) return;
+    const row = S.adminRows.find(r => r.id === id && r._type === 'subject');
+    if (!row) return;
+    const errEl = ctl.querySelector('.labberlab-admin-err');
+    errEl.textContent = '';
+    if (!confirm(`${row.applicant_nickname || '신청자'}님의 SUBJECT 디자인 업데이트를 승인할까요?\n새 디자인·썸네일이 서브젝트에 반영되고${row.kit_qty ? ` 표본장식키트 ${row.kit_qty}개가 소비돼요` : '요'}. (레벨·EXP·소유자·LABBER 연결·크레딧은 그대로)`)) return;
+    S.adminBusy = true;
+    ctlBusy(ctl, true);
+    try {
+      const data = await rpc('approve_labber_subject_image_update', { p_id: id });
+      if (!data || !data.success) {
+        errEl.textContent = subjErrText(data);
+        if (data && data.error === 'INVALID_STATUS') await loadAdminList();
+        return;
+      }
+      if (typeof logAdminAction === 'function') {
+        logAdminAction('labber_subject_image_update_approve', 'labber_subject_image_update', id, row.applicant_nickname, { instance_id: row.subject_instance_id, kit_consumed: data.kit_consumed }).catch(() => {});
+      }
+      await loadAdminList();
+      if (typeof refreshLabberDesignBadge === 'function') refreshLabberDesignBadge();
+    } catch (err) {
+      errEl.textContent = `승인에 실패했어요. (${err.message})`;
+    } finally {
+      S.adminBusy = false;
+      ctlBusy(ctl, false);
+    }
+  }
+
+  async function subjectReject(id, ctl) {
+    if (S.adminBusy) return;
+    const row = S.adminRows.find(r => r.id === id && r._type === 'subject');
+    if (!row) return;
+    const errEl = ctl.querySelector('.labberlab-admin-err');
+    const reason = ctl.querySelector('.llapp-reject-reason').value.trim();
+    errEl.textContent = '';
+    if (!reason) { errEl.textContent = '반려 사유를 입력해주세요.'; return; }
+    if (reason.length > 500) { errEl.textContent = '반려 사유는 500자 이하로 입력해주세요.'; return; }
+    if (!confirm(`${row.applicant_nickname || '신청자'}님의 SUBJECT 디자인 업데이트를 반려할까요?\n현재 디자인은 그대로이고, 예약된 표본장식키트는 해제돼요.`)) return;
+    S.adminBusy = true;
+    ctlBusy(ctl, true);
+    try {
+      const data = await rpc('reject_labber_subject_image_update', { p_id: id, p_reason: reason });
+      if (!data || !data.success) {
+        errEl.textContent = subjErrText(data);
+        if (data && data.error === 'INVALID_STATUS') await loadAdminList();
+        return;
+      }
+      if (typeof logAdminAction === 'function') {
+        logAdminAction('labber_subject_image_update_reject', 'labber_subject_image_update', id, row.applicant_nickname, { reason }).catch(() => {});
+      }
+      await loadAdminList();
+      if (typeof refreshLabberDesignBadge === 'function') refreshLabberDesignBadge();
+    } catch (err) {
       errEl.textContent = `반려에 실패했어요. (${err.message})`;
     } finally {
       S.adminBusy = false;

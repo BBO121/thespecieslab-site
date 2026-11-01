@@ -15,6 +15,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>개인연구실 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
   <style>
     /* ── [SUBJECT] 탭(2026-09-24, SUBJECT 개체화) ─────────────────────────
        카드 뼈대(.labber-subject-card/-img/-body/-head/-name/-lv/-type/-exp-*)는
@@ -167,7 +168,7 @@
     #labberSubjectCreditEditor[hidden] { display: none; }
     #labberSubjectCreditEditor .auth-error:empty { display: none; }
     .subj-name-edit-note { margin: 6px 0 0; font-size: 11px; color: var(--text-mute); }
-    /* SUBJECT 이미지 업데이트 신청 + 표본장식키트 — 2026-11 */
+    /* SUBJECT 디자인 업데이트 신청(표본장식키트 1개 · 정사각 썸네일) — 2026-11 / 2026-11-02 */
     #labberSubjectUpdateBox { margin-top: 12px; }
     #labberSubjectUpdateBox:empty { display: none; }
     .subj-upd { display: flex; flex-direction: column; gap: 8px; }
@@ -205,6 +206,10 @@
     .subj-upd-op input { flex: 1; }
     .subj-upd-op button { flex: 0 0 auto; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--sky-deep); background: transparent; color: var(--sky-dark); font-size: 12px; cursor: pointer; }
     .subj-upd-need { margin: 0; font-size: 12px; color: var(--text); }
+    .subj-upd-need em { font-style: normal; font-size: 11px; color: var(--text-mute); margin-left: 4px; }
+    .subj-upd-compare figure.is-square { flex: 0 0 calc(50% - 5px); }
+    .subj-upd-compare figure.is-square img { object-fit: cover; }
+    .subj-edit-row button:disabled { opacity: .5; cursor: not-allowed; }
     #labberSubjectUpdError:empty { display: none; }
     @media (max-width: 480px) {
       .subj-upd-op { flex-wrap: wrap; }
@@ -412,6 +417,24 @@
     </div>
   </div>
 
+  <!-- 크롭 모달 (SUBJECT 디자인 업데이트 정사각 썸네일 — labber-lab.html 크롭 모달과 같은 마크업/클래스, 1:1) -->
+  <div id="subjUpdCropModal" class="crop-modal-overlay" style="display:none;">
+    <div class="crop-modal-box">
+      <div class="crop-modal-header">
+        <h3>썸네일 편집</h3>
+        <p>드래그로 이동 · 스크롤로 확대/축소 — 카드에 표시될 정사각 영역을 선택하세요.</p>
+      </div>
+      <div class="crop-modal-canvas">
+        <img id="subjUpdCropImage" src="">
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn-ghost" style="color:var(--text-mute);" onclick="PersonalLabSubject.closeUpdCrop()">취소</button>
+        <button type="button" class="btn-ghost" onclick="PersonalLabSubject.useUpdCropAsIs()">가운데 자동</button>
+        <button type="button" class="btn-secondary" onclick="PersonalLabSubject.confirmUpdCrop()">확정</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.2.0</span></p>
   </footer>
@@ -424,7 +447,7 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
-  <script src="../js/creator-picker.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
   <script src="../js/labber-personal-lab-subject.js"></script>
   <script src="../js/labber-personal-lab.js"></script>
 </body>

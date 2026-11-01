@@ -97,6 +97,21 @@
       color: var(--text-mute);
     }
 
+    @media (min-width: 768px) {
+      #labberSubjectDetailModal,
+      #labberSubjectAssignModal {
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        align-items: flex-start;
+      }
+      #labberSubjectDetailModal .shop-detail-card,
+      #labberSubjectAssignModal .shop-detail-card {
+        max-height: none;
+        overflow: visible;
+        flex-shrink: 0;
+        margin-block: auto;
+      }
+    }
     @media (max-width: 767px) {
       .personal-lab-empty { padding: 48px 16px; }
       .personal-lab-subject-grid { grid-template-columns: 1fr; }

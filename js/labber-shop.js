@@ -339,7 +339,7 @@ const LABBER_SHOP_PRODUCTS = [
     currency: 'research_records',
     price: 150,
     designer: '이상어',
-    description: 'SUBJECT에 직접 닿는 장식을 더할 수 있는 키트. 개인연구실 SUBJECT 디자인 업데이트에서 키트 1개당 장식 1종을 추가하거나 교체할 수 있다. (신청 1회 최대 3종)',
+    description: "'나의 서브젝트를 이쁘게 꾸며봐요' 라고 적혀져있다.",
   },
   {
     code: 'labber_kit_culture_environment',
@@ -350,7 +350,7 @@ const LABBER_SHOP_PRODUCTS = [
     currency: 'research_records',
     price: 150,
     designer: '이상어',
-    description: 'POD 내부 배양환경(데코)을 꾸밀 수 있는 키트. LABBER 디자인 신청·디자인 업데이트에서 키트 1개당 데코 1개를 구성할 수 있다. (신청 1회 최대 3개)',
+    description: "'멋진 배양환경을 조성해봐요!' 라고 적혀져있다.",
   },
 ];
 

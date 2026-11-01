@@ -892,6 +892,7 @@ async function doExplore() {
   renderResult(data);
   renderDaily();
   renderAreaGrid();   // 카드의 "현재 스테이지" 표시 갱신
+  window.syncLabberAchievements?.({ afterActivity: true });   // 획득 아이템 → 도감/보유 업적 즉시 판정(서버 검증, 실패해도 탐험 결과 무관)
 }
 
 async function handleExploreError(code, data, areaCode) {

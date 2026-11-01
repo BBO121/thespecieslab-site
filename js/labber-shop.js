@@ -327,6 +327,31 @@ const LABBER_SHOP_PRODUCTS = [
     designer: '뽀',
     description: '빈 카트리지. 무언가 만들 수 있을 것 같다.',
   },
+  // ── 디자인 키트 (2026-11, 1회용 — 신청 시 예약, 승인 시 소비) ──
+  //   표본장식키트 = 개인연구실 SUBJECT 이미지 업데이트 신청 / 배양환경키트 = LABBER 관리소 디자인 업데이트
+  //   서버: supabase/labber_1101_launch.sql [B][C] (listing 연구기록 150, 상시 판매)
+  {
+    code: 'labber_kit_specimen_decoration',
+    name: '표본장식키트',
+    category: '키트',
+    grade: 'standard', gradeLabel: '표준',
+    image: '../images/items/item_kit_specimen_decoration.png',
+    currency: 'research_records',
+    price: 150,
+    designer: '뽀',
+    description: '개인연구실 SUBJECT 이미지 업데이트 신청에서 SUBJECT에 직접 닿는 장식(리본·케이프·붕대 등)을 키트 1개당 1종 추가하거나 교체할 수 있다. 신청 1회 최대 3종 · SUBJECT Lv.3 이상 · 1회용.',
+  },
+  {
+    code: 'labber_kit_culture_environment',
+    name: '배양환경키트',
+    category: '키트',
+    grade: 'standard', gradeLabel: '표준',
+    image: '../images/items/item_kit_culture_environment.png',
+    currency: 'research_records',
+    price: 150,
+    designer: '뽀',
+    description: 'LABBER 디자인 업데이트에서 POD 내부 데코를 키트 1개로 최대 3개까지 한 번에 구성할 수 있다. 기존 데코를 바꿀 때도 1개로 전체를 다시 구성한다. 1회용.',
+  },
 ];
 
 let _labberShopUser = null;
@@ -657,6 +682,7 @@ async function doLabberShopPurchase(code, btn) {
     renderLabberShopProducts();
     openLabberShopDetail(code);   // 모달 그대로 유지, 버튼/보유수량만 갱신
     if (typeof updateSidebarLogin === 'function') updateSidebarLogin();
+    window.syncLabberAchievements?.({ afterActivity: true });   // 구매 아이템 → 도감/보유 업적 즉시 판정(서버 검증, 실패해도 구매 무관)
 
     alert(`${labberShopPlainName(p)}${koObjParticle(labberShopPlainName(p))} 구매했습니다.`);
   } catch (e) {

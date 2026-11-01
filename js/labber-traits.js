@@ -65,6 +65,16 @@ const TRAIT_DATA = {
       image: '../images/labber/trait_cartridge_pod_linear_extension.png',
       desc: '포드의 일부가 가늘고 긴 선형으로 연장되어<br>자유롭게 휘어진 형태를 이룰 수 있습니다.',
       acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
+    // 2026-11 업데이트 신규 — 아이템 '조형 카트리지'(labber_cartridge_sculpt, 조합소 cartridge_sculpt).
+    { code: 'labber_cartridge_liquid_sculpt',        name: '액체 조형', grade: 'special', artwork: 'cartridge-liquid-sculpt', anchor: 'trait-liquid-sculpt',
+      image: '../images/labber/trait_cartridge_liquid_sculpt.png',
+      desc: '포드의 액체를 일정한 형태로 조형하여 신체에 연결된 구조로 표현할 수 있습니다.<br>꼬리 등 신체에서 크게 돌출되는 형태로 조형할 수 있습니다.',
+      acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
+    // 2026-11 업데이트 신규 — 아이템 '장식 카트리지'(labber_cartridge_decoration, 조합소 cartridge_decoration).
+    { code: 'labber_cartridge_pod_decoration',       name: '포드 장식', grade: 'special', artwork: 'cartridge-pod-decoration', anchor: 'trait-pod-decoration',
+      image: '../images/labber/trait_cartridge_pod_decoration.png',
+      desc: '포드에 모자 등 다양한 장식을 부착할 수 있습니다.<br>장식은 포드의 액체와 연결되지 않는 별도의 장식물로 표현할 수 있습니다.',
+      acquisition: LL_ACQ_CRAFT, designer: LL_TRAIT_DESIGNER },
   ],
   // INK 계열 "특성명" — LABBER 포드 내부 액체의 색상 특성. 복수 선택(한 디자인에 여러 색 사용 가능).
   //  · 표시명 표기 고정: 'Ink-<색상>' (I 만 대문자 · nk 소문자 · 색상명 전체 대문자). 다른 표기 금지.

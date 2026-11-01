@@ -858,7 +858,7 @@ function onBagItemSell() {
       }
       await refreshAfterBagAction();
       alert(`${row.name}을(를) 판매하고 ${Number(data.total).toLocaleString()} 연구기록을 받았습니다.`);
-      window.syncLabberAchievements?.();   // 잡템 판매 업적 재확인(서버 판정)
+      window.syncLabberAchievements?.({ afterActivity: true });   // 잡템 판매 업적 재확인(서버 판정)
       return true;
     },
   });
@@ -901,7 +901,10 @@ async function onBagItemOpen() {
     const btn = document.getElementById('bagItemOpenBtn');
     if (btn) { btn.disabled = false; btn.textContent = '열기'; }
   }
-  if (result) bagShowOpenResult(result);
+  if (result) {
+    bagShowOpenResult(result);
+    window.syncLabberAchievements?.({ afterActivity: true });   // 개봉 결과 → 도감/SUBJECT 업적 즉시 판정(서버 검증)
+  }
 }
 
 let _bagOpenResultSeq = 0;   // 결과 표시 회차 — 늦게 도착한 이전 이미지의 load/error 가 다음 결과를 건드리지 않게

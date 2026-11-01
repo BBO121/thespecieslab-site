@@ -73,24 +73,115 @@ window.awardAchievement = async function(code, { pending = false } = {}) {
 // 기존 사용자 소급 달성 경로이기도 하다. 새로 달성한 업적은 토스트로 표시. 실패해도 원래 기능을 막지 않는다.
 window.LABBER_ACHIEVEMENT_SYNC_ENABLED = true;
 
-window.syncLabberAchievements = async function() {
+// [2026-10-17] 업적란 방문 없이 즉시 달성
+//   · 활동 성공 직후: 각 활동 JS 가 syncLabberAchievements({ afterActivity: true }) 호출
+//   · 페이지 로드 시: _autoSyncLabberAchievements() — 받은 전송/운영진 승인처럼 본인이 직접 하지 않은 변화 + 기존 미지급 복구.
+//     같은 브라우저의 모든 탭이 공유하는 localStorage 시각으로 LABBER_ACH_AUTO_SYNC_MS 에 1번만.
+//   · 동시 호출은 한 요청으로 합친다. 요청 도중 새 활동이 끝나면 끝난 뒤 1번 더 판정(앞 요청이 활동 반영 전에 읽었을 수 있음).
+//   지급/중복 방지는 전부 서버(award_achievement UNIQUE + ON CONFLICT) — 여러 탭이 동시에 불러도 토스트는 실제로 지급한 요청 1곳만.
+//   제한 시각(localStorage)은 사용자별 키. 성공한 판정만 "판정 완료 시각"을 남긴다 — 실패는 다음 진입 때 바로 다시 시도.
+//   자동 복구 시작 표시(claim)는 다른 탭과 겹치지 않게 하는 짧은 잠금이며, 실패하면 즉시 지운다.
+//   5분 제한은 자동 복구에만 적용된다. 활동 직후(afterActivity) 판정은 제한 없이 항상 실행.
+const LABBER_ACH_AUTO_SYNC_MS   = 5 * 60 * 1000;
+const LABBER_ACH_CLAIM_MS       = 30 * 1000;   // 다른 탭이 자동 복구 중인 것으로 보는 시간(탭이 도중에 닫혀도 30초 뒤 해제)
+const LABBER_ACH_RECENT_MS      = 15 * 1000;   // 활동이 아닌 재확인이 같은 사용자의 직전 성공 판정과 겹치면 생략
+const LABBER_ACH_RETRY_DELAY_MS = 2000;        // 활동 직후 판정 실패 시 1회만 재시도
+let _labberAchInflight = null;
+let _labberAchRerun    = false;
+let _labberAchLastOk   = { uid: null, at: 0 };
+
+function _labberAchSyncKey(uid)  { return '_labberAchSyncAt:' + uid; }
+function _labberAchClaimKey(uid) { return '_labberAchSyncClaim:' + uid; }
+function _labberAchLsGet(k)    { try { return Number(localStorage.getItem(k)) || 0; } catch (_) { return 0; } }
+function _labberAchLsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (_) {} }
+function _labberAchLsDel(k)    { try { localStorage.removeItem(k); } catch (_) {} }
+
+// 반환: { status: 'ok' | 'failed' | 'skipped', uid, list }
+//   skipped = 로그아웃 상태 / 플래그 off → 재시도 대상 아님
+async function _runLabberAchievementSync() {
+  let uid = null;
   try {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session?.user) return [];
-    if (!window.LABBER_ACHIEVEMENT_SYNC_ENABLED) return [];
+    if (!session?.user) return { status: 'skipped', uid: null, list: [] };
+    if (!window.LABBER_ACHIEVEMENT_SYNC_ENABLED) return { status: 'skipped', uid: null, list: [] };
+    uid = session.user.id;
     const { data, error } = await sb.rpc('sync_labber_achievements');
     if (error || !data?.success) {
       console.warn('[업적] LABBER 업적 재확인 실패:', error || data);
-      return [];
+      return { status: 'failed', uid, list: [] };
     }
+    _labberAchLastOk = { uid, at: Date.now() };
+    _labberAchLsSet(_labberAchSyncKey(uid), _labberAchLastOk.at);
     const list = Array.isArray(data.unlocked) ? data.unlocked : [];
-    list.forEach((a, i) => setTimeout(() => _showAchievementToast(a.name, a.description || ''), i * 900));
-    return list;
+    list.forEach((a, i) => setTimeout(() => _showAchievementToast(a.name, a.description || '', true), i * 900));
+    if (list.length && typeof updateSidebarLogin === 'function') updateSidebarLogin();   // 보상 반영된 지갑 갱신
+    return { status: 'ok', uid, list };
   } catch (e) {
     console.error('[업적] LABBER 업적 재확인 예외:', e);
-    return [];
+    return { status: 'failed', uid, list: [] };
   }
+}
+
+// afterActivity: true = 방금 활동이 서버에 성공 반영됨 → 생략 없이 반드시 그 이후 상태로 판정
+//   · 요청 진행 중이면 끝난 뒤 1번 더 판정(_labberAchRerun) — 새 활동이 있을 때만 생기므로 무한 반복 없음
+//   · 활동 판정이 실패하면 1회만 재시도. 그래도 실패하면 성공 시각이 남지 않으므로 다음 페이지 진입 자동 복구가 이어받는다.
+window.syncLabberAchievements = function({ afterActivity = false } = {}) {
+  if (_labberAchInflight) {
+    if (afterActivity) _labberAchRerun = true;
+    return _labberAchInflight;
+  }
+  _labberAchInflight = (async () => {
+    let all = [];
+    let activity = afterActivity;
+    let retried  = false;
+    try {
+      // 활동이 아닌 재확인: 같은 사용자가 방금(15초 내) 성공 판정했으면 생략
+      if (!activity) {
+        const { data: { session } } = await sb.auth.getSession();
+        const uid = session?.user?.id;
+        if (uid && _labberAchLastOk.uid === uid && Date.now() - _labberAchLastOk.at < LABBER_ACH_RECENT_MS) return all;
+      }
+      for (;;) {
+        _labberAchRerun = false;
+        const r = await _runLabberAchievementSync();
+        all = all.concat(r.list);
+        if (_labberAchRerun) { activity = true; continue; }          // 진행 중 새 활동 → 그 이후 상태로 다시
+        if (r.status === 'failed' && activity && !retried) {         // 활동 판정 실패 → 1회만 재시도
+          retried = true;
+          await new Promise(res => setTimeout(res, LABBER_ACH_RETRY_DELAY_MS));
+          continue;
+        }
+        break;
+      }
+    } catch (e) {
+      console.error('[업적] LABBER 업적 재확인 예외:', e);
+    } finally {
+      _labberAchInflight = null;
+    }
+    return all;
+  })();
+  return _labberAchInflight;
 };
+
+// 페이지 진입 자동 복구 — 사용자별 5분 제한(성공 기준) + 탭 간 짧은 잠금
+async function _autoSyncLabberAchievements() {
+  try {
+    if (!window.LABBER_ACHIEVEMENT_SYNC_ENABLED) return;
+    const { data: { session } } = await sb.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+    const now = Date.now();
+    if (now - _labberAchLsGet(_labberAchSyncKey(uid)) < LABBER_ACH_AUTO_SYNC_MS) return;   // 최근 성공 판정 있음
+    if (now - _labberAchLsGet(_labberAchClaimKey(uid)) < LABBER_ACH_CLAIM_MS) return;      // 다른 탭이 진행 중
+    _labberAchLsSet(_labberAchClaimKey(uid), now);
+    const before = _labberAchLsGet(_labberAchSyncKey(uid));
+    await window.syncLabberAchievements();
+    // 성공했으면 판정 완료 시각이 이미 남았다. 실패했으면 잠금을 풀어 다음 진입 때 바로 다시 시도.
+    if (_labberAchLsGet(_labberAchSyncKey(uid)) === before) _labberAchLsDel(_labberAchClaimKey(uid));
+  } catch (e) {
+    console.error('[업적] LABBER 업적 자동 재확인 예외:', e);
+  }
+}
 
 // 서버 일일 방문 카운트 증가 후 오늘자 방문 횟수 반환 (실패 시 0 반환)
 // [2026-09-22 보안 패치] work_overtime_fail 판정을 localStorage 신뢰에서
@@ -141,8 +232,13 @@ async function _checkDailyVisit() {
   }
 }
 
-// 페이지 로드 시 pending 토스트 처리 + 일일 방문 체크
+// <script src="achievements.js" data-daily-visit="off"> — 이 페이지는 일일 방문 수(work_overtime_fail)에 세지 않는다.
+//   (2026-10-17 업적 판정용으로 achievements.js 를 새로 붙인 LABBER/출석 페이지 — 기존 방문 업적 기준 유지)
+const _achScriptEl = document.currentScript;
+
+// 페이지 로드 시 pending 토스트 처리 + 일일 방문 체크 + LABBER 업적 자동 재확인
 document.addEventListener('DOMContentLoaded', () => {
+  _autoSyncLabberAchievements();
   const pending = JSON.parse(sessionStorage.getItem('_ach_pending') || '[]');
   if (pending.length) {
     sessionStorage.removeItem('_ach_pending');
@@ -150,14 +246,16 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => _showAchievementToast(ach.name, ach.desc), i * 900);
     });
   }
-  _checkDailyVisit();
+  if (_achScriptEl?.dataset?.dailyVisit !== 'off') _checkDailyVisit();
 });
 
-function _showAchievementToast(name, desc) {
+// isLabber: LABBER 업적(sync_labber_achievements 결과) — LABBER 전용 뱃지 이미지 사용 (2026-11-01)
+function _showAchievementToast(name, desc, isLabber = false) {
+  const badge = window._achBadgePath || '../images/achievement-badge.png';
   const toast = document.createElement('div');
   toast.className = 'achievement-toast';
   toast.innerHTML = `
-    <img class="achievement-toast-icon" src="${window._achBadgePath || '../images/achievement-badge.png'}" alt="업적">
+    <img class="achievement-toast-icon" src="${isLabber ? badge.replace('achievement-badge.png', 'achievement-labber-badge.png') : badge}" alt="업적">
     <div class="achievement-toast-body">
       <p class="achievement-toast-label">업적 달성!</p>
       <p class="achievement-toast-name">${_escapeAch(name)}</p>

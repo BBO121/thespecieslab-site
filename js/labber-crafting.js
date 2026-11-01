@@ -12,6 +12,8 @@
 //   (supabase/labber_random_item_open_0926.sql, 개봉은 js/my-bag.js [열기]).
 // 2026-09-26(2차): 카트리지 조합식 2종(cartridge_split/cartridge_linear) 추가 → 서버 23개
 //   (supabase/labber_crafting_cartridge_0926.sql). + 조합법 미공개 카드 3종(locked: true — 아래 설명).
+// 2026-11 업데이트: 조형 카트리지(cartridge_sculpt) + 장식 카트리지(cartridge_decoration) 추가 → 서버 25개
+//   (supabase/labber_cartridges_launch_1101.sql — 공개일에만 운영 적용).
 //
 // 조합 판정(재료·수량·결과)은 전부 서버 RPC `craft_labber_subject(p_recipe_code)` 가 결정한다.
 // 아래 CRAFT_RECIPES 는 화면 표시 전용이며, 클라이언트는 recipe_code 문자열만 서버에 넘긴다.
@@ -91,6 +93,14 @@ const CRAFT_RECIPES = [
   { key: 'cartridge_linear', category: 'cartridge',
     materials: [['labber_empty_cartridge', 1], ['dogam_lab_junk_12', 5], ['dogam_lab_junk_08', 3]],
     result: 'labber_cartridge_linear', resultLabel: '선형 연장 카트리지' },
+  // 2026-11 업데이트 신규 — 조형 카트리지(특성 '액체 조형') · 장식 카트리지(특성 '포드 장식').
+  //   서버 분기는 labber_cartridges_launch_1101.sql.
+  { key: 'cartridge_sculpt', category: 'cartridge',
+    materials: [['labber_empty_cartridge', 1], ['dogam_lab_junk_12', 5], ['dogam_lab_junk_10', 3]],
+    result: 'labber_cartridge_sculpt', resultLabel: '조형 카트리지' },
+  { key: 'cartridge_decoration', category: 'cartridge',
+    materials: [['labber_empty_cartridge', 1], ['dogam_lab_junk_12', 5], ['dogam_cafeteria_dinner_02', 3]],
+    result: 'labber_cartridge_decoration', resultLabel: '장식 카트리지' },
 
   // 2026-09-26 — 조합법 미공개(카드만 노출, 조합 불가).
   { key: 'ink_neutral', category: 'ink', locked: true,
@@ -191,6 +201,9 @@ const CRAFT_ITEM_IMG_FALLBACK = {
   dogam_lab_junk_12:            '../images/items/item_discarded_circuit_board.png',
   labber_cartridge_split:       '../images/items/item_cartridge_pod_split.png',
   labber_cartridge_linear:      '../images/items/item_cartridge_pod_linear_extension.png',
+  labber_cartridge_sculpt:      '../images/items/item_cartridge_liquid_sculpt.png',   // 2026-11 신규
+  labber_cartridge_decoration:  '../images/items/item_cartridge_pod_decoration.png',  // 2026-11 신규 (이미지 파일 수령 대기)
+  dogam_cafeteria_dinner_02:    '../images/items/item_lab_empty_sauce_container.png', // 빈 소스통
   labber_ink_neutral:           '../images/items/item_ink_natural.png',
   labber_subject_item_creature: '../images/items/item_subject_special_creature.png',
   labber_subject_item_species:  '../images/items/item_subject_special_species.png',
@@ -403,6 +416,7 @@ async function doCraft(recipeKey, btn) {
       await ensureItemCached(data.result && data.result.code); // 랜덤 결과 등 캐시에 없는 코드 보강(아래 설명)
       renderCraftRecipes();                 // 버튼 disabled 상태 재계산
       openCraftResult(data.result);
+      window.syncLabberAchievements?.({ afterActivity: true });   // 조합/도감/SUBJECT 업적 즉시 판정(서버 검증, 실패해도 조합 결과 무관)
     } else {
       showCraftError(msgEl, data && data.error, data);
     }

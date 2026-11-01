@@ -548,7 +548,7 @@
 
   <!-- 푸터 -->
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.4</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.2.0</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2066,7 +2066,7 @@
 
         if (showcaseCodes.length > 0) {
           const { data: details } = await sb.from('achievements')
-            .select('code, name')
+            .select('code, name, scope')
             .in('code', showcaseCodes);
 
           if (details?.length) {
@@ -2081,7 +2081,7 @@
                 return `
                   <div class="achievement-item earned">
                     <div class="ach-icon-wrap transparent">
-                      <img src="../images/achievement-badge.png" class="ach-icon" alt="업적">
+                      <img src="../images/${a.scope === 'labber' ? 'achievement-labber-badge.png' : 'achievement-badge.png'}" class="ach-icon" alt="업적">
                     </div>
                     <div class="achievement-item-body">
                       <p class="achievement-item-name">${a.name}</p>

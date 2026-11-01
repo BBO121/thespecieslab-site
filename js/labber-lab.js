@@ -485,6 +485,11 @@ function llErrText(res) {
     RESERVATION_MISSING: `${slot} 예약 정보가 없어요. 신청서를 다시 확인해주세요.`,
     CONSUME_FAILED: `아이템 소비에 실패했어요. 신청자의 보유 수량을 확인해주세요. (${detail || ''})`,
     INVALID_PAYLOAD: '요청 형식이 올바르지 않아요.',
+    // SUBJECT 이미지 업데이트 승인 (2026-11)
+    OWNER_CHANGED: '신청 이후 SUBJECT 소유자가 바뀌었어요. 이 신청은 반려해주세요.',
+    INSTANCE_NOT_FOUND: '대상 SUBJECT를 찾을 수 없어요.',
+    ACCESSORY_LEVEL: `표본장식키트는 SUBJECT Lv.3 이상부터 쓸 수 있어요. 현재 Lv.${detail || '?'} — 이 신청은 반려해주세요.`,
+    INVALID_ACCESSORY_REPLACE: '교체할 기존 장식이 현재 SUBJECT에 없어요. 이 신청은 반려해주세요.',
     INVALID_QUANTITY: '같은 카트리지는 신청서 1건에 1개까지만 사용할 수 있어요.',
     DUPLICATE_ITEM: '같은 카트리지는 중복해서 선택할 수 없어요.',
     DESIGNER_REQUIRED: '개체 디자이너를 1명 이상 추가해주세요.',
@@ -1676,10 +1681,28 @@ async function loadSubjectApprovalList() {
   }
 
   _llSubjectAdminRows.forEach(r => {
+    r._kind = 'bag';
     r._nick = idToNick[r.user_id] || '유저';
     r._itemName = (itemById[r.item_id] && itemById[r.item_id].name) || 'SUBJECT 아이템';
     r._subjectName = subjectNameByCode[r.subject_code] || r.subject_code;
   });
+
+  // 2026-11 SUBJECT 이미지 업데이트 신청(표본장식키트 포함) — 같은 목록·상태 탭에 섞어서 보여준다.
+  //   서버 기능(supabase/labber_1101_launch.sql [C]) 적용 전에는 RPC 가 없으므로 조용히 건너뛴다.
+  try {
+    const { data: upd, error: updErr } = await sb.rpc('list_labber_subject_image_updates', { p_scope: 'admin' });
+    if (updErr) throw updErr;
+    if (upd && upd.success) {
+      (upd.requests || []).forEach(u => {
+        _llSubjectAdminRows.push(Object.assign(u, {
+          _kind: 'update',
+          _nick: u.applicant_nickname || '유저',
+          _subjectName: (u.instance && u.instance.subject_name) || '',
+        }));
+      });
+      _llSubjectAdminRows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+  } catch (e) { console.warn('[labber-lab] SUBJECT 이미지 업데이트 목록 조회 생략:', e.message || e); }
 
   renderSubjectApprovalStatusCounts();
   llRefreshSidebarBadge();   // 사이드바 배지는 디자인+SUBJECT 합산이라 여기서도 갱신해야 승인/반려 직후 바로 반영된다
@@ -1710,7 +1733,80 @@ function subjectCreatorFieldsHtml(row) {
   </dl>`;
 }
 
+// SUBJECT 이미지 업데이트 신청 카드 (2026-11) — 현재 이미지 ↔ 신청 이미지, 변경 설명, 기존 장식 → 장식 변경 → 승인 후 장식.
+// 키트 없이 장식을 추가·교체한 신청(유료 장식 우회)을 운영진이 이미지와 대조할 수 있게 현재 장식은 항상 보여준다.
+function subjectUpdateAccessoryAfter(cur, ops) {
+  const out = [...(cur || [])];
+  (ops || []).forEach(o => {
+    if (o.op === 'replace') { const i = out.indexOf(o.from); if (i >= 0) out[i] = o.name; }
+    else out.push(o.name);
+  });
+  return out;
+}
+
+function subjectUpdateCardHtml(row) {
+  const st = row.status;
+  const inst = row.instance || {};
+  const approved = st === 'approved';
+  const curImg = approved ? row.previous_image_url : inst.image_url;
+  const curAcc = approved ? (row.previous_accessories || []) : (inst.accessories || []);
+  const ops = row.accessory_ops || [];
+  const after = approved ? (row.applied_accessories || []) : subjectUpdateAccessoryAfter(curAcc, ops);
+  const list = (a) => a.length ? a.map(escapeHtml).join(' · ') : '없음';
+  const opsHtml = ops.length
+    ? ops.map(o => o.op === 'replace' ? `${escapeHtml(o.from)} → <b>${escapeHtml(o.name)}</b> (교체)` : `<b>${escapeHtml(o.name)}</b> (추가)`).join('<br>')
+    : '변경 신청 없음 (키트 미사용)';
+  const kitState = { reserved: '예약', consumed: '소비됨', released: '해제됨' }[row.kit_state] || '';
+  const lvNow = Number(inst.level) || 1;
+  const footer = st === 'submitted'
+    ? `<div class="labberlab-admin-controls" data-sctl="${row.id}">
+         <label class="form-label">반려 사유 <span class="llapp-optional">반려할 때만 필수 · 신청자에게 그대로 표시돼요</span></label>
+         <textarea class="form-textarea llapp-reject-reason" rows="3" maxlength="500" placeholder="예: 원본 생물의 대표 특징이 바뀌었어요. / 키트 없이 새 장식이 추가되어 있어요."></textarea>
+         <p class="auth-error labberlab-admin-err"></p>
+         <div class="llapp-admin-btns">
+           <button type="button" class="btn-ghost llapp-reject-btn" data-sact="reject">반려</button>
+           <button type="button" class="btn-secondary" data-sact="approve">승인 (이미지 반영${row.kit_qty ? ' · 키트 소비' : ''})</button>
+         </div>
+       </div>`
+    : (row.reviewed_at ? `<p class="llapp-hint">검토 ${fmtDateTime(row.reviewed_at)}</p>` : '');
+  const reasonBlock = (st === 'rejected' && row.rejection_reason)
+    ? `<div class="labberlab-app-comment is-strong"><span class="labberlab-app-comment-label">반려 사유</span>
+         <p>${escapeHtml(row.rejection_reason).replace(/\n/g, '<br>')}</p></div>`
+    : '';
+  const box = (label, url) => `<figure class="lldu-compare-col"><figcaption>${label}</figcaption>
+      <div class="lldu-compare-img">${url ? `<img src="${escapeHtml(url)}" alt="${label}" loading="lazy" data-open-url="${escapeHtml(url)}">` : '<span>이미지 없음</span>'}</div></figure>`;
+  return `
+  <article class="labberlab-app-card llapp-card" data-id="${row.id}">
+    <div class="labberlab-app-thumb">
+      ${row.image_url ? `<img src="${escapeHtml(row.image_url)}" alt="신청 이미지" loading="lazy" data-full="${escapeHtml(row.image_url)}">` : '<span>이미지 없음</span>'}
+    </div>
+    <div class="labberlab-app-main">
+      <div class="labberlab-app-top">
+        <span class="llapp-legacy">SUBJECT 이미지 업데이트</span>
+        <span class="labberlab-app-status ${LL_SUBJECT_STATUS_CLASS[st] || ''}">${LL_SUBJECT_STATUS_KO[st] || st}</span>
+        <span class="labberlab-app-no">No. ${shortId(row.id)}</span>
+        <span class="labberlab-app-date">신청 ${fmtDateTime(row.created_at)}</span>
+        <span class="labberlab-app-applicant">${escapeHtml(row._nick)}</span>
+      </div>
+      <p class="llapp-hint">SUBJECT: ${escapeHtml(inst.individual_name ? `${inst.individual_name} · ${inst.subject_name || ''}` : (inst.subject_name || ''))}
+        · 현재 Lv.${lvNow}${row.level_at_submit ? ` (신청 시 Lv.${row.level_at_submit})` : ''}${inst.owner_user_id && inst.owner_user_id !== row.user_id ? ' · <b>신청 후 소유자 변경됨</b>' : ''}</p>
+      <div class="lldu-compare">${box(approved ? '이전 이미지' : '현재 이미지', curImg)}<span class="lldu-compare-arrow" aria-hidden="true">→</span>${box('신청 이미지', row.image_url)}</div>
+      <dl class="labberlab-app-fields">
+        <div><dt>변경 설명</dt><dd>${escapeHtml(row.note || '')}</dd></div>
+        <div><dt>${approved ? '이전 장식' : '현재 장식'}</dt><dd>${list(curAcc)}</dd></div>
+        <div><dt>장식 변경</dt><dd>${opsHtml}</dd></div>
+        <div><dt>${approved ? '반영된 장식' : '승인 후 장식'}</dt><dd>${list(after)}</dd></div>
+        ${row.kit_qty ? `<div><dt>${escapeHtml(row.kit_name || '표본장식키트')}</dt><dd>${row.kit_qty}개 ${kitState}</dd></div>` : ''}
+      </dl>
+      <p class="llapp-hint">신청 이미지의 실제 장식 변경이 신청 내용과 같은지 확인해주세요. 키트 없이 장식이 추가·교체됐거나 정체성이 바뀐 경우 반려해주세요.</p>
+      ${reasonBlock}
+      ${footer}
+    </div>
+  </article>`;
+}
+
 function subjectApprovalCardHtml(row) {
+  if (row._kind === 'update') return subjectUpdateCardHtml(row);
   const st = row.status;
 
   const footer = st === 'submitted'
@@ -1780,19 +1876,26 @@ async function subjectApprovalApprove(id, ctl) {
   if (!row) return;
   const errEl = ctl.querySelector('.labberlab-admin-err');
   errEl.textContent = '';
-  if (!confirm(`${row._nick || '신청자'}님의 SUBJECT 등록 신청을 승인할까요?\n예약된 SUBJECT 아이템이 실제로 소비되고 개인연구실에 등록돼요.`)) return;
+  const isUpd = row._kind === 'update';
+  const msg = isUpd
+    ? `${row._nick || '신청자'}님의 SUBJECT 이미지 업데이트를 승인할까요?\nSUBJECT 이미지${row.kit_qty ? `와 장식이 바뀌고 표본장식키트 ${row.kit_qty}개가 소비돼요` : '가 바뀌어요'}. (레벨·EXP·소유자·LABBER 연결은 그대로)`
+    : `${row._nick || '신청자'}님의 SUBJECT 등록 신청을 승인할까요?\n예약된 SUBJECT 아이템이 실제로 소비되고 개인연구실에 등록돼요.`;
+  if (!confirm(msg)) return;
 
   _llSubjectAdminBusy = true;
   llSetCtlBusy(ctl, true);
   try {
-    const { data, error } = await sb.rpc('approve_labber_subject_bag_registration', { p_id: id });
+    const { data, error } = isUpd
+      ? await sb.rpc('approve_labber_subject_image_update', { p_id: id })
+      : await sb.rpc('approve_labber_subject_bag_registration', { p_id: id });
     if (error) throw new Error(error.message);
     if (!data || !data.success) {
       errEl.textContent = llErrText(data);
       if (data && data.error === 'INVALID_STATUS') await loadSubjectApprovalList();
       return;
     }
-    logAdminAction('labber_subject_bag_approve', 'labber_subject_bag_registration', id, row._nick, { instance_id: data.instance_id }).catch(() => {});
+    if (isUpd) logAdminAction('labber_subject_image_update_approve', 'labber_subject_image_update', id, row._nick, { instance_id: row.subject_instance_id, kit_consumed: data.kit_consumed }).catch(() => {});
+    else logAdminAction('labber_subject_bag_approve', 'labber_subject_bag_registration', id, row._nick, { instance_id: data.instance_id }).catch(() => {});
     await loadSubjectApprovalList();
   } catch (err) {
     console.error('[labber-lab] SUBJECT 승인 오류:', err);
@@ -1812,19 +1915,23 @@ async function subjectApprovalReject(id, ctl) {
   errEl.textContent = '';
   if (!reason) { errEl.textContent = '반려 사유를 입력해주세요.'; return; }
   if (reason.length > 500) { errEl.textContent = '반려 사유는 500자 이하로 입력해주세요.'; return; }
-  if (!confirm(`${row._nick || '신청자'}님의 SUBJECT 등록 신청을 반려할까요?\n예약된 아이템은 해제되고 소비되지 않아요.`)) return;
+  const isUpd = row._kind === 'update';
+  if (!confirm(`${row._nick || '신청자'}님의 ${isUpd ? 'SUBJECT 이미지 업데이트' : 'SUBJECT 등록'} 신청을 반려할까요?\n예약된 아이템은 해제되고 소비되지 않아요.${isUpd ? ' 현재 이미지·장식은 그대로 유지돼요.' : ''}`)) return;
 
   _llSubjectAdminBusy = true;
   llSetCtlBusy(ctl, true);
   try {
-    const { data, error } = await sb.rpc('reject_labber_subject_bag_registration', { p_id: id, p_reason: reason });
+    const { data, error } = isUpd
+      ? await sb.rpc('reject_labber_subject_image_update', { p_id: id, p_reason: reason })
+      : await sb.rpc('reject_labber_subject_bag_registration', { p_id: id, p_reason: reason });
     if (error) throw new Error(error.message);
     if (!data || !data.success) {
       errEl.textContent = llErrText(data);
       if (data && data.error === 'INVALID_STATUS') await loadSubjectApprovalList();
       return;
     }
-    logAdminAction('labber_subject_bag_reject', 'labber_subject_bag_registration', id, row._nick, { reason }).catch(() => {});
+    if (isUpd) logAdminAction('labber_subject_image_update_reject', 'labber_subject_image_update', id, row._nick, { reason }).catch(() => {});
+    else logAdminAction('labber_subject_bag_reject', 'labber_subject_bag_registration', id, row._nick, { reason }).catch(() => {});
     await loadSubjectApprovalList();
   } catch (err) {
     console.error('[labber-lab] SUBJECT 반려 오류:', err);

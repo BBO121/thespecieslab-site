@@ -1,6 +1,8 @@
 // ── LABBER 관리소 · 디자인 업데이트 탭 (labber-lab.html #tab-update) ─────────────────
 // 이미 등록된 "내 LABBER" 의 디자인을 바꿔 다시 승인받는 기능. 새 LABBER 최초 승인은 기존 「디자인 승인」 탭 그대로.
 // DB: supabase/labber_design_update_1006.sql
+//     + 2026-11 배양환경키트(POD 데코): supabase/labber_1101_launch.sql [B]
+//       (표본장식키트 = SUBJECT 액세서리는 여기가 아니라 개인연구실 SUBJECT 이미지 업데이트 신청 — js/labber-personal-lab-subject.js)
 //
 //   유저      : LABBER 선택 → 현재 디자인 확인 → 새 디자인(이미지 + 3:4 썸네일 크롭) → POD/INK/CARTRIDGE/SUBJECT(전부 선택)
 //               → 제작 정보(디자이너 필수/아티스트) → 하고 싶은 말 → 임시저장/신청. 반려되면 수정해서 다시 신청.
@@ -25,7 +27,11 @@
   const STATUS_KO = { draft: '작성중', submitted: '승인 대기', approved: '승인', rejected: '반려' };
   const STATUS_CLASS = { draft: 'is-draft', submitted: 'is-pending', approved: 'is-registered', rejected: 'is-rejected' };
   const EVENT_KO = { submitted: '신청', approved: '승인', rejected: '반려' };
-  const SLOT_LABEL = { pod: 'POD', ink: 'INK', cartridge: 'CARTRIDGE' };
+  const SLOT_LABEL = { pod: 'POD', ink: 'INK', cartridge: 'CARTRIDGE', deco: '배양환경키트' };
+  // 배양환경키트 (2026-11) — 서버 제한과 같은 값. 키트 이름은 인벤토리(DB)의 아이템 이름을 우선 쓴다. 레벨 제한 없음.
+  const DECO_KIT = '배양환경키트';
+  const DECO_MAX = 3;
+  const DECO_NAME_MAX = 40;
   const ADMIN_TABS = [
     { key: 'submitted', label: '승인 대기', statuses: ['submitted'] },
     { key: 'approved',  label: '승인',      statuses: ['approved'] },
@@ -48,6 +54,7 @@
     subjects: [],             // 보관소 미배정 SUBJECT instance
     sel: { pod: null, ink: null, subject: null },
     cart: new Set(),          // 추가할 CARTRIDGE item_id
+    deco: { use: false, list: [] },   // 배양환경키트 사용 여부 + 승인 후 데코 [{ name, keep }] (keep=현재 데코 유지, 아니면 새 데코)
     remove: new Set(),        // 제외할 기존 CARTRIDGE trait code
     paths: { character: null, thumbnail: null },
     urls: {},
@@ -98,7 +105,7 @@
       MISSING_THUMBNAIL: '썸네일을 지정해주세요.',
       INVALID_IMAGE_PATH: '이미지 정보가 올바르지 않아요. 이미지를 다시 업로드해주세요.',
       INVALID_ITEM: `${slot} 슬롯에 선택할 수 없는 아이템이에요.`,
-      INSUFFICIENT_ITEM: `${slot} 아이템의 사용 가능한 수량이 부족해요. (보유하지 않았거나 다른 신청에 예약되어 있어요)`,
+      INSUFFICIENT_ITEM: `${d === 'deco' ? DECO_KIT : slot + ' 아이템'}의 사용 가능한 수량이 부족해요. (보유하지 않았거나 다른 신청에 예약되어 있어요)`,
       DUPLICATE_ITEM: '같은 카트리지는 중복해서 선택할 수 없어요.',
       TRAIT_ALREADY_PRESENT: '이 LABBER가 이미 가진 CARTRIDGE예요. 다시 선택할 수 없어요.',
       TRAIT_CODE_MISSING: `${slot} 아이템의 특성 정보가 준비되지 않았어요. 운영진에게 문의해주세요.`,
@@ -116,6 +123,10 @@
       RESERVATION_MISSING: '아이템 예약 정보가 올바르지 않아요.',
       CONSUME_FAILED: `아이템 소비에 실패했어요. 신청자의 보유 수량을 확인해주세요. (${d || ''})`,
       INVALID_PAYLOAD: '요청 형식이 올바르지 않아요.',
+      INVALID_ADDON: `데코 정보가 올바르지 않아요. (데코는 최대 ${DECO_MAX}개예요)`,
+      INVALID_ADDON_NAME: `데코 설명을 1~${DECO_NAME_MAX}자로 입력해주세요.`,
+      INVALID_ADDON_KEEP: '유지할 데코가 현재 LABBER와 맞지 않아요. 화면을 새로고침해주세요.',
+      ADDON_MISMATCH: '데코 정보가 현재 LABBER와 맞지 않아요. 신청을 다시 저장해주세요.',
     };
     return map[res && res.error] || `처리에 실패했어요. (${(res && res.error) || 'unknown'})`;
   }
@@ -172,6 +183,9 @@
     $('updItemPickers').addEventListener('change', onItemChange);
     $('updItemPickers').addEventListener('click', onCartToggle);
     $('updSubjectPicker').addEventListener('change', onSubjectChange);
+    $('updAddonPicker').addEventListener('input', onAddonInput);
+    $('updAddonPicker').addEventListener('change', onAddonInput);
+    $('updAddonPicker').addEventListener('click', onAddonClick);
     $('updCurrent').addEventListener('click', onOpenImage);
     $('updCropCancelBtn').addEventListener('click', onCropCancel);
     $('updCropAsIsBtn').addEventListener('click', onCropAsIs);
@@ -224,11 +238,29 @@
     const lis = items.map(it => {
       const badge = (row.status === 'submitted' && it.state === 'reserved') || (row.status === 'approved' && it.state === 'consumed')
         ? `<b class="llapp-state is-${it.state}">${it.state === 'reserved' ? '예약' : '소비됨'}</b>` : '';
+      const qty = it.qty > 1 ? ` ×${it.qty}` : '';
       return `<li class="llapp-card-item">
         <span class="llapp-card-item-img">${llItemImg(it)}</span>
-        <span class="llapp-card-item-txt"><em>${SLOT_LABEL[it.slot] || it.slot}</em><span>${esc(it.name || '아이템')}</span>${badge}</span>
+        <span class="llapp-card-item-txt"><em>${SLOT_LABEL[it.slot] || it.slot}</em><span>${esc(it.name || '아이템')}${qty}</span>${badge}</span>
       </li>`;
     });
+    // 배양환경키트 데코 계획 — 기존 데코 → 신청 데코 (승인 후엔 previous_design 기준). 운영진이 키트 없는 데코 변경을 이미지와 대조할 수 있게 항상 보여준다.
+    const prevDecor = (row.status === 'approved' && row.previous_design && row.previous_design.decor)
+      || (row.character && row.character.decor) || null;
+    if (Array.isArray(row.decos_after)) {
+      const plan = row.decos_after;
+      const cur = prevDecor ? [...(prevDecor.decos || [])] : [];
+      const before = cur.length ? cur.map(esc).join(' · ') : '없음';
+      plan.filter(p => p.keep).forEach(p => { const i = cur.indexOf(p.name); if (i >= 0) cur.splice(i, 1); });
+      const after = plan.length
+        ? plan.map(p => p.keep ? esc(p.name) : `${esc(p.name)} <b class="lldu-addon-new">새 데코</b>`).join(' · ')
+        : '없음';
+      lis.push(`<li class="llapp-card-item lldu-card-addon">
+        <span class="llapp-card-item-img"><span class="llapp-item-ph">DECO</span></span>
+        <span class="llapp-card-item-txt"><em>POD 데코 변경</em><span>${after}</span>
+          <span class="lldu-addon-before">기존 · ${before}</span>${cur.length ? `<span class="lldu-addon-removed">제거 · ${cur.map(esc).join(' · ')}</span>` : ''}</span>
+      </li>`);
+    }
     (row.remove_cartridge_codes || []).forEach(code => {
       lis.push(`<li class="llapp-card-item lldu-card-remove">
         <span class="llapp-card-item-img"><span class="llapp-item-ph">REMOVE</span></span>
@@ -254,11 +286,13 @@
     const ink = traitList(t.INK).map(traitName).join(', ') || '-';
     const cart = traitList(t.CARTRIDGE).map(traitName).join(', ') || '-';
     const subj = c.current_subject ? subjectLabel(c.current_subject) : '-';
+    const decor = c.decor ? `<div><dt>현재 POD 데코</dt><dd>${esc((c.decor.decos || []).join(', ') || '-')}</dd></div>` : '';
     return `<dl class="labberlab-app-fields lldu-current-traits">
       <div><dt>현재 POD</dt><dd>${esc(pod)}</dd></div>
       <div><dt>현재 INK</dt><dd>${esc(ink)}</dd></div>
       <div><dt>현재 CARTRIDGE</dt><dd>${esc(cart)}</dd></div>
       <div><dt>현재 SUBJECT</dt><dd>${esc(subj)}</dd></div>
+      ${decor}
     </dl>`;
   }
 
@@ -413,6 +447,7 @@
     S.req = null; S.target = null;
     S.sel = { pod: null, ink: null, subject: null };
     S.cart = new Set(); S.remove = new Set();
+    S.deco = { use: false, list: [] };
     S.paths = { character: null, thumbnail: null };
     S.urls = {}; S.inv = []; S.subjects = []; S.targets = [];
     $('updNoteInput').value = '';
@@ -479,6 +514,7 @@
       });
       (row.remove_cartridge_codes || []).forEach(c => S.remove.add(c));
       if (row.subject_instance_id) S.sel.subject = String(row.subject_instance_id);
+      S.deco = initDeco(S.target, row);
       $('updNoteInput').value = row.note || '';
       updateNoteCount();
       if (S.designer) S.designer.setValue(creatorsToPicker(row.designers));
@@ -554,6 +590,7 @@
     S.target = t;
     // 새 신청: 대상에 맞춰 특성 관련 선택 초기화 + 제작 정보를 현재 개체 값으로 미리 채운다
     S.cart = new Set(); S.remove = new Set(); S.sel.subject = null;
+    S.deco = initDeco(t, null);
     if (S.designer) S.designer.setValue(creatorsToPicker(t.designers));
     if (S.artist) S.artist.setValue(creatorsToPicker(t.artists));
     $('updTargetPicker').querySelectorAll('.lldu-target').forEach(l => l.classList.toggle('is-selected', l.querySelector('input').checked));
@@ -564,7 +601,7 @@
   function renderTargetDependent() {
     const t = S.target;
     ['updCurrentGroup', 'updImageGroup', 'updItemGroup', 'updSubjectGroup', 'updCreatorSection', 'updNoteGroup'].forEach(id => llShow(id, !!t));
-    if (!t) { $('updCurrent').innerHTML = ''; return; }
+    if (!t) { $('updCurrent').innerHTML = ''; llShow('updAddonGroup', false); return; }
 
     const img = t.thumbnail_url || t.image_url;
     $('updCurrent').innerHTML = `
@@ -576,6 +613,7 @@
       </div>`;
     renderItemPickers();
     renderSubjectPicker();
+    renderAddonPicker();
   }
 
   // ── ④ 아이템 (전부 선택) ──
@@ -716,6 +754,134 @@
     if (!input) return;
     S.sel.subject = input.value || null;
     $('updSubjectPicker').querySelectorAll('.llapp-item').forEach(l => l.classList.toggle('is-selected', l.querySelector('input').checked));
+  }
+
+  // ── ⑤-2 배양환경키트 — POD 데코 (2026-11, 선택) ──
+  //   '배양환경키트 사용'을 켜면 승인 후 데코 목록 S.deco.list [{ name, keep }] 를 편집한다(최대 3개).
+  //   새 데코(keep=false)가 하나라도 있으면 키트 1개로 전체를 구성/재구성. 현재 데코 체크 해제 = 제거(키트 불필요).
+  //   레벨 제한 없음. 서버가 같은 규칙으로 다시 검증한다(supabase/labber_1101_launch.sql [B]).
+  function decoEnabled(t) { return !!(t && t.decor); }   // 서버(launch [B]) 적용 전에는 decor 가 없다 → 섹션 숨김
+  function curDecos() { return (S.target && S.target.decor && S.target.decor.decos) || []; }
+
+  function initDeco(t, row) {
+    const cur = (t && t.decor && t.decor.decos) || [];
+    if (row && Array.isArray(row.decos_after)) {
+      return { use: true, list: row.decos_after.map(p => ({ name: p.name, keep: !!p.keep })) };
+    }
+    return { use: false, list: cur.map(name => ({ name, keep: true })) };
+  }
+
+  function decoKit() { return S.inv.find(i => i.slot === 'deco') || null; }
+  function decoKitName() { const k = decoKit(); return (k && k.name) || DECO_KIT; }
+  function decoNewCount() { return S.deco.use ? S.deco.list.filter(a => !a.keep).length : 0; }
+  function decoNeed() { return Math.min(decoNewCount(), 1); }
+  function decoAvailable() { const k = decoKit(); return k ? k.available : 0; }
+
+  function renderAddonPicker() {
+    const t = S.target;
+    const on = decoEnabled(t);
+    llShow('updAddonGroup', on);
+    const host = $('updAddonPicker');
+    if (!on) { host.innerHTML = ''; return; }
+    const kit = decoKit();
+    const kitName = decoKitName();
+    const stock = `${esc(kitName)} 보유 ${kit ? kit.quantity : 0} · 사용 가능 ${decoAvailable()}`;
+    const head = `
+      <label class="lldu-remove lldu-deco-toggle">
+        <input type="checkbox" data-deco-use${S.deco.use ? ' checked' : ''}>
+        <span>${esc(kitName)} 사용 <span class="llapp-optional">POD 내부 데코 구성·변경</span></span>
+      </label>
+      <p class="form-hint">키트 1개로 데코를 최대 ${DECO_MAX}개까지 한 번에 구성해요. 기존 데코를 바꿀 때도 1개로 전체를 다시 구성해요. 신청 이미지에 변경할 데코가 반영되어 있어야 해요.</p>
+      <p class="llapp-cart-summary">${stock}</p>`;
+    if (!S.deco.use) { host.innerHTML = head; return; }
+
+    const cur = curDecos();
+    const pool = S.deco.list.filter(a => a.keep).map(a => a.name);
+    const curHtml = cur.length
+      ? `<div class="lldu-remove-list">${cur.map((name, ci) => {
+          const pi = pool.indexOf(name);
+          const keep = pi >= 0;
+          if (keep) pool.splice(pi, 1);
+          return `<label class="lldu-remove"><input type="checkbox" data-deco-keep="${ci}"${keep ? ' checked' : ''}><span>${esc(name)}</span></label>`;
+        }).join('')}</div>`
+      : '<p class="llapp-hint">현재 데코가 없어요.</p>';
+    const fresh = S.deco.list.map((a, i) => ({ a, i })).filter(x => !x.a.keep);
+    const freshHtml = fresh.map(x => `
+      <div class="lldu-addon-row">
+        <input type="text" class="form-input" maxlength="${DECO_NAME_MAX}" data-deco-name="${x.i}" value="${esc(x.a.name)}"
+               placeholder="예: 별가루 · 반짝이(반복 소형 장식은 1개) / 인형 · 이불 · 베개(각각 1개)">
+        <button type="button" class="btn-ghost llapp-mini-btn" data-deco-del="${x.i}">삭제</button>
+      </div>`).join('');
+    const kitOk = decoNewCount() > 0 || decoAvailable() >= 1;
+    const addDisabled = S.deco.list.length >= DECO_MAX || !kitOk;
+    const need = decoNeed();
+    host.innerHTML = `${head}
+      <div class="lldu-addon">
+        <p class="lldu-addon-sub">현재 데코 <span class="llapp-optional">체크 해제 = 이번 디자인에서 제거 (제거만 할 땐 키트 불필요)</span></p>
+        ${curHtml}
+        <p class="lldu-addon-sub">새 데코 <span class="llapp-optional">반복 소형 장식(별가루·반짝이 등)은 1개, 독립 대형 오브젝트(인형·이불·베개 등)는 각각 1개 · 최종 개수는 운영진 심사</span></p>
+        ${freshHtml}
+        <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-add${addDisabled ? ' disabled' : ''}>+ 데코 추가</button>
+        <p class="llapp-cart-summary">신청 후 데코 ${S.deco.list.length} / ${DECO_MAX}${need ? ` → 이번 신청에 ${esc(kitName)} <b>1개</b> 사용` : ' · 키트 사용 없음'}</p>
+      </div>
+      <p class="form-hint lldu-addon-warn">⚠ 제거한 데코를 다시 넣으려면 키트가 새로 필요해요. 이미 사용한 키트는 돌아오지 않으니 신중히 제거해주세요.</p>`;
+  }
+
+  function onAddonInput(e) {
+    const inp = e.target.closest('input[data-deco-name]');
+    if (inp) {
+      const it = S.deco.list[Number(inp.dataset.decoName)];
+      if (it) it.name = inp.value;
+      return;
+    }
+    if (e.type !== 'change') return;
+    if (e.target.closest('input[data-deco-use]')) {
+      S.deco.use = e.target.checked;
+      if (!S.deco.use) S.deco.list = curDecos().map(name => ({ name, keep: true }));   // 끄면 현재 데코 그대로
+      renderAddonPicker();
+      return;
+    }
+    const cb = e.target.closest('input[data-deco-keep]');
+    if (cb) {
+      const name = curDecos()[Number(cb.dataset.decoKeep)];
+      if (cb.checked) {
+        if (S.deco.list.length >= DECO_MAX) { cb.checked = false; setInfo(`데코는 최대 ${DECO_MAX}개예요.`); return; }
+        S.deco.list.push({ name, keep: true });
+      } else {
+        const i = S.deco.list.findIndex(a => a.keep && a.name === name);
+        if (i >= 0) S.deco.list.splice(i, 1);
+      }
+      renderAddonPicker();
+    }
+  }
+
+  function onAddonClick(e) {
+    const add = e.target.closest('[data-deco-add]');
+    if (add && !add.disabled) {
+      S.deco.list.push({ name: '', keep: false });
+      renderAddonPicker();
+      const inputs = $('updAddonPicker').querySelectorAll('input[data-deco-name]');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+      return;
+    }
+    const del = e.target.closest('[data-deco-del]');
+    if (del) {
+      S.deco.list.splice(Number(del.dataset.decoDel), 1);
+      renderAddonPicker();
+    }
+  }
+
+  // 서버에 보낼 데코 계획 — 사용 안 함 = null(현재 데코 유지). 빈 칸은 임시저장에서 제외(신청은 addonMissing 이 막는다)
+  function decoPayload() {
+    if (!S.deco.use) return null;
+    return S.deco.list.map(a => ({ name: String(a.name || '').trim(), keep: !!a.keep })).filter(a => a.keep || a.name);
+  }
+
+  function addonMissing() {
+    if (!decoEnabled(S.target) || !S.deco.use) return '';
+    if (S.deco.list.some(a => !a.keep && !String(a.name || '').trim())) return '새 데코 설명을 입력하거나 빈 칸을 삭제해주세요.';
+    if (decoNeed() > decoAvailable()) return `${decoKitName()}이(가) 부족해요. (필요 1 · 사용 가능 ${decoAvailable()})`;
+    return '';
   }
 
   // ── ③ 새 디자인 이미지 + 썸네일 크롭 (디자인 승인과 같은 처리) ──
@@ -862,6 +1028,7 @@
         designers: S.designer ? S.designer.getValue() : [],
         artists: S.artist ? S.artist.getValue() : [],
       };
+      if (decoEnabled(S.target)) payload.decos = decoPayload();   // null = 배양환경키트 사용 안 함
       const data = await rpc('save_labber_design_update_draft', { p_id: id, p_payload: payload });
       if (!data || !data.success) throw new Error(errText(data));
 
@@ -898,7 +1065,7 @@
     if (!(S.pending.character || S.paths.character)) return '새 디자인 이미지를 업로드해주세요.';
     if (!(S.pending.thumbnail || S.paths.thumbnail)) return '썸네일을 지정해주세요. (이미지를 다시 선택하거나 "썸네일 편집"을 눌러주세요)';
     if (S.designer && !S.designer.count()) return '개체 디자이너를 1명 이상 추가해주세요.';
-    return '';
+    return addonMissing();
   }
 
   async function onSubmit() {
@@ -906,8 +1073,11 @@
     setError(''); setInfo('');
     const missing = missingForSubmit();
     if (missing) { setError(missing); return; }
-    const usesItems = S.sel.pod || S.sel.ink || S.cart.size;
-    if (!confirm(`디자인 업데이트를 신청할까요?\n신청하면 심사가 끝날 때까지 수정할 수 없어요.${usesItems ? '\n선택한 아이템은 심사 동안 예약되고, 승인되면 소비돼요. 반려되면 예약만 해제돼요.' : ''}`)) return;
+    const decoOn = decoEnabled(S.target) && S.deco.use;
+    const kitUse = decoOn && decoNeed() ? `${decoKitName()} 1개` : '';
+    const usesItems = S.sel.pod || S.sel.ink || S.cart.size || kitUse;
+    const removed = decoOn ? Math.max(curDecos().length - S.deco.list.filter(a => a.keep).length, 0) : 0;
+    if (!confirm(`디자인 업데이트를 신청할까요?\n신청하면 심사가 끝날 때까지 수정할 수 없어요.${usesItems ? '\n선택한 아이템은 심사 동안 예약되고, 승인되면 소비돼요. 반려되면 예약만 해제돼요.' : ''}${kitUse ? `\n사용할 키트: ${kitUse}` : ''}${removed ? `\n제거하는 데코 ${removed}개는 다시 넣을 때 키트가 새로 필요해요.` : ''}`)) return;
 
     setBusy(true, '신청 중...');
     try {
@@ -1058,7 +1228,7 @@
     const errEl = ctl.querySelector('.labberlab-admin-err');
     errEl.textContent = '';
     const c = row.character || {};
-    if (!confirm(`${row.applicant_nickname || '신청자'}님의 「${labberName(c)}」 디자인 업데이트를 승인할까요?\n새 디자인이 LABBER에 반영되고${(row.items || []).length ? ', 예약된 아이템이 소비돼요' : '요'}.${row.subject_instance ? '\n선택한 SUBJECT가 장착돼요(현재 SUBJECT는 해제).' : ''}`)) return;
+    if (!confirm(`${row.applicant_nickname || '신청자'}님의 「${labberName(c)}」 디자인 업데이트를 승인할까요?\n새 디자인이 LABBER에 반영되고${(row.items || []).length ? ', 예약된 아이템이 소비돼요' : '요'}.${row.subject_instance ? '\n선택한 SUBJECT가 장착돼요(현재 SUBJECT는 해제).' : ''}${row.decos_after ? '\nPOD 데코 기록이 신청 내용으로 바뀌어요. (데코 개수·규정은 이미지로 확인해주세요)' : ''}`)) return;
 
     S.adminBusy = true;
     ctlBusy(ctl, true);

@@ -192,6 +192,7 @@ window.PersonalLabSubject = (function () {
 
     renderNameEditBox(r);
     renderEditBox(r);
+    renderUpdateBox(r);
 
     document.getElementById('labberSubjectDetailActions').innerHTML = r.is_assigned
       ? `<button type="button" onclick="PersonalLabSubject.detach(${r.instance_id})">분리</button>`
@@ -447,6 +448,267 @@ window.PersonalLabSubject = (function () {
 
   // (이미지 업로드/교체/삭제 경로는 2026-10-01 제거 — 승인된 SUBJECT 이미지는 운영진만 변경. set/delete_labber_subject_instance_image 는 서버에서 admin/staff 전용)
 
+  // ── SUBJECT 이미지 업데이트 신청 + 표본장식키트 — 2026-11 ─────────────────
+  // 정책(뽀 확정 2026-10-31): 등록된 SUBJECT 도 정체성을 유지하는 범위에서 새 디자인 이미지를 신청 → 운영진 승인 시
+  // instance 이미지·액세서리만 갱신(레벨·EXP·소유권·LABBER 연결 유지). 즉시 교체 아님. 일반 업데이트는 레벨 제한·키트 없음.
+  //   아이템 사용 = 표본장식키트: 1개당 SUBJECT 에 직접 닿는 장식 1종 추가/교체, 신청 1회 최대 3종, instance Lv.3 이상.
+  //   서버: get_my_subject_image_update_form / submit_ / cancel_labber_subject_image_update (supabase/labber_1101_launch.sql [C])
+  //   신청 이미지는 가방 등록 신청과 같은 public images 버킷 경로(labber-subject-instance/{uid}/...)로 올린다.
+  const UPD_NOTE_MAX = 500;
+  const UPD_NAME_MAX = 40;
+  const UPD_ERR = {
+    NOT_AUTHENTICATED: '로그인이 필요해요.',
+    NOT_INSTANCE_OWNER: '내가 소유한 SUBJECT만 이미지 업데이트를 신청할 수 있어요.',
+    OPEN_REQUEST_EXISTS: '이 SUBJECT는 이미 승인 대기 중인 이미지 업데이트 신청이 있어요.',
+    IMAGE_REQUIRED: '새 디자인 이미지를 첨부해주세요.',
+    INVALID_IMAGE_URL: '이미지 정보가 올바르지 않아요. 다시 첨부해주세요.',
+    INVALID_IMAGE_PATH: '이미지 정보가 올바르지 않아요. 다시 첨부해주세요.',
+    IMAGE_NOT_UPLOADED: '이미지 업로드가 완료되지 않았어요. 잠시 후 다시 시도해주세요.',
+    SAME_IMAGE: '현재 이미지와 같은 이미지예요. 새 이미지를 첨부해주세요.',
+    NOTE_REQUIRED: '변경 설명을 입력해주세요.',
+    NOTE_TOO_LONG: `변경 설명은 ${UPD_NOTE_MAX}자 이하로 입력해주세요.`,
+    INVALID_ACCESSORY: '장식은 신청 1회에 최대 3종까지 신청할 수 있어요.',
+    INVALID_ADDON_NAME: `장식 설명을 1~${UPD_NAME_MAX}자로 입력해주세요.`,
+    INVALID_ACCESSORY_REPLACE: '교체할 기존 장식이 현재 SUBJECT와 맞지 않아요. 새로고침 후 다시 선택해주세요.',
+    ACCESSORY_LEVEL: '표본장식키트는 SUBJECT Lv.3 이상부터 사용할 수 있어요.',
+    INSUFFICIENT_ITEM: '표본장식키트의 사용 가능한 수량이 부족해요. (보유하지 않았거나 다른 신청에 예약되어 있어요)',
+    INVALID_ITEM: '표본장식키트 정보를 찾을 수 없어요. 운영진에게 문의해주세요.',
+    NOT_FOUND: '신청서를 찾을 수 없어요.',
+    INVALID_STATUS: '이미 처리된 신청이에요. 새로고침해 확인해주세요.',
+  };
+  const updErr = (code) => UPD_ERR[code] || `처리에 실패했어요.${code ? ` [${code}]` : ''}`;
+  let _upd = null;   // { instanceId, form, open: bool, useKit, ops: [{op, from, name}], pending: {blob, url, ext}, busy }
+
+  async function renderUpdateBox(r) {
+    const box = document.getElementById('labberSubjectUpdateBox');
+    if (!box) return;
+    box.innerHTML = '';
+    if (_upd && _upd.pending) URL.revokeObjectURL(_upd.pending.url);
+    _upd = { instanceId: r.instance_id, form: null, open: false, useKit: false, ops: [], pending: null, busy: false };
+    const { data, error } = await sb.rpc('get_my_subject_image_update_form', { p_instance_id: r.instance_id });
+    if (!_upd || _upd.instanceId !== r.instance_id) return;
+    if (error || !data || data.success !== true) {
+      // 서버 기능(11/1 [C]) 적용 전이거나 권한 없음 → 섹션을 그리지 않는다
+      if (error) console.warn('[personal-lab-subject] 이미지 업데이트 정보 조회 실패:', error.message);
+      return;
+    }
+    _upd.form = data;
+    drawUpdateBox();
+  }
+
+  function updAccessoryList(f) {
+    const list = (f && f.accessories) || [];
+    return list.length ? list.map(escapeHtml).join(' · ') : '<em>없음</em>';
+  }
+
+  function updOpsHtml(ops) {
+    return (ops || []).map(o => o.op === 'replace'
+      ? `${escapeHtml(o.from)} → <b>${escapeHtml(o.name)}</b> <span class="subj-upd-tag">교체</span>`
+      : `<b>${escapeHtml(o.name)}</b> <span class="subj-upd-tag">추가</span>`).join('<br>');
+  }
+
+  function drawUpdateBox() {
+    const box = document.getElementById('labberSubjectUpdateBox');
+    const f = _upd && _upd.form;
+    if (!box || !f) return;
+    const open = f.open_request;
+    const last = f.last_closed;
+    let body;
+    if (open) {
+      body = `
+        <p class="subj-upd-status">승인 대기 중 · ${formatDate(open.created_at)} 신청</p>
+        <div class="subj-upd-compare">
+          <figure><figcaption>현재</figcaption>${f.image_url ? `<img src="${escapeHtml(f.image_url)}" alt="현재 이미지">` : '<span>없음</span>'}</figure>
+          <figure><figcaption>신청</figcaption><img src="${escapeHtml(open.image_url)}" alt="신청 이미지"></figure>
+        </div>
+        <p class="subj-upd-line"><span>변경 설명</span> ${escapeHtml(open.note || '')}</p>
+        ${(open.accessory_ops || []).length ? `<p class="subj-upd-line"><span>장식 변경</span> ${updOpsHtml(open.accessory_ops)}</p>
+        <p class="subj-upd-line"><span>표본장식키트</span> ${open.kit_qty}개 예약 중 (승인 시 소비 · 반려/취소 시 해제)</p>` : ''}
+        <p class="subj-name-edit-note">승인 전까지 현재 이미지·장식이 그대로 유지돼요.</p>
+        <div class="subj-edit-row"><button type="button" class="is-ghost" onclick="PersonalLabSubject.cancelUpdate('${open.id}')">신청 취소</button></div>`;
+    } else if (!_upd.open) {
+      body = `
+        ${last && last.status === 'rejected' ? `<p class="subj-upd-reject"><span>최근 신청 반려</span> ${escapeHtml(last.rejection_reason || '')}</p>` : ''}
+        <p class="subj-name-edit-note">정체성을 유지하는 범위에서 새 디자인 이미지로 바꾸도록 신청할 수 있어요. 운영진이 승인하면 바뀌어요.</p>
+        <div class="subj-edit-row"><button type="button" onclick="PersonalLabSubject.openUpdateForm()">이미지 업데이트 신청</button></div>`;
+    } else {
+      body = updFormHtml(f);
+    }
+    box.innerHTML = `
+      <div class="subj-edit-section subj-upd">
+        <div class="subj-edit-head"><p class="subj-edit-title">이미지 업데이트</p></div>
+        <p class="subj-upd-line"><span>현재 장식</span> ${updAccessoryList(f)}</p>
+        ${body}
+      </div>`;
+  }
+
+  function updFormHtml(f) {
+    const kit = f.kit;
+    const kitName = (kit && kit.name) || '표본장식키트';
+    const lvOk = Number(f.level) >= Number(f.kit_level || 3);
+    const max = Number(f.max_per_request || 3);
+    const cur = f.accessories || [];
+    const need = _upd.useKit ? _upd.ops.length : 0;
+    const avail = kit ? kit.available : 0;
+    const opsHtml = _upd.ops.map((o, i) => {
+      // 교체 대상 = 현재 장식 − 다른 행이 이미 고른 교체 대상 (같은 이름이 여러 개면 개수만큼 고를 수 있다)
+      const left = [...cur];
+      _upd.ops.forEach((x, j) => {
+        if (j === i || x.op !== 'replace') return;
+        const k = left.indexOf(x.from);
+        if (k >= 0) left.splice(k, 1);
+      });
+      const options = [`<option value="add"${o.op === 'add' ? ' selected' : ''}>새 장식 추가</option>`]
+        .concat([...new Set(left)]
+          .map(n => `<option value="replace:${escapeHtml(n)}"${o.op === 'replace' && o.from === n ? ' selected' : ''}>교체: ${escapeHtml(n)}</option>`));
+      return `<div class="subj-upd-op">
+        <select onchange="PersonalLabSubject.setUpdateOp(${i}, this.value)">${options.join('')}</select>
+        <input type="text" maxlength="${UPD_NAME_MAX}" value="${escapeHtml(o.name)}" placeholder="예: 머리 리본 / 케이프 / 발목 붕대"
+               oninput="PersonalLabSubject.setUpdateOpName(${i}, this.value)">
+        <button type="button" class="is-ghost" onclick="PersonalLabSubject.removeUpdateOp(${i})">삭제</button>
+      </div>`;
+    }).join('');
+    const prev = (_upd.pending && _upd.pending.url) || null;
+    return `
+      <p class="subj-name-edit-note">허용: 그림체·포즈·구도 변경, 작화 보완, 기존 특징을 유지한 세부 표현 조정 · 불가: 원본 생물·연결 종족 변경, 핵심 신체 구조·대표 특징을 바꿔 다른 개체처럼 보이는 변경.
+        기존 SUBJECT 디자인 규정(POD 액체 안에 완전히 잠김 · SD·모에화 가능 · 과도한 크리쳐화 불가 · 원본 생물 특징 유지)도 그대로 적용돼요.</p>
+      <div class="subj-upd-compare">
+        <figure><figcaption>현재</figcaption>${f.image_url ? `<img src="${escapeHtml(f.image_url)}" alt="현재 이미지">` : '<span>없음</span>'}</figure>
+        <figure><figcaption>신청할 이미지</figcaption>${prev ? `<img src="${escapeHtml(prev)}" alt="신청 이미지 미리보기">` : '<span>이미지를 첨부해주세요</span>'}</figure>
+      </div>
+      <input type="file" id="labberSubjectUpdFile" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="PersonalLabSubject.pickUpdateImage(this)">
+      <div class="subj-edit-row"><button type="button" class="is-ghost" onclick="document.getElementById('labberSubjectUpdFile').click()">${prev ? '이미지 다시 선택' : '이미지 첨부'}</button></div>
+      <p class="subj-upd-label">변경 설명 <em>필수</em></p>
+      <textarea id="labberSubjectUpdNote" class="subj-upd-note" rows="3" maxlength="${UPD_NOTE_MAX}" placeholder="무엇을 바꿨는지 적어주세요. 예: 포즈 변경, 꼬리 작화 보완">${escapeHtml(_upd.note || '')}</textarea>
+      <p class="subj-upd-label">아이템 사용 <em>선택</em></p>
+      <label class="subj-upd-kit${lvOk ? '' : ' is-disabled'}">
+        <input type="checkbox" ${_upd.useKit ? 'checked' : ''} ${lvOk ? '' : 'disabled'} onchange="PersonalLabSubject.toggleUpdateKit(this.checked)">
+        <span>${escapeHtml(kitName)} <em>보유 ${kit ? kit.quantity : 0} · 사용 가능 ${avail}</em></span>
+      </label>
+      <p class="subj-name-edit-note">SUBJECT에 직접 닿는 장식을 키트 1개당 1종 추가하거나 교체해요. 신청 1회 최대 ${max}종 · 기존 장식 유지에는 키트가 필요 없어요 · SUBJECT Lv.${f.kit_level || 3} 이상 (현재 Lv.${f.level}).
+        신청 이미지에 신청한 장식이 반영되어 있어야 해요.</p>
+      ${_upd.useKit ? `
+        ${opsHtml}
+        <div class="subj-edit-row"><button type="button" class="is-ghost" ${_upd.ops.length >= max ? 'disabled' : ''} onclick="PersonalLabSubject.addUpdateOp()">+ 장식 추가</button></div>
+        <p class="subj-upd-need">${need ? `${escapeHtml(kitName)} <b>${need}개</b> 사용 (사용 가능 ${avail})` : '장식을 추가해주세요.'}</p>` : ''}
+      <p class="auth-error" id="labberSubjectUpdError"></p>
+      <div class="subj-edit-row">
+        <button type="button" class="is-ghost" onclick="PersonalLabSubject.closeUpdateForm()">닫기</button>
+        <button type="button" id="labberSubjectUpdSubmitBtn" onclick="PersonalLabSubject.submitUpdate()">신청하기</button>
+      </div>`;
+  }
+
+  function keepNote() { const el = document.getElementById('labberSubjectUpdNote'); if (el && _upd) _upd.note = el.value; }
+  function openUpdateForm() { if (!_upd || !_upd.form) return; _upd.open = true; drawUpdateBox(); }
+  function closeUpdateForm() {
+    if (!_upd) return;
+    if (_upd.pending) URL.revokeObjectURL(_upd.pending.url);
+    Object.assign(_upd, { open: false, useKit: false, ops: [], pending: null, note: '' });
+    drawUpdateBox();
+  }
+  function toggleUpdateKit(on) {
+    keepNote();
+    _upd.useKit = !!on;
+    if (_upd.useKit && !_upd.ops.length) _upd.ops.push({ op: 'add', from: null, name: '' });
+    drawUpdateBox();
+  }
+  function addUpdateOp() {
+    keepNote();
+    if (_upd.ops.length >= Number(_upd.form.max_per_request || 3)) return;
+    _upd.ops.push({ op: 'add', from: null, name: '' });
+    drawUpdateBox();
+  }
+  function removeUpdateOp(i) { keepNote(); _upd.ops.splice(i, 1); drawUpdateBox(); }
+  function setUpdateOpName(i, v) { if (_upd.ops[i]) _upd.ops[i].name = v; }
+  function setUpdateOp(i, v) {
+    keepNote();
+    const o = _upd.ops[i];
+    if (!o) return;
+    if (v.startsWith('replace:')) { o.op = 'replace'; o.from = v.slice(8); } else { o.op = 'add'; o.from = null; }
+    drawUpdateBox();
+  }
+
+  async function pickUpdateImage(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    keepNote();
+    const err = document.getElementById('labberSubjectUpdError');
+    try {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.');
+      const blob = await compressImage(file, 800, 0.85, { keepAlpha: true });   // 가방 SUBJECT 등록과 같은 800px · 투명 유지
+      const ext = imageExtOfBlob(blob);
+      if (!['jpg', 'png', 'webp'].includes(ext)) throw new Error('JPG, PNG, WebP 형식의 이미지만 등록할 수 있어요.');
+      if (_upd.pending) URL.revokeObjectURL(_upd.pending.url);
+      _upd.pending = { blob, url: URL.createObjectURL(blob), ext };
+      drawUpdateBox();
+    } catch (e) {
+      if (err) err.textContent = e.message || '이미지를 처리할 수 없어요.';
+    }
+  }
+
+  async function submitUpdate() {
+    if (!_upd || _upd.busy || !_upd.form) return;
+    keepNote();
+    const err = document.getElementById('labberSubjectUpdError');
+    const btn = document.getElementById('labberSubjectUpdSubmitBtn');
+    const fail = (m) => { if (err) err.textContent = m; };
+    fail('');
+    const note = String(_upd.note || '').trim();
+    if (!_upd.pending) return fail('새 디자인 이미지를 첨부해주세요.');
+    if (!note) return fail('변경 설명을 입력해주세요.');
+    const ops = _upd.useKit ? _upd.ops.map(o => ({ op: o.op, from: o.op === 'replace' ? o.from : undefined, name: String(o.name || '').trim() })) : [];
+    if (_upd.useKit && !ops.length) return fail('장식을 1종 이상 추가하거나 아이템 사용을 해제해주세요.');
+    if (ops.some(o => !o.name)) return fail('장식 설명을 입력해주세요.');
+    const kit = _upd.form.kit;
+    if (ops.length && (!kit || kit.available < ops.length)) return fail(`표본장식키트가 부족해요. (필요 ${ops.length} · 사용 가능 ${kit ? kit.available : 0})`);
+    const confirmMsg = `SUBJECT 이미지 업데이트를 신청할까요?\n운영진이 승인하면 이미지${ops.length ? '와 장식' : ''}이 바뀌어요. 승인 전까지는 현재 이미지가 유지돼요.`
+      + (ops.length ? `\n표본장식키트 ${ops.length}개가 예약되고, 승인되면 소비돼요. (반려·취소 시 해제)` : '');
+    if (!confirm(confirmMsg)) return;
+
+    _upd.busy = true;
+    if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
+    let uploadedPath = null;
+    try {
+      const user = await getUser();
+      if (!user) throw new Error('로그인이 필요해요.');
+      const path = `labber-subject-instance/${user.id}/${crypto.randomUUID()}.${_upd.pending.ext}`;
+      const { error: upErr } = await sb.storage.from('images').upload(path, _upd.pending.blob, {
+        contentType: _upd.pending.blob.type || 'image/jpeg', upsert: false,
+      });
+      if (upErr) throw new Error(`이미지 업로드에 실패했어요. (${upErr.message})`);
+      uploadedPath = path;
+      const imageUrl = sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+      const { data, error } = await sb.rpc('submit_labber_subject_image_update', {
+        p_instance_id: _upd.instanceId, p_image_url: imageUrl, p_note: note, p_accessories: ops,
+      });
+      if (error) throw new Error(`신청에 실패했어요. (${error.message})`);
+      if (!data || data.success !== true) throw new Error(updErr(data && data.error));
+      uploadedPath = null;   // 신청 이미지로 쓰인다
+      alert('SUBJECT 이미지 업데이트를 신청했어요.\n운영진이 확인해 승인하면 반영돼요.');
+      const r = _rows.find(x => x.instance_id === _upd.instanceId);
+      if (r) await renderUpdateBox(r);
+    } catch (e) {
+      console.error('[personal-lab-subject] 이미지 업데이트 신청 오류:', e);
+      if (uploadedPath) sb.storage.from('images').remove([uploadedPath]).catch(() => {});
+      fail(e.message || '신청 중 오류가 발생했어요.');
+    } finally {
+      if (_upd) _upd.busy = false;
+      if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
+    }
+  }
+
+  async function cancelUpdate(id) {
+    if (!confirm('이미지 업데이트 신청을 취소할까요?\n예약된 표본장식키트는 해제돼요.')) return;
+    const { data, error } = await sb.rpc('cancel_labber_subject_image_update', { p_id: id });
+    if (error || !data || data.success !== true) {
+      alert(error ? `취소에 실패했어요. (${error.message})` : updErr(data && data.error));
+      return;
+    }
+    const r = _rows.find(x => x.instance_id === (_upd && _upd.instanceId));
+    if (r) await renderUpdateBox(r);
+  }
+
   // ── 분리 ────────────────────────────────────────────────────────────
   async function detach(instanceId) {
     const r = _rows.find(x => x.instance_id === instanceId);
@@ -553,6 +815,16 @@ window.PersonalLabSubject = (function () {
     saveIndividualName,
     toggleCredits,
     saveCredits,
+    openUpdateForm,
+    closeUpdateForm,
+    toggleUpdateKit,
+    addUpdateOp,
+    removeUpdateOp,
+    setUpdateOp,
+    setUpdateOpName,
+    pickUpdateImage,
+    submitUpdate,
+    cancelUpdate,
     detach,
     openAssignModal,
     closeAssignModal,

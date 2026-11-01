@@ -165,6 +165,7 @@ async function onAmpStart() {
   _ampBusy = false;
   _ampEl('labberAmpStage').classList.remove('is-working');
   renderAmpStats();
+  window.syncLabberAchievements?.({ afterActivity: true });   // 증폭 업적 즉시 판정(서버 검증, 실패해도 실험 결과 무관)
 }
 
 // 실패: 성공 연출 없이 오류 메시지 + 버튼 복구. 서버 기준으로 상태를 다시 맞춘다.

@@ -167,6 +167,49 @@
     #labberSubjectCreditEditor[hidden] { display: none; }
     #labberSubjectCreditEditor .auth-error:empty { display: none; }
     .subj-name-edit-note { margin: 6px 0 0; font-size: 11px; color: var(--text-mute); }
+    /* SUBJECT 이미지 업데이트 신청 + 표본장식키트 — 2026-11 */
+    #labberSubjectUpdateBox { margin-top: 12px; }
+    #labberSubjectUpdateBox:empty { display: none; }
+    .subj-upd { display: flex; flex-direction: column; gap: 8px; }
+    .subj-upd .subj-edit-title { margin-bottom: 0; }
+    .subj-upd .subj-name-edit-note { margin: 0; line-height: 1.6; }
+    .subj-upd-line { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text); word-break: break-all; }
+    .subj-upd-line > span:first-child { display: inline-block; min-width: 72px; color: var(--text-mute); }
+    .subj-upd-line em { font-style: normal; color: var(--text-mute); }
+    .subj-upd-status { margin: 0; font-size: 12px; font-weight: 700; color: #f0c27a; }
+    .subj-upd-reject { margin: 0; font-size: 12px; color: #f0a0a0; line-height: 1.6; }
+    .subj-upd-reject span { font-weight: 700; margin-right: 6px; }
+    .subj-upd-tag { font-size: 10px; color: var(--sky-dark); }
+    .subj-upd-compare { display: flex; gap: 10px; }
+    .subj-upd-compare figure { flex: 1; margin: 0; min-width: 0; }
+    .subj-upd-compare figcaption { font-size: 11px; color: var(--text-mute); margin-bottom: 4px; }
+    .subj-upd-compare img, .subj-upd-compare figure > span {
+      display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1; object-fit: contain;
+      border: 1px solid var(--border); border-radius: 8px; background: rgba(15, 22, 21, 0.35); font-size: 11px; color: var(--text-mute);
+    }
+    .subj-upd-label { margin: 4px 0 0; font-size: 12px; font-weight: 700; color: var(--text-sub); }
+    .subj-upd-label em { font-style: normal; font-weight: 400; color: var(--text-mute); margin-left: 4px; }
+    .subj-upd-note {
+      width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--white); color: var(--text); font-size: 13px; font-family: inherit; resize: vertical;
+    }
+    .subj-upd-kit { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .subj-upd-kit em { font-style: normal; font-size: 11px; color: var(--text-mute); margin-left: 4px; }
+    .subj-upd-kit.is-disabled { opacity: .5; cursor: not-allowed; }
+    .subj-upd-op { display: flex; gap: 6px; align-items: center; }
+    .subj-upd-op select, .subj-upd-op input {
+      min-width: 0; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--white); color: var(--text); font-size: 12px; font-family: inherit;
+    }
+    .subj-upd-op select { flex: 0 0 40%; }
+    .subj-upd-op input { flex: 1; }
+    .subj-upd-op button { flex: 0 0 auto; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--sky-deep); background: transparent; color: var(--sky-dark); font-size: 12px; cursor: pointer; }
+    .subj-upd-need { margin: 0; font-size: 12px; color: var(--text); }
+    #labberSubjectUpdError:empty { display: none; }
+    @media (max-width: 480px) {
+      .subj-upd-op { flex-wrap: wrap; }
+      .subj-upd-op select { flex: 1 1 100%; }
+    }
 
     #labberSubjectDetailModal .subj-detail-actions { margin-top: 14px; display: flex; gap: 8px; }
     #labberSubjectDetailModal .subj-detail-actions button {
@@ -348,6 +391,7 @@
         <div class="labber-subject-card" id="labberSubjectDetailCard" style="cursor:default;"></div>
         <div id="labberSubjectNameEditBox"></div>
         <div id="labberSubjectEditBox"></div>
+        <div id="labberSubjectUpdateBox"></div>
         <div class="subj-detail-actions" id="labberSubjectDetailActions"></div>
         <div class="subj-holders-section">
           <p class="subj-holders-title">함께한 LABBER</p>
@@ -369,7 +413,7 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.4</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.2.0</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

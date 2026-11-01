@@ -172,6 +172,7 @@ async function claimEventAttendance(code) {
         updateHeaderCurrencyDisplay({ research_records: data.new_research, keys: data.new_keys });
       }
       msg = { type: 'success', text: eventRewardMessage(data) };
+      window.syncLabberAchievements?.({ afterActivity: true });   // 출석 보상 아이템 → LABBER 업적 즉시 판정(서버 검증)
     }
   } catch (e) {
     console.error('[event-attendance] claim 오류:', e);

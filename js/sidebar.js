@@ -892,13 +892,15 @@ async function refreshLabberDesignBadge() {
 
   // LABBER 디자인 승인 대기 + SUBJECT 등록 승인 대기(가방, labber_subject_bag_registrations)를
   // 합산해서 같은 배지 하나로 보여준다(뽀 확정, 2026-09-24 — 새 배지 시스템을 만들지 않는다).
-  const [designRes, subjectRes] = await Promise.all([
+  // 2026-11: + SUBJECT 이미지 업데이트 승인 대기(labber_subject_image_updates). 테이블이 생기기 전(11/1 SQL 전)엔 오류 → 0 으로 센다.
+  const [designRes, subjectRes, subjectUpdRes] = await Promise.all([
     sb.from('labber_design_applications').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
     sb.from('labber_subject_bag_registrations').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
+    sb.from('labber_subject_image_updates').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
   ]);
   if (designRes.error) console.warn('[sidebar] LABBER 심사 대기 수 조회 실패:', designRes.error.message);
   if (subjectRes.error) console.warn('[sidebar] SUBJECT 승인 대기 수 조회 실패:', subjectRes.error.message);
-  const count = (designRes.count || 0) + (subjectRes.count || 0);
+  const count = (designRes.count || 0) + (subjectRes.count || 0) + (subjectUpdRes.error ? 0 : (subjectUpdRes.count || 0));
 
   let badge = document.getElementById('sidebarLabberBadge');
   if (!count) { if (badge) badge.remove(); return; }

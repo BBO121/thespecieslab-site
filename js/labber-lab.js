@@ -42,7 +42,7 @@ const LL_SLOTS = [
   { key: 'pod',       label: 'POD',       required: true,  emptyMsg: '보유 중인 POD 모듈이 없어요.' },
   { key: 'ink',       label: 'INK',       required: true,  emptyMsg: '보유 중인 INK가 없어요.' },
   { key: 'cartridge', label: 'CARTRIDGE', required: false, emptyMsg: '보유 중인 카트리지가 없어요.' },
-  // 2026-11-02 배양환경키트(선택) — 키트 1개로 적용 환경 최대 3개. 서버: supabase/labber_subject_design_1102.sql
+  // 2026-11-02 배양환경키트(선택) — 환경 1개당 키트 1개, 신청 1회 최대 3개. 서버: supabase/labber_subject_design_1102.sql
   { key: 'deco',      label: '배양환경키트', required: false, emptyMsg: '보유 중인 배양환경키트가 없어요.' },
 ];
 const LL_DECO_MAX = 3;
@@ -1132,7 +1132,7 @@ function renderPickers() {
       }).join('');
       body = `<div class="llapp-picker" data-slot="${s.key}" role="radiogroup" aria-label="${s.label}">${none}${cards}</div>`;
     }
-    const optional = s.key === 'cartridge' ? '선택 · 여러 종류 가능 (종류당 1개)' : s.key === 'deco' ? `선택 · 키트 1개로 적용 환경 최대 ${LL_DECO_MAX}개` : '선택';
+    const optional = s.key === 'cartridge' ? '선택 · 여러 종류 가능 (종류당 1개)' : s.key === 'deco' ? `선택 · 환경 1개당 키트 1개 · 최대 ${LL_DECO_MAX}개` : '선택';
     return `<div class="form-group">
       <label class="form-label">${s.label} ${s.required ? '<span class="required">*</span>' : `<span class="llapp-optional">${optional}</span>`}</label>
       ${body}
@@ -1143,6 +1143,10 @@ function renderPickers() {
 }
 
 // ── 배양환경키트 적용 환경 (2026-11-02) — 키트를 골랐을 때만 표시. 최대 ${LL_DECO_MAX}개, 앞뒤 공백 제거·빈 값/중복 불가(서버도 같은 규칙).
+function llDecoAvailable() {
+  const kit = _llInv.find(i => i.item_id === _llSel.deco && i.slot === 'deco');
+  return kit ? Number(kit.available) || 0 : 0;
+}
 function renderDecoEnv() {
   const box = llEl('decoEnvBox');
   if (!box) return;
@@ -1157,16 +1161,20 @@ function renderDecoEnv() {
           <input type="text" class="form-input" maxlength="${LL_DECO_NAME_MAX}" data-deco-env="${i}" value="${escapeHtml(v)}" placeholder="예: 별가루 · 산호 · 작은 인형">
           <button type="button" class="btn-ghost llapp-mini-btn" data-deco-env-del="${i}">삭제</button>
         </div>`).join('')}
-      <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-env-add${_llDecos.length >= LL_DECO_MAX ? ' disabled' : ''}>+ 환경 추가</button>
-      <p class="llapp-cart-summary">환경 개수와 관계없이 배양환경키트 1개가 사용돼요.</p>
+      <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-env-add${_llDecos.length >= Math.min(LL_DECO_MAX, llDecoAvailable()) ? ' disabled' : ''}>+ 환경 추가</button>
+      <p class="llapp-cart-summary">환경 1개당 배양환경키트 1개가 필요해요. 이번 신청에 ${llDecoPayload().length}개 사용 · 사용 가능 ${llDecoAvailable()}개</p>
     </div>`;
 }
 function onDecoEnvInput(e) {
   const inp = e.target.closest('input[data-deco-env]');
-  if (inp) _llDecos[Number(inp.dataset.decoEnv)] = inp.value;
+  if (inp) {
+    _llDecos[Number(inp.dataset.decoEnv)] = inp.value;
+    const summary = llEl('decoEnvBox').querySelector('.llapp-cart-summary');
+    if (summary) summary.textContent = `환경 1개당 배양환경키트 1개가 필요해요. 이번 신청에 ${llDecoPayload().length}개 사용 · 사용 가능 ${llDecoAvailable()}개`;
+  }
 }
 function onDecoEnvClick(e) {
-  if (e.target.closest('[data-deco-env-add]') && _llDecos.length < LL_DECO_MAX) {
+  if (e.target.closest('[data-deco-env-add]') && _llDecos.length < Math.min(LL_DECO_MAX, llDecoAvailable())) {
     _llDecos.push('');
     renderDecoEnv();
     const ins = llEl('decoEnvBox').querySelectorAll('input[data-deco-env]');
@@ -1185,6 +1193,7 @@ function llDecoMissing() {
   if (!_llSel.deco) return '';
   const list = llDecoPayload();
   if (!list.length) return '배양환경키트를 선택했다면 적용 환경을 1개 이상 입력해주세요.';
+  if (list.length > llDecoAvailable()) return `배양환경키트가 부족해요. (필요 ${list.length} · 사용 가능 ${llDecoAvailable()})`;
   if (list.length > LL_DECO_MAX) return `적용 환경은 최대 ${LL_DECO_MAX}개까지 입력할 수 있어요.`;
   if (list.some(v => v.length > LL_DECO_NAME_MAX)) return `적용 환경은 ${LL_DECO_NAME_MAX}자 이하로 입력해주세요.`;
   if (new Set(list.map(v => v.toLowerCase())).size !== list.length) return '같은 적용 환경을 두 번 입력할 수 없어요.';

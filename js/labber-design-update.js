@@ -758,7 +758,7 @@
 
   // ── ⑤-2 배양환경키트 — POD 데코 (2026-11, 선택) ──
   //   '배양환경키트 사용'을 켜면 승인 후 데코 목록 S.deco.list [{ name, keep }] 를 편집한다(최대 3개).
-  //   새 데코(keep=false)가 하나라도 있으면 키트 1개로 전체를 구성/재구성. 현재 데코 체크 해제 = 제거(키트 불필요).
+  //   새 데코(keep=false) 1개당 키트 1개를 사용. 현재 데코 체크 해제 = 제거(키트 불필요).
   //   레벨 제한 없음. 서버가 같은 규칙으로 다시 검증한다(supabase/labber_1101_launch.sql [B]).
   function decoEnabled(t) { return !!(t && t.decor); }   // 서버(launch [B]) 적용 전에는 decor 가 없다 → 섹션 숨김
   function curDecos() { return (S.target && S.target.decor && S.target.decor.decos) || []; }
@@ -774,7 +774,7 @@
   function decoKit() { return S.inv.find(i => i.slot === 'deco') || null; }
   function decoKitName() { const k = decoKit(); return (k && k.name) || DECO_KIT; }
   function decoNewCount() { return S.deco.use ? S.deco.list.filter(a => !a.keep).length : 0; }
-  function decoNeed() { return Math.min(decoNewCount(), 1); }
+  function decoNeed() { return decoNewCount(); }
   function decoAvailable() { const k = decoKit(); return k ? k.available : 0; }
 
   function renderAddonPicker() {
@@ -791,7 +791,7 @@
         <input type="checkbox" data-deco-use${S.deco.use ? ' checked' : ''}>
         <span>${esc(kitName)} 사용 <span class="llapp-optional">적용 환경 구성·변경</span></span>
       </label>
-      <p class="form-hint">디자인에 반영한 배양환경을 최대 ${DECO_MAX}개까지 입력해주세요. 키트 1개로 한 번에 구성하고, 기존 환경을 바꿀 때도 1개로 전체를 다시 구성해요.</p>
+      <p class="form-hint">디자인에 반영한 배양환경을 최대 ${DECO_MAX}개까지 입력해주세요. 새로 추가하거나 교체하는 환경 1개당 키트 1개가 필요해요. 기존 환경 유지·제거에는 키트를 사용하지 않아요.</p>
       <p class="llapp-cart-summary">${stock}</p>`;
     if (!S.deco.use) { host.innerHTML = head; return; }
 
@@ -812,7 +812,7 @@
                placeholder="예: 별가루 · 반짝이(반복 소형 장식은 1개) / 인형 · 이불 · 베개(각각 1개)">
         <button type="button" class="btn-ghost llapp-mini-btn" data-deco-del="${x.i}">삭제</button>
       </div>`).join('');
-    const kitOk = decoNewCount() > 0 || decoAvailable() >= 1;
+    const kitOk = decoNewCount() < decoAvailable();
     const addDisabled = S.deco.list.length >= DECO_MAX || !kitOk;
     const need = decoNeed();
     host.innerHTML = `${head}
@@ -822,7 +822,7 @@
         <p class="lldu-addon-sub">새 적용 환경 <span class="llapp-optional">반복 소형 장식(별가루·반짝이 등)은 1개, 독립 대형 오브젝트(인형·이불·베개 등)는 각각 1개 · 최종 개수는 운영진 심사</span></p>
         ${freshHtml}
         <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-add${addDisabled ? ' disabled' : ''}>+ 환경 추가</button>
-        <p class="llapp-cart-summary">신청 후 적용 환경 ${S.deco.list.length} / ${DECO_MAX}${need ? ` → 이번 신청에 ${esc(kitName)} <b>1개</b> 사용` : ' · 키트 사용 없음'}</p>
+        <p class="llapp-cart-summary">신청 후 적용 환경 ${S.deco.list.length} / ${DECO_MAX}${need ? ` → 이번 신청에 ${esc(kitName)} <b>${need}개</b> 사용` : ' · 키트 사용 없음'}</p>
       </div>
       <p class="form-hint lldu-addon-warn">⚠ 제거한 데코를 다시 넣으려면 키트가 새로 필요해요. 이미 사용한 키트는 돌아오지 않으니 신중히 제거해주세요.</p>`;
   }
@@ -857,7 +857,7 @@
 
   function onAddonClick(e) {
     const add = e.target.closest('[data-deco-add]');
-    if (add && !add.disabled) {
+    if (add && !add.disabled && S.deco.list.length < DECO_MAX && decoNewCount() < decoAvailable()) {
       S.deco.list.push({ name: '', keep: false });
       renderAddonPicker();
       const inputs = $('updAddonPicker').querySelectorAll('input[data-deco-name]');
@@ -880,7 +880,7 @@
   function addonMissing() {
     if (!decoEnabled(S.target) || !S.deco.use) return '';
     if (S.deco.list.some(a => !a.keep && !String(a.name || '').trim())) return '새 데코 설명을 입력하거나 빈 칸을 삭제해주세요.';
-    if (decoNeed() > decoAvailable()) return `${decoKitName()}이(가) 부족해요. (필요 1 · 사용 가능 ${decoAvailable()})`;
+    if (decoNeed() > decoAvailable()) return `${decoKitName()}이(가) 부족해요. (필요 ${decoNeed()} · 사용 가능 ${decoAvailable()})`;
     return '';
   }
 

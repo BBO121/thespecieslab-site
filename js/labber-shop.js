@@ -339,7 +339,7 @@ const LABBER_SHOP_PRODUCTS = [
     currency: 'research_records',
     price: 150,
     designer: '이상어',
-    description: '개인연구실 SUBJECT 디자인 업데이트 신청 1회에 1개를 사용해, SUBJECT에 직접 닿는 장식(리본·케이프·붕대 등)을 최대 3종까지 추가하거나 교체할 수 있다. 레벨 제한 없음 · 1회용.',
+    description: 'SUBJECT에 직접 닿는 장식을 더할 수 있는 키트. 개인연구실 SUBJECT 디자인 업데이트에서 키트 1개당 장식 1종을 추가하거나 교체할 수 있다. (신청 1회 최대 3종)',
   },
   {
     code: 'labber_kit_culture_environment',
@@ -350,7 +350,7 @@ const LABBER_SHOP_PRODUCTS = [
     currency: 'research_records',
     price: 150,
     designer: '이상어',
-    description: 'LABBER 디자인 업데이트에서 POD 내부 데코를 키트 1개로 최대 3개까지 한 번에 구성할 수 있다. 기존 데코를 바꿀 때도 1개로 전체를 다시 구성한다. 1회용.',
+    description: 'POD 내부 배양환경(데코)을 꾸밀 수 있는 키트. LABBER 디자인 신청·디자인 업데이트에서 키트 1개당 데코 1개를 구성할 수 있다. (신청 1회 최대 3개)',
   },
 ];
 

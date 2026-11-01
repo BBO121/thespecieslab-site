@@ -363,7 +363,7 @@ window.PersonalLabSubject = (function () {
   // ── SUBJECT 디자인 업데이트 (표본장식키트) — 2026-11-02 ───────────────────
   // 정책(뽀 확정 2026-11-01): 등록된 SUBJECT 에 장식을 더한 새 디자인을 신청 → 운영진 승인 시 instance 디자인·썸네일·장식만
   // 갱신(레벨·EXP·소유자·LABBER 연결·크레딧 유지). 즉시 교체 아님.
-  //   표본장식키트 필수 · 신청 1건당 1개(예약 → 승인 시 소비 · 반려/취소 시 해제) · 레벨 제한 없음
+  //   표본장식키트 필수 · 장식 1종당 1개(예약 → 승인 시 소비 · 반려/취소 시 해제) · 레벨 제한 없음
   //   적용 장식 1~3종(추가 또는 기존 장식 교체) · 변경 내용 필수 · 새 디자인 + 정사각(1:1) 썸네일 필수
   //   서버: get_my_subject_image_update_form / submit_(5인자) / cancel_labber_subject_image_update (supabase/labber_subject_design_1102.sql)
   //   이미지는 가방 SUBJECT 등록과 같은 public images 버킷 경로(labber-subject-instance/{uid}/...)로 올린다.
@@ -466,7 +466,7 @@ window.PersonalLabSubject = (function () {
       const avail = updKitAvail(f);
       body = `
         ${last && last.status === 'rejected' ? `<p class="subj-upd-reject"><span>최근 신청 반려</span> ${escapeHtml(last.rejection_reason || '')}</p>` : ''}
-        <p class="subj-name-edit-note">${escapeHtml(kitName)} 1개로 SUBJECT에 장식을 더한 새 디자인을 신청할 수 있어요. 운영진이 승인하면 바뀌어요.</p>
+        <p class="subj-name-edit-note">${escapeHtml(kitName)} 1개당 SUBJECT 장식 1종을 추가·교체할 수 있어요. 신청 1회 최대 3종이에요. 운영진이 승인하면 바뀌어요.</p>
         <p class="subj-upd-line"><span>${escapeHtml(kitName)}</span> 보유 ${f.kit ? f.kit.quantity : 0} · 사용 가능 ${avail}</p>
         <div class="subj-edit-row"><button type="button" ${avail < 1 ? 'disabled' : ''} onclick="PersonalLabSubject.openUpdateForm()">디자인 업데이트 신청</button></div>
         ${avail < 1 ? `<p class="subj-name-edit-note">${escapeHtml(kitName)}가 있어야 신청할 수 있어요.</p>` : ''}`;
@@ -484,7 +484,7 @@ window.PersonalLabSubject = (function () {
   function updFormHtml(f) {
     const kit = f.kit;
     const kitName = (kit && kit.name) || '표본장식키트';
-    const max = Number(f.max_per_request || 3);
+    const max = Math.min(3, Number(f.max_per_request || 3));
     const cur = f.accessories || [];
     const avail = updKitAvail(f);
     const opsHtml = _upd.ops.map((o, i) => {
@@ -524,17 +524,17 @@ window.PersonalLabSubject = (function () {
       ${prev ? `<div class="subj-edit-row"><button type="button" class="is-ghost" onclick="PersonalLabSubject.editUpdateThumb()">${thumb ? '썸네일 다시 편집' : '썸네일 만들기'}</button></div>` : ''}
       <p class="subj-upd-label">적용할 장식 <em>필수 · 1~${max}종</em></p>
       ${opsHtml}
-      <div class="subj-edit-row"><button type="button" class="is-ghost" ${_upd.ops.length >= max ? 'disabled' : ''} onclick="PersonalLabSubject.addUpdateOp()">+ 장식 추가</button></div>
+      <div class="subj-edit-row"><button type="button" class="is-ghost" ${_upd.ops.length >= Math.min(max, avail) ? 'disabled' : ''} onclick="PersonalLabSubject.addUpdateOp()">+ 장식 추가</button></div>
       <p class="subj-name-edit-note">새 디자인에 적은 장식이 그려져 있어야 해요. 기존 장식을 바꾸려면 '교체'를 골라주세요.</p>
       <p class="subj-upd-label">변경 내용 <em>필수</em></p>
       <textarea id="labberSubjectUpdNote" class="subj-upd-note" rows="3" maxlength="${UPD_NOTE_MAX}" placeholder="무엇을 바꿨는지 적어주세요. 예: 머리에 리본 장식 추가, 꼬리 작화 보완">${escapeHtml(_upd.note || '')}</textarea>
       <p class="subj-upd-label">사용 아이템 <em>필수</em></p>
-      <p class="subj-upd-need">${escapeHtml(kitName)} <b>1개</b> 사용 <em>보유 ${kit ? kit.quantity : 0} · 사용 가능 ${avail}</em></p>
-      <p class="subj-name-edit-note">신청하면 1개가 예약되고, 승인되면 소비돼요. 반려되거나 취소하면 예약이 풀려요.</p>
+      <p class="subj-upd-need">${escapeHtml(kitName)} <b>${_upd.ops.length}개</b> 사용 <em>보유 ${kit ? kit.quantity : 0} · 사용 가능 ${avail}</em></p>
+      <p class="subj-name-edit-note">장식 1종당 키트 1개가 필요해요. 신청하면 ${_upd.ops.length}개가 예약되고, 승인되면 소비돼요. 반려되거나 취소하면 예약이 풀려요.</p>
       <p class="auth-error" id="labberSubjectUpdError"></p>
       <div class="subj-edit-row">
         <button type="button" class="is-ghost" onclick="PersonalLabSubject.closeUpdateForm()">닫기</button>
-        <button type="button" id="labberSubjectUpdSubmitBtn" ${avail < 1 ? 'disabled' : ''} onclick="PersonalLabSubject.submitUpdate()">신청하기</button>
+        <button type="button" id="labberSubjectUpdSubmitBtn" ${avail < _upd.ops.length ? 'disabled' : ''} onclick="PersonalLabSubject.submitUpdate()">신청하기</button>
       </div>`;
   }
 
@@ -553,7 +553,7 @@ window.PersonalLabSubject = (function () {
   }
   function addUpdateOp() {
     keepNote();
-    if (_upd.ops.length >= Number(_upd.form.max_per_request || 3)) return;
+    if (_upd.ops.length >= Math.min(3, Number(_upd.form.max_per_request || 3), updKitAvail(_upd.form))) return;
     _upd.ops.push({ op: 'add', from: null, name: '' });
     drawUpdateBox();
   }
@@ -678,12 +678,12 @@ window.PersonalLabSubject = (function () {
     const ops = _upd.ops.map(o => ({ op: o.op, from: o.op === 'replace' ? o.from : undefined, name: String(o.name || '').trim() }));
     if (!_upd.pending) return fail('새 디자인 이미지를 첨부해주세요.');
     if (!_upd.thumb) return fail('정사각 썸네일을 만들어주세요.');
-    if (!ops.length) return fail('적용할 장식을 1종 이상 입력해주세요.');
+    if (!ops.length || ops.length > 3) return fail('적용할 장식을 1~3종 입력해주세요.');
     if (ops.some(o => !o.name)) return fail('장식 설명을 입력해주세요.');
     if (!note) return fail('변경 내용을 입력해주세요.');
     const kitName = (_upd.form.kit && _upd.form.kit.name) || '표본장식키트';
-    if (updKitAvail(_upd.form) < 1) return fail(`${kitName}가 부족해요. (사용 가능 0)`);
-    if (!confirm(`SUBJECT 디자인 업데이트를 신청할까요?\n운영진이 승인하면 디자인·썸네일·장식이 바뀌어요. 승인 전까지는 현재 디자인이 유지돼요.\n${kitName} 1개가 예약되고, 승인되면 소비돼요. (반려·취소 시 해제)`)) return;
+    if (updKitAvail(_upd.form) < ops.length) return fail(`${kitName}가 부족해요. (필요 ${ops.length} · 사용 가능 ${updKitAvail(_upd.form)})`);
+    if (!confirm(`SUBJECT 디자인 업데이트를 신청할까요?\n운영진이 승인하면 디자인·썸네일·장식이 바뀌어요. 승인 전까지는 현재 디자인이 유지돼요.\n${kitName} ${ops.length}개가 예약되고, 승인되면 소비돼요. (반려·취소 시 해제)`)) return;
 
     _upd.busy = true;
     if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }

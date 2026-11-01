@@ -106,6 +106,15 @@
     /* 상세 모달 — 종족연구소 표준 .modal-overlay/.shop-detail-card/-close 재사용.
        닫기 X는 이 모달 안에서만 카드 border와 안 겹치도록 여백을 더 준다(전역 .shop-detail-close
        는 무수정 — 다른 모달에 영향 없음). 상단 패딩을 넉넉히 줘서 카드가 X 아래로 확실히 내려온다. */
+    /* 긴 상세 내용도 현재 화면 안에서 끝까지 스크롤할 수 있게 제한한다. */
+    #labberSubjectDetailModal .shop-detail-card,
+    #labberSubjectAssignModal .shop-detail-card {
+      max-height: calc(100vh - 48px);
+      max-height: calc(100dvh - 48px);
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
     #labberSubjectDetailModal .shop-detail-close,
     #labberSubjectAssignModal .shop-detail-close { top: 14px; right: 14px; }
     #labberSubjectDetailModal .subj-detail-body,

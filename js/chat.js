@@ -135,6 +135,7 @@ function closeDmPanel() {
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
+  if (document.querySelector('.cr-pop')) return;   // 이모지 반응 선택창이 열려 있으면 그것만 닫는다(comment-reactions.js 가 처리)
   const viewer = document.getElementById('dmImgViewerOverlay');
   if (viewer && viewer.style.display === 'flex') { dmCloseImageViewer(); return; }   // 뷰어가 열려있으면 뷰어만 먼저 닫음
   closeDmPanel();
@@ -535,6 +536,7 @@ async function dmLoadMessages(roomId) {
 
   area.innerHTML = msgs.map(m => dmRenderMessageRow(m, user.id, refDataMap, attachMap)).join('');
   dmScrollToBottom();
+  dmRefreshReactions(roomId);   // 이모지 반응 — 표시한 메시지 id 묶음 1회 조회
 }
 
 // content는 반드시 escape 후 삽입 — \n → <br> 치환은 escape 이후에만 수행해야
@@ -574,13 +576,24 @@ function dmRenderMessageRow(m, myId, refDataMap, attachMap) {
     </div>
   ` : '';
 
+  // 이모지 반응 (js/comment-reactions.js — dmEnsureReactions 가 처음 쓸 때 불러옴). 삭제·system 메시지는 대상 아님
+  //   · 반응이 있을 때만 말풍선 아래 줄을 보인다(없으면 hidden — 빈 공간 없음)
+  //   · 여는 방법: 모바일 = 말풍선 길게 누르기(500ms), PC = 마우스 올림/키보드 포커스 때 나타나는 작은 버튼
+  const canReact = !m.deleted_at && m.message_type !== 'system' && Number.isSafeInteger(Number(m.id));
+  const reactHtml = canReact ? `<div class="dm-msg-reactions" hidden><span class="cr-bar" data-cr-cid="${Number(m.id)}"></span></div>` : '';
+  const reactBtnHtml = canReact
+    ? `<button type="button" class="dm-react-btn" data-dm-react="${Number(m.id)}" aria-haspopup="true" aria-expanded="false" aria-label="이 메시지에 반응 추가" title="반응 추가"><img class="dm-react-img" src="${dmAssetUrl('../images/icons/reaction-thumbs-up.png')}" alt="" width="18" height="18" decoding="async" draggable="false"></button>`
+    : '';
+
   return `
-    <div class="dm-msg-row${isMine ? ' dm-msg-row--mine' : ''}" data-msg-id="${m.id}">
+    <div class="dm-msg-row${isMine ? ' dm-msg-row--mine' : ''}${canReact ? ' has-cr' : ''}" data-msg-id="${m.id}">
       <div class="dm-msg-bubble ${bubbleClass}">${bodyHtml}</div>
       <div class="dm-msg-meta">
         <span class="dm-msg-time">${time}</span>
         ${menuHtml}
+        ${reactBtnHtml}
       </div>
+      ${reactHtml}
     </div>
   `;
 }
@@ -593,6 +606,7 @@ function dmAppendMessage(msg, myId, refDataMap, attachMap) {
   const empty = area.querySelector('.dm-panel-placeholder');
   if (empty) empty.remove();
   area.insertAdjacentHTML('beforeend', dmRenderMessageRow(msg, myId, refDataMap, attachMap));
+  if (_dmCurrentRoomId) dmRefreshReactions(_dmCurrentRoomId);
 }
 
 function dmScrollToBottom() {
@@ -799,6 +813,7 @@ document.addEventListener('visibilitychange', () => {
   const overlay = document.getElementById('dmPanelOverlay');
   if (overlay && overlay.style.display === 'flex') {
     dmMarkRoomRead(_dmCurrentRoomId);
+    dmRefreshReactions(_dmCurrentRoomId);   // 자리를 비운 동안 상대가 남긴 반응 반영
   }
 });
 
@@ -1680,6 +1695,139 @@ function dmMarkMessageDeletedInDom(messageId) {
   }
   const menuWrap = row.querySelector('.dm-msg-menu-wrap');
   if (menuWrap) menuWrap.remove();   // 삭제된 메시지는 더 이상 삭제 메뉴를 가질 필요 없음
+  const reactWrap = row.querySelector('.dm-msg-reactions');
+  if (reactWrap) reactWrap.remove();  // 삭제된 메시지의 반응은 서버 트리거가 지운다
+  const reactBtn = row.querySelector('.dm-react-btn');
+  if (reactBtn) reactBtn.remove();
+  row.classList.remove('has-cr');
+}
+
+// ────────────────────────────────
+// 메시지 이모지 반응 (2026-11-07) — supabase/dm_message_reactions_apply_1107.sql
+//   · 공용 모듈 js/comment-reactions.js + css/comment-reactions.css 를 처음 쓸 때 한 번만 불러온다
+//     (chat.js 는 모든 페이지에 있으므로 페이지마다 태그를 넣지 않는다)
+//   · 상대 반응은 실시간 구독 없이 방 열기 / 새 메시지 / 탭 복귀 때 다시 조회
+// ────────────────────────────────
+let _dmReactions = null;
+let _dmReactionsLoading = null;
+let _dmReactionsTimer = null;
+
+function dmAssetUrl(rel) {
+  const me = document.querySelector('script[src*="js/chat.js"]');
+  return new URL(rel, me ? me.src : location.href).href;   // chat.js 위치 기준 (pages/ 아래 → ../js/…)
+}
+
+function dmEnsureReactions() {
+  if (_dmReactions) return Promise.resolve(_dmReactions);
+  if (_dmReactionsLoading) return _dmReactionsLoading;
+  _dmReactionsLoading = new Promise((resolve) => {
+    if (!document.querySelector('link[href*="css/comment-reactions.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = dmAssetUrl('../css/comment-reactions.css?v=20261107-artwork');
+      document.head.appendChild(link);
+    }
+    const make = () => {
+      if (typeof window.createCommentReactions !== 'function') { resolve(null); return; }
+      _dmReactions = window.createCommentReactions({
+        summaryRpc: 'dm_message_reaction_summary',
+        setRpc:     'set_dm_message_reaction',
+        isLoggedIn: () => true,   // DM 패널은 로그인 상태에서만 열린다
+        showAdd:    false,        // DM 은 묶음 안에 [반응 추가] 버튼을 두지 않는다(길게 누르기 / 작은 버튼으로 연다)
+        onRender:   (bar, hasChips) => {
+          const wrap = bar.closest('.dm-msg-reactions');
+          if (wrap) wrap.hidden = !hasChips;
+        },
+      });
+      resolve(_dmReactions);
+    };
+    if (typeof window.createCommentReactions === 'function') { make(); return; }
+    const sc = document.createElement('script');
+    sc.src = dmAssetUrl('comment-reactions.js?v=20261107-artwork');
+    sc.onload = make;
+    sc.onerror = () => { console.warn('[DM] 반응 모듈을 불러오지 못했어요'); resolve(null); };
+    document.head.appendChild(sc);
+  }).then(r => { if (!r) _dmReactionsLoading = null; return r; });
+  return _dmReactionsLoading;
+}
+
+// ── 반응 선택창 여는 방법 (DM 전용) ──
+//   · PC: 말풍선 줄에 마우스를 올리거나 키보드 포커스가 들어오면 .dm-react-btn 이 보인다(CSS) → 클릭 = 선택창
+//   · 모바일(터치): 말풍선을 500ms 길게 누르면 선택창. 10px 넘게 움직이거나 손을 떼거나 터치가 취소되거나
+//     목록이 스크롤되면 취소한다.
+//   · 텍스트 선택·복사, 링크, 이미지 보기, ⋯ 메뉴는 그대로 둔다 — 브라우저 기본 동작(선택·길게 누르기 메뉴)은 막지 않고,
+//     "길게 누르기로 선택창이 열렸을 때"만 손을 뗄 때 생기는 클릭 1번(이미지 뷰어가 같이 열리는 것)을 무시한다.
+//   · 안드로이드는 길게 누르기 중 contextmenu 가 500ms 전에 올 수 있다 → 그때 바로 선택창을 연다(메뉴는 막지 않음).
+const DM_LONG_PRESS_MS = 500;
+const DM_LONG_PRESS_MOVE = 10;
+function dmBindReactionEntry(area) {
+  if (area.__dmReactEntry) return;
+  area.__dmReactEntry = true;
+  let lp = null;              // { timer, x, y, id, bubble }
+  let firedAt = 0;            // 길게 누르기로 연 시각 — 직후 클릭/contextmenu 1번만 무시
+  const cancel = () => { if (lp) { clearTimeout(lp.timer); lp = null; } };
+
+  area.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.dm-react-btn');
+    if (!btn || !area.contains(btn)) return;
+    e.preventDefault();
+    const ctl = await dmEnsureReactions();
+    if (!ctl) return;
+    const id = btn.dataset.dmReact;
+    if (ctl.isOpenFor(id, btn)) { ctl.closePicker(); return; }
+    const row = btn.closest('.dm-msg-row');
+    const bubble = row && row.querySelector('.dm-msg-bubble');
+    ctl.openPicker(id, bubble || btn, { trigger: btn, returnFocus: btn, align: row && row.classList.contains('dm-msg-row--mine') ? 'end' : 'start' });
+  });
+
+  area.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch' || !e.isPrimary) return;
+    const bubble = e.target.closest('.dm-msg-bubble');
+    const row = bubble && bubble.closest('.dm-msg-row.has-cr');
+    if (!row || !area.contains(row)) return;
+    if (e.target.closest('a, button, input, textarea, select, [contenteditable="true"]')) return;   // 링크·버튼은 원래 동작
+    const id = row.querySelector('.dm-react-btn')?.dataset.dmReact;
+    if (!id) return;
+    cancel();
+    const fire = async () => {
+      const cur = lp; if (!cur) return;
+      clearTimeout(cur.timer); lp = null;
+      if (!cur.bubble.isConnected) return;
+      firedAt = Date.now();
+      const ctl = await dmEnsureReactions();
+      if (!ctl) return;
+      ctl.openPicker(cur.id, cur.bubble, { align: row.classList.contains('dm-msg-row--mine') ? 'end' : 'start', focus: false });
+    };
+    lp = { x: e.clientX, y: e.clientY, id, bubble, fire, timer: setTimeout(fire, DM_LONG_PRESS_MS) };
+  });
+  area.addEventListener('pointermove', (e) => {
+    if (lp && (Math.abs(e.clientX - lp.x) > DM_LONG_PRESS_MOVE || Math.abs(e.clientY - lp.y) > DM_LONG_PRESS_MOVE)) cancel();
+  });
+  area.addEventListener('pointerup', cancel);
+  area.addEventListener('pointercancel', cancel);     // 브라우저가 스크롤 제스처로 가져가면 여기로 온다
+  area.addEventListener('scroll', cancel, { passive: true });
+  // 길게 누르기로 연 직후에만 — 손을 뗄 때 생기는 클릭(이미지 뷰어 등) 1번 무시
+  area.addEventListener('click', (e) => {
+    if (firedAt && Date.now() - firedAt < 1000) { firedAt = 0; e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  area.addEventListener('contextmenu', () => { if (lp) lp.fire(); });
+}
+
+// 짧은 시간에 여러 번 불려도(새 메시지 연속 도착 등) 한 번만 조회
+function dmRefreshReactions(roomId) {
+  clearTimeout(_dmReactionsTimer);
+  _dmReactionsTimer = setTimeout(async () => {
+    const ctl = await dmEnsureReactions();
+    const area = document.getElementById('dmMessages');
+    if (!ctl || !area || _dmCurrentRoomId !== roomId) return;
+    const ids = [...area.querySelectorAll('.dm-msg-reactions .cr-bar[data-cr-cid]')].map(b => b.dataset.crCid);
+    if (!ids.length) return;
+    const nearBottom = dmIsNearBottom(area);
+    ctl.attach(area);
+    dmBindReactionEntry(area);
+    await ctl.load(ids, area);
+    if (_dmCurrentRoomId === roomId && nearBottom) dmScrollToBottom();   // 반응 줄이 생겨 높이가 늘어도 하단 유지
+  }, 120);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

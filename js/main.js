@@ -98,6 +98,157 @@ function createPager(renderFn, wrapId = 'paginationWrap', pageParam = 'page', pe
 }
 /* ─────────────────────────────────────────── */
 
+/* ── 목록 보기 설정(열 수) 메뉴 ───────────────
+   내 캐릭터(my-characters.html)의 '보기' 메뉴와 같은 동작을 다른 목록 페이지에서 쓰기 위한 공통 유틸.
+   (현재 사용: species-list.html. my-characters.html은 기존 자체 구현 유지)
+   - 'default'(반응형 기본 배치) 또는 2~8열. 이 기기·브라우저 localStorage에만 저장(storageKey는 페이지마다 따로).
+   - 선택한 열 수는 grid 요소의 data-cols 속성으로 적용('기본'이면 속성 제거) — 실제 배치는 페이지 CSS가 담당.
+   - 전역 이름은 이 함수 하나뿐(페이지 인라인 스크립트의 viewCols 등과 충돌하지 않게 전부 내부 변수).
+   마크업(id 기본값):
+     <div class="view-cols" id="viewCols">
+       <button type="button" class="view-cols-btn" id="viewColsBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="viewColsPanel">
+         <span id="viewColsBtnPrev"></span>보기<span class="view-cols-caret" aria-hidden="true">▼</span></button>
+       <div class="view-cols-panel" id="viewColsPanel" role="listbox" aria-label="목록 보기 설정" hidden></div>
+     </div>
+   스타일: style.css .view-cols* / .vc-prev*
+   opts.onChange(val)         — 사용자가 다른 배열을 고른 직후
+   opts.onDefaultColsChange(n) — 화면 크기 변경으로 '기본' 배치의 열 수가 바뀐 직후 */
+function createViewColsMenu(opts) {
+  const o = Object.assign({
+    rootId: 'viewCols', btnId: 'viewColsBtn', btnPrevId: 'viewColsBtnPrev', panelId: 'viewColsPanel',
+    gridId: null, storageKey: null,
+    options: ['default', 2, 3, 4, 5, 6, 7, 8],
+    tabletQuery: '(max-width:1023px)', mobileQuery: '(max-width:767px)',
+    cols: { desktop: 4, tablet: 3, mobile: 2 },
+    onChange: null, onDefaultColsChange: null,
+  }, opts || {});
+
+  const mqTablet = window.matchMedia(o.tabletQuery);
+  const mqMobile = window.matchMedia(o.mobileQuery);
+  const root  = document.getElementById(o.rootId);
+  const btn   = document.getElementById(o.btnId);
+  const prev  = document.getElementById(o.btnPrevId);
+  const panel = document.getElementById(o.panelId);
+  const grid  = document.getElementById(o.gridId);
+  let value = 'default';
+
+  function parse(raw) {
+    if (raw === 'default') return 'default';
+    if (typeof raw === 'string' && /^\d+$/.test(raw) && o.options.includes(Number(raw))) return Number(raw);
+    return null;
+  }
+  function load() {
+    try { return parse(localStorage.getItem(o.storageKey)) || 'default'; }
+    catch (e) { return 'default'; }
+  }
+  function save(val) {
+    try { localStorage.setItem(o.storageKey, String(val)); } catch (e) { /* 저장 불가 — 이번 방문에만 적용 */ }
+  }
+  // 현재 화면 크기의 기본 열 수 — 페이지 grid의 반응형 규칙과 같아야 한다
+  function defaultCols() {
+    return mqMobile.matches ? o.cols.mobile : mqTablet.matches ? o.cols.tablet : o.cols.desktop;
+  }
+  function currentCols() { return value === 'default' ? defaultCols() : value; }
+  function label(val) { return val === 'default' ? '기본 배치' : `${val}열로 보기`; }
+  function previewHtml(n, extraClass = '') {
+    return `<span class="vc-prev ${extraClass}" style="--n:${n}" aria-hidden="true">${'<i></i>'.repeat(n * 2)}</span>`;
+  }
+
+  function renderPanel() {
+    // 열려 있는 동안 다시 그려도(화면 크기 변경) 포커스 위치를 유지
+    const focusedVal = panel.contains(document.activeElement) ? document.activeElement.dataset.val : null;
+    panel.innerHTML = o.options.map(val => {
+      const selected  = val === value;
+      const isDefault = val === 'default';
+      return `<button type="button" role="option" class="view-cols-opt${isDefault ? ' view-cols-opt--default' : ''}"
+          data-val="${val}" aria-selected="${selected}" tabindex="-1"
+          title="${label(val)}" aria-label="${label(val)}${isDefault ? ` (현재 화면 ${defaultCols()}열)` : ''}">
+          ${isDefault ? '<span>기본</span>' : ''}${previewHtml(isDefault ? defaultCols() : val)}
+          <span class="view-cols-check" aria-hidden="true">✓</span>
+        </button>`;
+    }).join('');
+    if (focusedVal) panel.querySelector(`[data-val="${focusedVal}"]`)?.focus();
+  }
+
+  function apply() {
+    if (grid) {
+      if (value === 'default') grid.removeAttribute('data-cols');
+      else grid.setAttribute('data-cols', String(value));
+    }
+    const text = label(value);
+    prev.innerHTML = previewHtml(currentCols(), 'vc-prev--btn');
+    btn.title = `보기 설정: ${text}`;
+    btn.setAttribute('aria-label', `보기 설정: ${text}`);
+    renderPanel();
+  }
+
+  function optionEls() { return [...panel.querySelectorAll('.view-cols-opt')]; }
+  function open() {
+    panel.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    const els = optionEls();
+    (els.find(el => el.getAttribute('aria-selected') === 'true') || els[0]).focus();
+  }
+  function close(returnFocus = true) {
+    if (panel.hidden) return;
+    panel.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    if (returnFocus) btn.focus();
+  }
+  function select(val) {
+    const changed = val !== value;
+    value = val;
+    save(val);
+    apply();
+    close(true);
+    if (changed && o.onChange) o.onChange(val);
+  }
+
+  value = load();
+  apply();
+
+  btn.addEventListener('click', () => panel.hidden ? open() : close(true));
+  btn.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(); }
+  });
+  panel.addEventListener('click', e => {
+    const el = e.target.closest('.view-cols-opt');
+    if (el) select(parse(el.dataset.val));
+  });
+  panel.addEventListener('keydown', e => {
+    const els = optionEls();
+    const i = els.indexOf(document.activeElement);
+    let next = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = els[Math.min(i + 1, els.length - 1)];
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = els[Math.max(i - 1, 0)];
+    else if (e.key === 'Home') next = els[0];
+    else if (e.key === 'End')  next = els[els.length - 1];
+    else if (e.key === 'Escape') { e.preventDefault(); close(true); return; }
+    else if (e.key === 'Tab') { close(false); return; }
+    if (next) { e.preventDefault(); next.focus(); }
+    // Enter/Space는 button 기본 동작(click)으로 선택
+  });
+  document.addEventListener('click', e => {
+    if (!root.contains(e.target)) close(false);
+  });
+  // 화면 크기 변경으로 기본 열 수가 바뀌면 미리보기 갱신 후 페이지에 알림
+  let lastDefault = defaultCols();
+  window.addEventListener('resize', () => {
+    const n = defaultCols();
+    if (n === lastDefault) return;
+    lastDefault = n;
+    apply();
+    if (o.onDefaultColsChange) o.onDefaultColsChange(n);
+  });
+
+  return {
+    get value() { return value; },
+    currentCols,
+    defaultCols,
+  };
+}
+/* ─────────────────────────────────────────── */
+
 // 개체 목록 페이지: URL 쿼리로 필터링
 const grid = document.getElementById('characterGrid');
 const noResult = document.getElementById('noResult');

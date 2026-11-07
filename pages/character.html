@@ -568,6 +568,8 @@
 
     // 원본 이미지 토글 상태
     let _showingOriginal        = false;
+    let _preferOriginal         = false;
+    let _originalRequest        = 0;
     let _origImgUrl             = null;
     let _wmImgUrl               = null;
     let _origAdditionalUrls     = null;  // original_additional_images (on-demand 로드)
@@ -587,6 +589,7 @@
     }
 
     function selectCharStep(order) {
+      ++_originalRequest;
       _currentStep     = order;
       _showingOriginal = false;
 
@@ -608,13 +611,18 @@
       const btn   = document.getElementById('imgToggleBtn');
       if (label) label.textContent = '워터마크 이미지를 보고 있습니다.';
       if (btn)   { btn.textContent = '원본 이미지 보기'; btn.disabled = false; }
+      if (_preferOriginal && btn) toggleOriginalImage(true);
     }
 
-    async function toggleOriginalImage() {
+    async function toggleOriginalImage(preservePreference = false) {
       const btn   = document.getElementById('imgToggleBtn');
       const label = document.getElementById('imgStateLabel');
       const imgEl = document.getElementById('charMainImg');
-      if (!imgEl) return;
+      if (!imgEl || !btn || !label) return;
+      if (!preservePreference) _preferOriginal = !_showingOriginal;
+      const request = ++_originalRequest;
+      const step = _currentStep;
+      const isCurrent = () => request === _originalRequest && step === _currentStep;
 
       // 대표 이미지 Step이 아니면: 해당 Step의 원본을 최초 클릭 시에만 온디맨드 조회 후 캐시
       if (_currentStep !== _mainStepOrder) {
@@ -630,9 +638,11 @@
               .eq('character_id', charId)
               .eq('species_step_id', stepInfo.speciesStepId)
               .single();
+            if (!isCurrent()) return;
             const origUrl = data?.original_image_url || data?.image_url || null;
             if (error || !origUrl) {
               btn.textContent = '원본 이미지 없음';
+              btn.disabled = false;
               return;
             }
             _stepOriginalCache[_currentStep] = origUrl;
@@ -658,8 +668,10 @@
           btn.disabled    = true;
           const { data, error } = await sb.from('characters')
             .select('original_image_url, original_additional_images').eq('id', charId).single();
+          if (!isCurrent()) return;
           if (error || !data?.original_image_url) {
             btn.textContent = '원본 이미지 없음';
+              btn.disabled = false;
             return;
           }
           _origImgUrl         = data.original_image_url;
@@ -677,7 +689,7 @@
           const idx     = parseInt(el.dataset.extraIdx);
           const origUrl = _origAdditionalUrls?.[idx];
           if (origUrl && !/\.gif(\?|$)/i.test(origUrl)) {
-            el.dataset.wmSrc = el.src;
+            if (!el.dataset.wmSrc) el.dataset.wmSrc = el.src;
             el.src = origUrl;
           }
         });
@@ -706,7 +718,7 @@
     let _transferToNick = null;
     let _profileTosMap  = {}; // user_id -> user_profiles.tos (제작자 개인공지/TOS 재사용)
 
-    // 성장 Step 이미지 상태 — 상세페이지 메인 이미지는 항상 image_url(워터마크 적용, 크롭 안 됨) 사용.
+    // 성장 Step 이미지 상태 — 기본 image_url을 사용하고 원본보기 선택 시 해당 Step 원본으로 전환.
     // thumbnail_url은 카드/목록 전용이라 상세페이지에서는 아예 조회하지 않는다.
     // 대표 이미지(characters 기존 이미지)는 species.main_image_step_id로 지정된 Step에서 사용하며,
     // 이 Step은 항상 step_order 1이 아닐 수 있다(성장 순서와 대표 이미지 지정이 분리됨).

@@ -57,6 +57,17 @@
           <button class="species-filter-chip" data-age-filter="restricted">연령 제한 종족만</button>
         </div>
 
+        <!-- 보기 설정(열 수) — 내 캐릭터와 같은 메뉴(main.js createViewColsMenu), 이 기기·브라우저(localStorage)에만 저장 -->
+        <div class="view-cols-row">
+          <div class="view-cols" id="viewCols">
+            <button type="button" class="view-cols-btn" id="viewColsBtn"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="viewColsPanel">
+              <span id="viewColsBtnPrev"></span>보기<span class="view-cols-caret" aria-hidden="true">▼</span>
+            </button>
+            <div class="view-cols-panel" id="viewColsPanel" role="listbox" aria-label="목록 보기 설정" hidden></div>
+          </div>
+        </div>
+
         <!-- 검색 + 정렬 -->
         <div class="list-controls">
           <input type="text" class="list-search" id="searchInput" placeholder="종족 이름으로 검색">
@@ -87,6 +98,83 @@
     }
     .species-filter-chip:hover  { border-color:var(--sky-dark); color:var(--sky-dark); }
     .species-filter-chip.active { background:var(--sky-dark); border-color:var(--sky-dark); color:#fff; }
+
+    /* 보기 설정 행 — 내 캐릭터와 같이 검색바 위 우측 정렬 */
+    .view-cols-row { display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:12px; }
+
+    /* ── 보기 설정(열 수) — data-cols가 있을 때만 화면 크기와 무관하게 선택한 열 수 적용.
+       '기본'은 data-cols를 지워 기존 .species-grid--large 반응형 규칙(4/3/2열)을 그대로 따른다. */
+    #speciesGrid[data-cols] {
+      --sp-cols:4; --sp-gap:14px;
+      grid-template-columns:repeat(var(--sp-cols), minmax(0, 1fr));
+      gap:var(--sp-gap);
+    }
+    #speciesGrid[data-cols="2"] { --sp-cols:2; }
+    #speciesGrid[data-cols="3"] { --sp-cols:3; }
+    #speciesGrid[data-cols="5"] { --sp-cols:5; --sp-gap:12px; }
+    #speciesGrid[data-cols="6"] { --sp-cols:6; --sp-gap:12px; }
+    #speciesGrid[data-cols="7"] { --sp-cols:7; --sp-gap:10px; }
+    #speciesGrid[data-cols="8"] { --sp-cols:8; --sp-gap:10px; }
+    @media (max-width:1023px) {
+      #speciesGrid[data-cols] { --sp-gap:12px; }
+      #speciesGrid[data-cols="5"], #speciesGrid[data-cols="6"] { --sp-gap:10px; }
+      #speciesGrid[data-cols="7"], #speciesGrid[data-cols="8"] { --sp-gap:8px; }
+    }
+    @media (max-width:767px) {
+      #speciesGrid[data-cols] { --sp-gap:6px; }
+      #speciesGrid[data-cols="2"] { --sp-gap:12px; }
+      #speciesGrid[data-cols="3"] { --sp-gap:8px; }
+      #speciesGrid[data-cols="6"], #speciesGrid[data-cols="7"], #speciesGrid[data-cols="8"] { --sp-gap:4px; }
+    }
+    @media (max-width:400px) {
+      #speciesGrid[data-cols="2"] { --sp-gap:8px; }
+      #speciesGrid[data-cols="3"] { --sp-gap:6px; }
+    }
+
+    /* 카드 모서리 — 내 캐릭터와 같은 방식: 목록 폭(100cqi)에서 카드 폭을 계산해 비례 축소(최소 3px, 최대 --radius) */
+    #speciesGrid[data-cols] {
+      container-type:inline-size;
+      --sp-card-w:calc((100cqi - (var(--sp-cols) - 1) * var(--sp-gap)) / var(--sp-cols));
+      --sp-card-radius:clamp(3px, calc(var(--sp-card-w) * 0.078), var(--radius));
+    }
+    #speciesGrid[data-cols] > .species-card { border-radius:var(--sp-card-radius); container-type:inline-size; min-width:0; }
+    #speciesGrid[data-cols] .species-sensitive-wrap { border-radius:var(--sp-card-radius) !important; }
+    #speciesGrid[data-cols] .species-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    /* 좁은 카드 — 열 수를 직접 고른 경우에만, 카드 자체 폭 기준(container query)으로 간격·글자를 줄인다.
+       '기본' 배치는 기존 스타일 그대로(container 미지정 → 아래 @container 규칙 미적용). */
+    @container (max-width:139px) {
+      .species-info { padding:8px 8px 9px; }
+      .species-name { font-size:12px; }
+      .species-age-badge--overlay { top:5px; left:5px; padding:2px 6px; font-size:10px; border-radius:6px; }
+      .sensitive-overlay { padding:6px; }
+      .sensitive-overlay svg { width:20px; height:19px; }
+      .sensitive-overlay-inner { gap:3px; }
+      .sensitive-overlay-title { font-size:12px; }
+      .sensitive-overlay .species-age-badge { padding:2px 6px; font-size:10px; }
+      .sensitive-overlay-note, .sensitive-overlay-hint { font-size:10px; padding:2px 6px; }
+    }
+    @container (max-width:99px) {
+      .species-info { padding:5px 5px 6px; }
+      .species-name { font-size:11px; }
+      .species-age-badge--overlay { top:3px; left:3px; padding:1px 4px; font-size:9px; border-radius:4px; }
+      .sensitive-overlay { padding:3px; }
+      .sensitive-overlay svg { width:15px; height:14px; }
+      .sensitive-overlay-title { font-size:10px; }
+      .sensitive-overlay .species-age-badge { padding:1px 4px; font-size:9px; }
+      .sensitive-overlay-note, .sensitive-overlay-hint { display:none; }
+    }
+    @container (max-width:59px) {
+      .species-info { padding:3px 3px 4px; }
+      .species-name { font-size:10px; }
+      .species-age-badge--overlay { top:2px; left:2px; padding:0 3px; font-size:8px; }
+      .sensitive-overlay-title, .sensitive-overlay .species-age-badge { display:none; }
+      /* 아주 좁은 카드 — 연령 배지는 "15+"로 줄여 카드 밖으로 넘치지 않게 */
+      .species-age-badge--overlay { font-size:0; gap:0; }
+      .species-age-badge--overlay::after { content:attr(data-age) "+"; font-size:8px; }
+    }
+    /* 좁은 카드 안전장치 — 배지가 카드 폭을 넘지 않게 */
+    #speciesGrid[data-cols] .species-age-badge--overlay { max-width:calc(100% - 4px); overflow:hidden; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -98,7 +186,7 @@
   <script src="../js/utils.js?v=20260919"></script>
   <script src="../js/achievements.js"></script>
   <script src="../js/search.js"></script>
-  <script src="../js/main.js"></script>
+  <script src="../js/main.js?v=20261107"></script>
   <script>
     let isInitialLoad = true;
     let openFilter    = 'all';
@@ -106,6 +194,10 @@
     let searchController = null;
     let searchToken   = 0;
     const pager = createPager(render, 'paginationWrap', 'page', 28);
+
+    // 보기 설정(열 수) — 내 캐릭터와 같은 메뉴, 저장 키는 따로(species_list_view_cols).
+    // 카드 배치(#speciesGrid[data-cols])만 바꾼다 — 페이지당 개수(28)·현재 페이지·검색·필터·정렬은 그대로.
+    createViewColsMenu({ gridId: 'speciesGrid', storageKey: 'species_list_view_cols' });
 
     // 전체 종족을 미리 캐싱해 브라우저에서 필터링하는 대신, 검색어/필터가
     // 바뀔 때마다 searchSpecies()로 서버에 직접 요청한다.
@@ -199,9 +291,9 @@
       if (s.is_sensitive && speciesHasVisibleRealImage(s)) {
         const ageBadge = s.age_limit > 0 ? `<span class="species-age-badge">${s.age_limit}세 이상</span>` : '';
         return `
-          <div style="position:relative; overflow:hidden; border-radius:var(--radius);">
+          <div class="species-sensitive-wrap" style="position:relative; overflow:hidden; border-radius:var(--radius);">
             <div class="species-img blurred" style="background-image:url('${imgSrc}'); background-size:cover; background-position:center;"></div>
-            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${ageBadge}${s.sensitive_note ? '<span class="sensitive-overlay-note">' + s.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div class="sensitive-overlay-inner"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span class="sensitive-overlay-title">민감한 요소</span>${ageBadge}${s.sensitive_note ? '<span class="sensitive-overlay-note">' + s.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
           </div>`;
       }
       const displaySrc = resolveSpeciesImage(s);
@@ -209,7 +301,7 @@
         // 연령 제한은 썸네일을 가리는 조건이 아니다 — 썸네일은 정상 노출하고
         // 좌측 상단에 연령 배지만 오버레이한다.
         // (민감 요소로 인한 가림은 위 s.is_sensitive 분기에서 이미 별도로 처리됨)
-        return `<div class="species-img" style="position:relative; background-image:url('${displaySrc}'); background-size:cover; background-position:center;"><span class="species-age-badge species-age-badge--overlay">${s.age_limit}세 이상</span></div>`;
+        return `<div class="species-img" style="position:relative; background-image:url('${displaySrc}'); background-size:cover; background-position:center;"><span class="species-age-badge species-age-badge--overlay" data-age="${s.age_limit}">${s.age_limit}세 이상</span></div>`;
       }
       return `<div class="species-img" style="background-image:url('${displaySrc}'); background-size:cover; background-position:center;"></div>`;
     }

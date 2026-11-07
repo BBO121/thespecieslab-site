@@ -16,6 +16,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>문의 상세 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/comment-reactions.css?v=20261107-artwork">
   <style>
     .inquiry-thread { border-left:2px solid var(--border); padding-left:16px; display:flex; flex-direction:column; gap:14px; }
     .thread-item { position:relative; }
@@ -133,6 +134,7 @@
   <script src="../js/utils.js"></script>
   <script src="../js/main.js?v=20260607"></script>
   <script src="../js/support-attachments.js"></script>
+  <script src="../js/comment-reactions.js?v=20261107-artwork"></script>
   <script>
     const STATUS_STYLE = {
       '접수됨': 'background:#f1f5f9;color:#64748b',
@@ -144,6 +146,15 @@
     let reportNickname = null;
     let currentData = null;
     let currentUser = null;
+    // 댓글 이모지 반응 (js/comment-reactions.js, SQL support_comment_reactions_apply_1106.sql)
+    //   id 가 있는 댓글만 대상(옛 answer/user_reply 로 만든 합성 항목은 제외), 글을 볼 수 있는 사람(글쓴이·운영진)만
+    const commentReactions = createCommentReactions({
+      summaryRpc: 'support_comment_reaction_summary',
+      setRpc:     'set_support_comment_reaction',
+      idType:     'uuid',
+      extraArgs:  () => ({ p_kind: 'inquiry', p_post_id: currentId }),
+      isLoggedIn: () => !!currentUser,
+    });
     // 운영진 = app_metadata.role 이 admin 또는 staff. 조회/댓글작성/상태변경/회신 수정·삭제/
     // 문의 삭제 전부 이 하나의 기준으로 통일. (user_metadata.role 은 본인이 조작 가능하므로 사용 금지)
     let isOperator = false;
@@ -218,8 +229,14 @@
             ${actionsBtns}
           </div>
           <p class="thread-content">${escHtml(c.content)}</p>
+          ${c.id ? `<div class="cr-row">${commentReactions.barHtml(c.id)}</div>` : ''}
         </div>`;
       }).join('');
+
+      // 이모지 반응 — 표시한 댓글 id 를 묶어 한 번에 조회
+      const listEl = document.getElementById('commentList');
+      commentReactions.attach(listEl);
+      commentReactions.load(allComments.filter(c => c.id).map(c => c.id), listEl);
     }
 
     async function initPage() {

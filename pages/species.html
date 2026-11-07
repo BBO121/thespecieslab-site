@@ -91,6 +91,16 @@
             <svg id="categoryFilterChevron" width="10" height="10" viewBox="0 0 12 12" style="transition:transform .15s;"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
+        <!-- 보기 설정(열 수) — 내 캐릭터와 같은 메뉴(main.js createViewColsMenu), 이 기기·브라우저(localStorage)에만 저장 -->
+        <div class="view-cols-row">
+          <div class="view-cols" id="viewCols">
+            <button type="button" class="view-cols-btn" id="viewColsBtn"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="viewColsPanel">
+              <span id="viewColsBtnPrev"></span>보기<span class="view-cols-caret" aria-hidden="true">▼</span>
+            </button>
+            <div class="view-cols-panel" id="viewColsPanel" role="listbox" aria-label="목록 보기 설정" hidden></div>
+          </div>
+        </div>
         <!-- 개체명 검색은 개체 카드 목록만 거른다(선택된 분류 안에서, 정렬 유지). -->
         <div class="char-name-search">
           <div class="char-search-box">
@@ -101,15 +111,23 @@
           </div>
           <p class="char-result-count" id="charResultCount" aria-live="polite"></p>
         </div>
-        <div class="character-grid" id="characterGrid"></div>
+        <div class="character-grid vc-char-grid" id="characterGrid"></div>
       </section>
 
       <!-- 디자인권 목록 -->
       <section class="section" id="slotsSection" style="display:none;">
         <div class="section-header">
           <h2>디자인권 <span class="count-badge" id="slotCount">0</span></h2>
+          <!-- 디자인권 보기 설정(열 수) — 소속 개체와 따로 저장(species_slots_view_cols) -->
+          <div class="view-cols" id="slotViewCols">
+            <button type="button" class="view-cols-btn" id="slotViewColsBtn"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="slotViewColsPanel">
+              <span id="slotViewColsBtnPrev"></span>보기<span class="view-cols-caret" aria-hidden="true">▼</span>
+            </button>
+            <div class="view-cols-panel" id="slotViewColsPanel" role="listbox" aria-label="디자인권 목록 보기 설정" hidden></div>
+          </div>
         </div>
-        <div class="character-grid" id="slotGrid"></div>
+        <div class="character-grid vc-char-grid" id="slotGrid"></div>
       </section>
 
     </main>
@@ -168,13 +186,22 @@
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js?v=20260919"></script>
-  <script src="../js/main.js"></script>
+  <script src="../js/main.js?v=20261107"></script>
   <script src="../js/species-character-list.js"></script>
   <script src="../js/image-zoom-viewer.js"></script>
   <script>
     // AdSense Auto ads 는 js/utils.js 의 loadAdSense() 를 정상 상세 콘텐츠 렌더 완료 후에만 호출한다.
 
     const speciesId = new URLSearchParams(window.location.search).get('id');
+
+    // 소속 개체 보기 설정(열 수) — 내 캐릭터와 같은 메뉴. 카드 배치(#characterGrid[data-cols])만 바꾸고
+    // 정렬·분류 필터·개체명 검색·관리 모드는 그대로. 모든 종족이 같은 설정을 공유(이 기기·브라우저 localStorage).
+    createViewColsMenu({ gridId: 'characterGrid', storageKey: 'species_chars_view_cols' });
+    // 디자인권 목록 보기 설정 — 같은 메뉴, 소속 개체와 따로 저장
+    createViewColsMenu({
+      rootId: 'slotViewCols', btnId: 'slotViewColsBtn', btnPrevId: 'slotViewColsBtnPrev', panelId: 'slotViewColsPanel',
+      gridId: 'slotGrid', storageKey: 'species_slots_view_cols',
+    });
 
     // LABBER 종족은 일반 종족 상세를 쓰지 않는다 — 종족주(또는 SUPER_ADMIN)가 아니면 개체기록실로 리다이렉트.
     // 종족주는 이 페이지에서 계속 개체 등록/일괄 등록/디자인권/종족 정보 수정을 할 수 있어야 하므로

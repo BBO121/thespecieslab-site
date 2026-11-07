@@ -838,7 +838,9 @@
       const current = sel.value;
       const species = [...new Set(allChars.map(c => c.species_name).filter(Boolean))];
       sel.innerHTML = '<option value="">전체 종족</option>';
-      species.forEach(s => {
+      // 표시명 기준 가나다순 — 원본 배열은 건드리지 않고 복사본만 정렬 ('전체 종족'은 위 첫 옵션으로 고정)
+      const sortedSpecies = species.slice().sort((a, b) => a.localeCompare(b, 'ko'));
+      sortedSpecies.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s; opt.textContent = s;
         sel.appendChild(opt);

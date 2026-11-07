@@ -45,6 +45,17 @@
         <!-- 특별 분류 뱃지 필터 — 전체 개체 목록(owner 파라미터 없음)에서만 JS가 버튼 생성. 유저별 개체 목록에선 생성 안 함 -->
         <div class="char-badge-filter" id="badgeFilter" role="group" aria-label="개체 분류 필터" style="display:none;"></div>
 
+        <!-- 보기 설정(열 수) — 내 캐릭터와 같은 메뉴(main.js createViewColsMenu), 이 기기·브라우저(localStorage)에만 저장 -->
+        <div class="view-cols-row">
+          <div class="view-cols" id="viewCols">
+            <button type="button" class="view-cols-btn" id="viewColsBtn"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="viewColsPanel">
+              <span id="viewColsBtnPrev"></span>보기<span class="view-cols-caret" aria-hidden="true">▼</span>
+            </button>
+            <div class="view-cols-panel" id="viewColsPanel" role="listbox" aria-label="목록 보기 설정" hidden></div>
+          </div>
+        </div>
+
         <!-- 검색 + 필터 + 정렬 -->
         <div class="list-controls">
           <input type="text" class="list-search" id="searchInput" placeholder="개체 이름으로 검색">
@@ -65,7 +76,7 @@
         </div>
         <h2 class="search-result-group-title" id="charResultTitle" style="display:none; font-size:15px; font-weight:700; color:var(--text); margin:0 0 12px;">개체</h2>
 
-        <div class="character-grid" id="characterGrid">
+        <div class="character-grid vc-char-grid" id="characterGrid">
           <p class="page-loading">불러오는 중...</p>
         </div>
         <div id="paginationWrap"></div>
@@ -90,7 +101,7 @@
   <script src="../js/utils.js?v=20260919"></script>
   <script src="../js/achievements.js"></script>
   <script src="../js/search.js"></script>
-  <script src="../js/main.js"></script>
+  <script src="../js/main.js?v=20261107"></script>
   <script>
     let idToNick      = {};
     let isInitialLoad = true;
@@ -101,6 +112,8 @@
     const ownerParam   = _qs.get('owner');
     const ownerIdParam = _qs.get('owner_id'); // UUID 기준 조회
     const pager = createPager(render, 'paginationWrap', 'page', 28);
+    // 보기 설정(열 수) — 카드 배치(#characterGrid[data-cols])만 바꾼다. 페이지당 28개·현재 페이지·검색·필터·정렬은 그대로.
+    createViewColsMenu({ gridId: 'characterGrid', storageKey: 'character_list_view_cols' });
     // 특별 분류 뱃지 필터 — 전체 개체 목록 전용. 유저별 개체 목록(?owner= / ?owner_id=)에서는 UI·필터링 모두 비활성.
     // key는 개체 상세 SPECIAL_BADGE_MAP과 같은 special_badge 값 ('' = 전체).
     const BADGE_FILTER_ENABLED = !ownerParam && !ownerIdParam;
@@ -331,9 +344,9 @@
       grid.innerHTML = data.map(c => `
         <a href="character.html?id=${c.id}" class="character-card">
           ${c.is_sensitive && characterHasVisibleRealImage(c) ? `
-          <div style="position:relative; overflow:hidden; border-radius:var(--radius);">
+          <div class="vc-sensitive-wrap" style="position:relative; overflow:hidden; border-radius:var(--radius);">
             <div class="character-img blurred" style="background-image:url('${c.thumbnail_url || c.image_url}'); background-size:cover; background-position:center;"></div>
-            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span style="color:#b91c1c;font-size:16px;font-weight:700;">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + c.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div class="sensitive-overlay-inner"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span class="sensitive-overlay-title">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + c.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
           </div>` : `
           <div class="character-img" style="background-image:url('${resolveCharacterImage(c)}'); background-size:cover; background-position:center;"></div>`}
           <div class="character-info">

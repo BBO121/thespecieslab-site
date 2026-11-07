@@ -15,6 +15,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>분양 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/comment-reactions.css?v=20261107-artwork">
   <style>
     .comments-section { margin-top:32px; }
     .comments-section h2 { font-size:16px; font-weight:700; margin-bottom:8px; }
@@ -122,6 +123,17 @@
     .offer-period { font-size:13px; color:var(--text-sub); margin:0 0 8px; line-height:1.5; }
     .offer-row { flex-direction:column; align-items:stretch; gap:6px; }
     .offer-row-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    /* 제시·입찰 내역 시각(YYYY.MM.DD HH:mm:ss) — 긴 닉네임·금액과 겹치지 않게 줄바꿈 허용, 시각은 한 덩어리 유지 */
+    .adoption-bid-row { gap:10px; }
+    .adoption-bid-row > .btn-award { flex-shrink:0; }
+    .adoption-bid-info { flex:1 1 auto; min-width:0; flex-wrap:wrap; column-gap:12px; row-gap:2px; }
+    .adoption-bid-info .adoption-bid-name,
+    .offer-row-head .adoption-bid-name { min-width:0; overflow-wrap:anywhere; word-break:break-word; }
+    .adoption-bid-amount { white-space:nowrap; }
+    .adoption-bid-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
+    @media (max-width:480px) {
+      .adoption-bid-info .adoption-bid-time { flex-basis:100%; }
+    }
     .offer-row-head .adoption-bid-name a { color:inherit; text-decoration:none; }
     .offer-order {
       display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px;
@@ -438,6 +450,7 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
+  <script src="../js/comment-reactions.js?v=20261107-artwork"></script>
   <script>
     // 정상 콘텐츠가 확인된 경우에만 AdSense Auto ads 스크립트를 로드한다.
     // (잘못된 접근/없는 id/네트워크 실패 상태에서 광고만 남는 문제 방지)
@@ -641,6 +654,19 @@
       return `${g('year')}.${g('month')}.${g('day')} ${g('hour')}:${g('minute')}`;
     }
 
+    // 제시·입찰 내역 전용 — 'YYYY.MM.DD HH:mm:ss' (KST, 24시간제). 저장 시각(UTC)을 표시용으로만 변환
+    function fmtKSTSec(d) {
+      if (!d) return '';
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const parts = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+      }).formatToParts(dt);
+      const g = t => parts.find(p => p.type === t)?.value || '';
+      return `${g('year')}.${g('month')}.${g('day')} ${g('hour')}:${g('minute')}:${g('second')}`;
+    }
+
     function escText(s) {
       return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
@@ -707,7 +733,7 @@
               <div class="offer-row-head">
                 <span class="offer-order">${i + 1}</span>
                 <span class="adoption-bid-name">${o.user_id ? `<a href="profile.html?user=${encodeURIComponent(o.user_id)}">${escText(name)}</a>` : escText(name)}</span>
-                <span class="adoption-bid-time">${fmtKST(o.created_at)}</span>
+                <span class="adoption-bid-time">${fmtKSTSec(o.created_at)}</span>
                 ${canConfirm || canDelete ? `<span class="offer-actions">
                   ${canConfirm ? `<button class="comment-confirm-btn" onclick="openOfferComplete(${i})">분양확정</button>` : ''}
                   ${canDelete ? `<button class="offer-delete" onclick="deleteOffer(${Number(o.id)})">삭제</button>` : ''}
@@ -1503,7 +1529,7 @@
               <span class="adoption-bid-name">${currentBidderName}</span>
               <span class="adoption-bid-amount">${Number(bid.bid_amount).toLocaleString('ko-KR')}${auctionCurrencyUnit}</span>
               ${isInstantWin ? `<span class="bid-instant-badge">✨즉분가 낙찰✨</span><span class="bid-instant-desc"> 분양자의 확인을 기다려주세요</span>` : ''}
-              <span class="adoption-bid-time">${timeAgo(bid.created_at)}</span>
+              <span class="adoption-bid-time">${fmtKSTSec(bid.created_at)}</span>
             </div>
             ${isAuthor && isOpen ? `
               <button class="btn-award"
@@ -2227,6 +2253,13 @@
     }
 
     // ── 댓글 / 대댓글 ──────────────────────────────────
+    // 이모지 반응 (js/comment-reactions.js, SQL adoption_comment_reactions_apply_1106.sql)
+    const commentReactions = createCommentReactions({
+      summaryRpc: 'adoption_comment_reaction_summary',
+      setRpc:     'set_adoption_comment_reaction',
+      isLoggedIn: () => !!currentUser,
+    });
+
     async function loadComments() {
       const { data } = await sb
         .from('adoption_comments')
@@ -2275,7 +2308,10 @@
               ${canConfirm ? `<button class="comment-confirm-btn" onclick="openCompleteModal('${escAttr(c.author_nickname)}')">분양확정</button>` : ''}
             </div>
             <p class="comment-content">${highlightMentions(escapeHtml(c.content))}</p>
-            ${currentUser ? `<button class="comment-reply-btn" onclick="toggleReply('${c.id}')">답글</button>` : ''}
+            <div class="cr-row">
+              ${currentUser ? `<button class="comment-reply-btn" onclick="toggleReply('${c.id}')">답글</button>` : ''}
+              ${commentReactions.barHtml(c.id)}
+            </div>
 
             ${childReplies.length ? `
               <div class="replies">
@@ -2289,7 +2325,10 @@
                         ${isMyReply ? `<button class="comment-delete" onclick="deleteComment('${r.id}', true)">삭제</button>` : ''}
                       </div>
                       <p class="comment-content">${highlightMentions(escapeHtml(r.content))}</p>
-                      ${currentUser ? `<button class="comment-reply-btn" onclick="replyToReply('${c.id}')">답글</button>` : ''}
+                      <div class="cr-row">
+                        ${currentUser ? `<button class="comment-reply-btn" onclick="replyToReply('${c.id}')">답글</button>` : ''}
+                        ${commentReactions.barHtml(r.id)}
+                      </div>
                     </div>
                   `;
                 }).join('')}
@@ -2309,6 +2348,10 @@
           </div>
         `;
       }).join('');
+
+      // 이모지 반응 — 지금 표시한 댓글+답글 id 를 묶어 한 번에 조회
+      commentReactions.attach(listEl);
+      commentReactions.load(comments.map(c => c.id), listEl);
     }
 
     function escapeHtml(str) {

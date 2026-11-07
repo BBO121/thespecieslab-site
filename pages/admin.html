@@ -69,19 +69,7 @@
           <h1 class="list-page-title" style="margin:0;">어드민</h1>
         </div>
 
-        <!-- 탭 -->
-        <div class="profile-tabs">
-          <button class="profile-tab active" data-tab="Notices">공지 관리</button>
-          <button class="profile-tab" data-tab="Events">이벤트 관리</button>
-          <button class="profile-tab" data-tab="UpdateNotes">업데이트노트</button>
-          <button class="profile-tab" data-tab="DevLogs">개발일지</button>
-          <button class="profile-tab" data-tab="Users">유저 관리</button>
-          <button class="profile-tab" data-tab="Species">종족 관리</button>
-          <button class="profile-tab" data-tab="Characters">개체 관리</button>
-          <button class="profile-tab" data-tab="Adoptions">분양 관리</button>
-          <button class="profile-tab" data-tab="AdminLogs">관리자 로그</button>
-          <button class="profile-tab" data-tab="Salary">월급계산기</button>
-        </div>
+        <!-- 탭 메뉴는 왼쪽 관리자 사이드바(js/sidebar.js ADMIN_NAV) — admin.html#Events 처럼 주소 해시로 고른다 -->
 
         <!-- 공지 관리 탭 -->
         <div id="tabNotices" class="tab-content">
@@ -482,18 +470,18 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.4</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
-  <script src="../js/sidebar.js"></script>
+  <script src="../js/sidebar.js?v=3.1.5"></script>
   <script src="../js/notifications.js"></script>
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
-  <script src="../js/admin-staff-salary.js"></script>
+  <script src="../js/admin-staff-salary.js?v=3.1.5"></script>
   <script>
     let adminUser = null;
 
@@ -529,42 +517,46 @@
 
       loadNotices();
       loadUsers();
+      showTab(tabFromHash());   // 새로고침·직접 주소(admin.html#Salary) 진입도 같은 탭
     }
 
-    // ── 탭 전환 ──────────────────────────────
-    const tabLoaded = {};
-    document.querySelectorAll('.profile-tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-        document.getElementById('tab' + btn.dataset.tab).style.display = 'block';
-        if (btn.dataset.tab === 'Events' && !tabLoaded.Events) {
-          tabLoaded.Events = true; loadEvents(); loadBanners();
-        }
-        if (btn.dataset.tab === 'UpdateNotes' && !tabLoaded.UpdateNotes) {
-          tabLoaded.UpdateNotes = true; loadUpdateNotes();
-        }
-        if (btn.dataset.tab === 'DevLogs' && !tabLoaded.DevLogs) {
-          tabLoaded.DevLogs = true; loadDevLogs();
-        }
-        if (btn.dataset.tab === 'Species' && !tabLoaded.Species) {
-          tabLoaded.Species = true; loadAdminSpecies();
-        }
-        if (btn.dataset.tab === 'Characters' && !tabLoaded.Characters) {
-          tabLoaded.Characters = true; loadAdminChars();
-        }
-        if (btn.dataset.tab === 'Adoptions' && !tabLoaded.Adoptions) {
-          tabLoaded.Adoptions = true; loadAdminAdoptions();
-        }
-        if (btn.dataset.tab === 'AdminLogs' && !tabLoaded.AdminLogs) {
-          tabLoaded.AdminLogs = true; loadAdminLogs();
-        }
-        if (btn.dataset.tab === 'Salary' && !tabLoaded.Salary) {
-          tabLoaded.Salary = true; loadStaffSalary();
-        }
-      });
-    });
+    // ── 탭 전환 (왼쪽 관리자 사이드바 → 주소 해시) ──────────────
+    // 각 탭은 처음 열 때 한 번만 불러온다(tabLoaded). 같은 탭을 다시 골라도 다시 불러오지 않는다.
+    const tabLoaded = { Notices: true, Users: true };   // initPage 가 처음에 불러옴
+    let currentTab = null;
+    function showTab(name) {
+      if (!document.getElementById('tab' + name)) name = 'Notices';
+      if (name === currentTab) return;
+      currentTab = name;
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('tab' + name).style.display = 'block';
+      if (name === 'Events' && !tabLoaded.Events) {
+        tabLoaded.Events = true; loadEvents(); loadBanners();
+      }
+      if (name === 'UpdateNotes' && !tabLoaded.UpdateNotes) {
+        tabLoaded.UpdateNotes = true; loadUpdateNotes();
+      }
+      if (name === 'DevLogs' && !tabLoaded.DevLogs) {
+        tabLoaded.DevLogs = true; loadDevLogs();
+      }
+      if (name === 'Species' && !tabLoaded.Species) {
+        tabLoaded.Species = true; loadAdminSpecies();
+      }
+      if (name === 'Characters' && !tabLoaded.Characters) {
+        tabLoaded.Characters = true; loadAdminChars();
+      }
+      if (name === 'Adoptions' && !tabLoaded.Adoptions) {
+        tabLoaded.Adoptions = true; loadAdminAdoptions();
+      }
+      if (name === 'AdminLogs' && !tabLoaded.AdminLogs) {
+        tabLoaded.AdminLogs = true; loadAdminLogs();
+      }
+      if (name === 'Salary' && !tabLoaded.Salary) {
+        tabLoaded.Salary = true; loadStaffSalary();
+      }
+    }
+    const tabFromHash = () => adminTabFromHash();
+    window.addEventListener('hashchange', () => { if (adminUser) { showTab(tabFromHash()); window.scrollTo(0, 0); } });
 
     // ── 공지 관리 ────────────────────────────
     function renderNoticeRows(slice) {

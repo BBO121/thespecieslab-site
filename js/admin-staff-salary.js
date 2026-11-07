@@ -238,7 +238,7 @@ function cancelStaffSalary(ticketId) { return salaryAdminAction(ticketId, 'cance
 // ── 지급 SQL (관리자) ──────────────────────
 // SQL 에 넣는 값은 형식 검증된 UUID 3개와 정수 1개뿐이다. 작업명·닉네임 같은 자유 입력은
 // 넣지 않고, 메모는 DB 가 staff_salary_note(지급건 ID)로 직접 만든다 → 따옴표·줄바꿈이 있어도 SQL 이 깨지지 않는다.
-// service_role 키 없음: Supabase SQL Editor 에서 실행하는 SQL 이다.
+// 서버용 비밀 키는 쓰지 않는다: Supabase SQL Editor 에서 실행하는 SQL 이다.
 // adminId 는 "SQL 을 발급한 관리자" 기록용일 뿐 실행자 인증이 아니다(SQL Editor 에는 웹 로그인 정보가 없다).
 function buildStaffSalaryPayoutSql(t, adminId) {
   const amount = Number(t?.result_amount);

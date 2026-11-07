@@ -90,6 +90,9 @@ async function initSidebar() {
   const path = window.location.pathname.split('/').pop();
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
+  // 관리 화면에서는 관리자 메뉴를 사용한다.
+  if (isAdminNavPage(path)) { initAdminSidebar(sidebar, path); return; }
+
   sidebar.innerHTML = `
     <div class="sidebar-user-block" id="sidebarUserBlock"></div>
 
@@ -293,6 +296,141 @@ async function initSidebar() {
   initHamburger();
   refreshEventAttendanceMenu();
 }
+
+// ── 관리자 전용 사이드바 (2026-11-07) ─────────────────────────────
+// admin.html 의 상단 탭을 왼쪽 메뉴로 옮겼다. admin.html 안의 메뉴는 주소 해시(admin.html#Events)로 탭을 고르고,
+// 별도 관리 페이지(작성 화면)는 그 페이지가 속한 메뉴를 강조한다.
+// 메뉴 숨김은 표시용일 뿐 — 실제 권한은 각 페이지의 진입 검사와 서버(RLS/RPC)가 그대로 판정한다.
+const ADMIN_NAV = [
+  { tab: 'Notices',     label: '공지 관리',     pages: ['notice-write.html'] },
+  { tab: 'Events',      label: '이벤트 관리',   pages: ['event-write.html'] },
+  { tab: 'UpdateNotes', label: '업데이트 노트', pages: ['update-note-write.html'] },
+  { tab: 'DevLogs',     label: '개발일지',      pages: ['dev-log-write.html'] },
+  { tab: 'Users',       label: '유저 관리' },
+  { tab: 'Species',     label: '종족 관리' },
+  { tab: 'Characters',  label: '개체 관리' },
+  { tab: 'Adoptions',   label: '분양 관리' },
+  { tab: 'AdminLogs',   label: '관리자 로그' },
+  { tab: 'Salary',      label: '월급계산기' },
+];
+window.ADMIN_TABS = ADMIN_NAV.map(n => n.tab);
+
+function isAdminNavPage(path) {
+  return path === 'admin.html' || ADMIN_NAV.some(n => (n.pages || []).includes(path) || (n.children || []).some(c => c.href === path));
+}
+
+// admin.html 의 현재 탭 = 주소 해시(없거나 모르는 값이면 첫 탭)
+function adminTabFromHash() {
+  let h;
+  try { h = decodeURIComponent((window.location.hash || '').slice(1)); }
+  catch (_) { return 'Notices'; }
+  return window.ADMIN_TABS.includes(h) ? h : 'Notices';
+}
+
+function adminNavCurrent(path) {
+  if (path === 'admin.html') return { tab: adminTabFromHash(), child: null };
+  for (const n of ADMIN_NAV) {
+    if ((n.pages || []).includes(path)) return { tab: n.tab, child: null };
+    const c = (n.children || []).find(x => x.href === path);
+    if (c) return { tab: n.tab, child: c.href };
+  }
+  return { tab: null, child: null };
+}
+
+function initAdminSidebar(sidebar, path) {
+  sidebar.classList.add('sidebar--admin');
+  const arrow = '<svg class="sidebar-accordion-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  sidebar.innerHTML = `
+    <div class="sidebar-user-block" id="sidebarUserBlock"></div>
+    <nav class="admin-nav" id="adminNav" aria-label="관리자 메뉴" hidden>
+      <p class="admin-nav-title">관리자</p>
+      ${ADMIN_NAV.map(n => !n.children
+        ? `<a href="admin.html#${n.tab}" class="sidebar-top-link" data-admin-tab="${n.tab}">${n.label}</a>`
+        : `<div class="admin-nav-group" data-admin-group="${n.tab}">
+            <div class="admin-nav-row">
+              <a href="admin.html#${n.tab}" class="sidebar-top-link" data-admin-tab="${n.tab}">${n.label}</a>
+              <button type="button" class="sidebar-accordion-btn admin-nav-toggle" aria-label="${n.label} 하위 메뉴 펼치기" aria-expanded="false">${arrow}</button>
+            </div>
+            <div class="sidebar-accordion-body admin-nav-sub">
+              ${n.children.map(c => `<a href="${c.href}" class="sidebar-subitem" data-admin-child="${c.href}" ${c.adminOnly ? 'data-admin-only hidden' : ''}>${c.label}</a>`).join('')}
+            </div>
+          </div>`).join('')}
+    </nav>
+    <a href="index.html" class="admin-nav-back">← 일반 사이트로</a>
+  `;
+  ensureAdminNavStyles();
+
+  sidebar.querySelectorAll('.admin-nav-toggle').forEach(btn => btn.addEventListener('click', () => {
+    setAdminNavGroupOpen(btn.closest('.admin-nav-group'), !btn.closest('.admin-nav-group').classList.contains('is-open'));
+  }));
+  markAdminNav(path);
+  if (path === 'admin.html') window.addEventListener('hashchange', () => markAdminNav(path));
+
+  // 운영진일 때만 메뉴 표시(서버가 설정한 app_metadata 역할 기준)
+  getUser().then(user => {
+    const um = user?.user_metadata?.role, am = user?.app_metadata?.role;
+    if (!user || !(isAdminOrStaff(um) || isAdminOrStaff(am))) return;
+    sidebar.querySelectorAll('[data-admin-only]').forEach(a => { a.hidden = am !== 'admin'; });
+    document.getElementById('adminNav').hidden = false;
+  });
+
+  updateSidebarLogin();
+  initEmailVerifyPopup();
+  initHamburger();
+}
+
+function setAdminNavGroupOpen(group, open) {
+  if (!group) return;
+  group.classList.toggle('is-open', open);
+  group.querySelector('.admin-nav-sub')?.classList.toggle('open', open);
+  const btn = group.querySelector('.admin-nav-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', String(open));
+    const svg = btn.querySelector('svg'); if (svg) svg.style.transform = open ? 'rotate(180deg)' : '';
+  }
+}
+
+function markAdminNav(path) {
+  const cur = adminNavCurrent(path);
+  document.querySelectorAll('#adminNav [data-admin-tab]').forEach(a => {
+    const on = a.dataset.adminTab === cur.tab && !cur.child;   // 하위 메뉴 페이지면 하위 항목만 강조
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('#adminNav [data-admin-child]').forEach(a => {
+    const on = a.dataset.adminChild === cur.child;
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('#adminNav .admin-nav-group').forEach(g => {
+    g.classList.toggle('has-current', g.dataset.adminGroup === cur.tab);
+    if (g.dataset.adminGroup === cur.tab) setAdminNavGroupOpen(g, true);
+  });
+}
+
+function ensureAdminNavStyles() {
+  if (document.getElementById('adminNavStyles')) return;
+  const st = document.createElement('style');
+  st.id = 'adminNavStyles';
+  st.textContent = `
+    .sidebar--admin .admin-nav { display:flex; flex-direction:column; gap:2px; }
+    .sidebar--admin .admin-nav[hidden] { display:none; }
+    .sidebar--admin .admin-nav-title { font-size:11px; font-weight:700; color:var(--text-mute); letter-spacing:.8px; padding:0 12px; margin:0 0 6px; }
+    .sidebar--admin .sidebar-top-link, .sidebar--admin .sidebar-subitem { white-space:nowrap; word-break:keep-all; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar--admin .admin-nav-row { display:flex; align-items:center; gap:2px; }
+    .sidebar--admin .admin-nav-row .sidebar-top-link { flex:1 1 auto; min-width:0; }
+    .sidebar--admin .admin-nav-toggle { width:auto; flex:0 0 auto; padding:9px 8px; }
+    .sidebar--admin .admin-nav-group.has-current > .admin-nav-row .sidebar-top-link:not(.active) { color:var(--sky-deep); font-weight:700; }
+    .sidebar--admin .admin-nav-sub .sidebar-subitem[hidden] { display:none; }
+    .sidebar--admin .admin-nav-back { display:block; margin-top:16px; padding:9px 12px; border-top:1px solid var(--border); font-size:13px; font-weight:600; color:var(--sky-dark); white-space:nowrap; }
+    .sidebar--admin .admin-nav-back:hover { color:var(--sky-deep); }
+    @media (min-width: 768px) {
+      .sidebar--admin { position:sticky; top:60px; align-self:flex-start; max-height:calc(100vh - 60px); overflow-y:auto; overscroll-behavior:contain; }
+    }
+  `;
+  document.head.appendChild(st);
+}
+
 
 // ── 이벤트 출석 데이터 조회 (사이드바 + 출석 페이지 공용) ───────────
 // PUBLIC  : get_event_attendance_status 만 — 서버 KST 날짜가 노출 기간일 때만 이벤트를 준다.

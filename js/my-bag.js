@@ -354,6 +354,13 @@ async function loadBagItems() {
         // 실제 SUBJECT 아이템(개봉형 랜덤 SUBJECT와는 다름) — [SUBJECT 등록] 진입 가능 여부. 실제 소비/생성은 서버 RPC가 다시 검증한다.
         isSubjectItem: !!(r.metadata && r.metadata.kind === 'subject'),
         subjectCode: (r.metadata && r.metadata.subject_code) || null,   // 'labber_subject_species' = 특이: 종족 → 연결 종족 필수
+        // 선택형(E의 보관함 등) — metadata.labber_type='choice_item' + choice_pool(후보 code, 표시 순서).
+        //   [사용하기] → 후보 중 1종 선택 → use_choice_item. 후보·수량 검증은 서버가 다시 한다(여긴 표시용).
+        choosable: !!(r.metadata && r.metadata.labber_type === 'choice_item'
+                      && Array.isArray(r.metadata.choice_pool) && r.metadata.choice_pool.length > 0),
+        choicePool: (r.metadata && Array.isArray(r.metadata.choice_pool)) ? r.metadata.choice_pool.slice() : [],
+        // 사용 안내(선택) — 상세 모달 설명 아래 한 줄. 없으면 줄 숨김.
+        usageGuide: (r.metadata && typeof r.metadata.usage_guide === 'string') ? r.metadata.usage_guide : '',
       };
       if (r.sell_price != null) _bagSellPrice[r.code] = r.sell_price;   // 수동가 우선
     });
@@ -473,6 +480,12 @@ const BAG_OPEN_RPC_BY_TYPE = {
 function bagCanOpen(code) {
   const f = _bagItemFlags[code];
   return !!(f && f.openable === true);
+}
+
+// 선택형 아이템인지 — items.metadata.labber_type === 'choice_item' (E의 보관함 등, [사용하기] → 후보 선택)
+function bagCanChoose(code) {
+  const f = _bagItemFlags[code];
+  return !!(f && f.choosable === true);
 }
 
 // 실제 SUBJECT 아이템인지 — items.metadata.kind === 'subject' ([SUBJECT 등록] 진입 가능 여부)
@@ -769,6 +782,14 @@ function openBagItemInfo(code) {
 
   document.getElementById('bagItemInfoDesc').textContent = row.description || '';
 
+  // 사용 안내(items.metadata.usage_guide) — 있는 아이템만 설명 아래 한 줄
+  const usageEl = document.getElementById('bagItemInfoUsage');
+  if (usageEl) {
+    const guide = (_bagItemFlags[code] && _bagItemFlags[code].usageGuide) || '';
+    usageEl.textContent = guide;
+    usageEl.hidden = !guide;
+  }
+
   // 판매 가격 — 표시용(서버가 최종 계산). 판매 불가면 "판매 불가".
   const priceEl = document.getElementById('bagItemInfoPrice');
   priceEl.textContent = bagCanSell(code)
@@ -793,6 +814,12 @@ function openBagItemInfo(code) {
   if (bagCanOpen(code) && row.quantity >= 1) {
     sellActionEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;">
          <button type="button" class="shop-buy-btn-lg" id="bagItemOpenBtn" onclick="onBagItemOpen()">열기</button>
+         ${sellHtml}
+       </div>`;
+  } else if (bagCanChoose(code) && row.quantity >= 1) {
+    // 선택형 — [사용하기] 는 선택 화면만 연다(이 시점엔 아무것도 소모하지 않음).
+    sellActionEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;">
+         <button type="button" class="shop-buy-btn-lg" id="bagItemUseBtn" onclick="openBagChoice()">사용하기</button>
          ${sellHtml}
        </div>`;
   } else if (bagIsSubjectItem(code) && row.quantity >= 1) {
@@ -909,8 +936,10 @@ async function onBagItemOpen() {
 
 let _bagOpenResultSeq = 0;   // 결과 표시 회차 — 늦게 도착한 이전 이미지의 load/error 가 다음 결과를 건드리지 않게
 
-function bagShowOpenResult(res) {
+function bagShowOpenResult(res, title) {
   const seq  = ++_bagOpenResultSeq;
+  const titleEl = document.getElementById('bagOpenResultTitle');
+  if (titleEl) titleEl.textContent = title || '개봉 결과';
   const wrap = document.getElementById('bagOpenResultImg');
   // 매번 초기화부터 — 이전 결과의 이미지/숨김 상태를 남기지 않는다.
   //   (.shop-detail-preview 가 display:flex 라 hidden 속성이 안 먹으므로 style.display 로 제어)
@@ -934,6 +963,162 @@ function bagShowOpenResult(res) {
 
 function closeBagOpenResult() {
   document.getElementById('bagOpenResultModal').style.display = 'none';
+}
+
+// ── 선택형 아이템 사용 (E의 보관함 등, 2026-11-07) ──────────────
+//   [사용하기] → 후보(items.metadata.choice_pool) 중 1종 선택 → [선택 확정] 때만 서버 use_choice_item 호출.
+//   선택 화면을 닫거나 취소하면 아무 요청도 보내지 않는다(소모 없음).
+//   차감 1·지급 1·후보/보유 검증은 전부 서버(한 트랜잭션, 보유 행 잠금). 프론트는 표시·요청만.
+let _bagChoiceCode = null;   // 사용 중인 선택형 아이템 code
+let _bagChoicePick = null;   // 고른 후보 code
+let _bagChoiceRows = [];     // [{ code, name, image, quantity }] — choice_pool 순서
+let _bagChoiceSeq  = 0;
+
+async function openBagChoice() {
+  if (_bagActionBusy) return;
+  const code = _bagInfoCode;
+  const row = _bagItems.find(x => x.code === code);
+  if (!row || !bagCanChoose(code) || row.quantity < 1) return;
+
+  const seq = ++_bagChoiceSeq;
+  _bagChoiceCode = code;
+  _bagChoicePick = null;
+  _bagChoiceRows = [];
+  document.getElementById('bagChoiceTitle').textContent = row.name;
+  document.getElementById('bagChoiceGuide').textContent =
+    (_bagItemFlags[code] && _bagItemFlags[code].usageGuide) || '받을 재료를 한 가지 선택해 주세요.';
+  document.getElementById('bagChoiceGrid').innerHTML = '<p class="bag-choice-loading">불러오는 중...</p>';
+  bagSyncChoiceConfirm();
+  document.getElementById('bagChoiceModal').style.display = 'flex';
+
+  const pool = [...new Set(_bagItemFlags[code].choicePool || [])];
+  let byCode = {};
+  try {
+    const { data, error } = await sb
+      .from('items')
+      .select('code, name, image_url, image_path')
+      .in('code', pool);
+    if (error) throw error;
+    (data || []).forEach(r => { byCode[r.code] = r; });
+  } catch (e) {
+    console.warn('[my-bag] 선택 후보 조회 실패:', e.message || e);
+  }
+  if (seq !== _bagChoiceSeq) return;   // 그사이 닫았다 다시 열었으면 이전 응답은 버린다
+
+  // 서버(choice_pool) 순서 그대로, 조회되는(공개) 후보만 — 최종 허용 여부는 서버가 다시 검증
+  _bagChoiceRows = pool.filter(c => byCode[c]).map(c => {
+    const it = byCode[c];
+    const owned = _bagItems.find(x => x.code === c);
+    return { code: c, name: it.name, image: resolveBagItemImage(it), quantity: owned ? owned.quantity : 0 };
+  });
+  renderBagChoiceGrid();
+}
+
+function renderBagChoiceGrid() {
+  const grid = document.getElementById('bagChoiceGrid');
+  if (!_bagChoiceRows.length) {
+    grid.innerHTML = '<p class="bag-choice-loading">선택할 수 있는 재료를 불러오지 못했어요. 잠시 후 다시 시도해주세요.</p>';
+    bagSyncChoiceConfirm();
+    return;
+  }
+  grid.innerHTML = _bagChoiceRows.map(r => {
+    const preview = r.image
+      ? `<img src="${escapeHtml(r.image)}" alt="" class="bag-item-img" loading="lazy">`
+      : `<span class="bag-item-ph" aria-hidden="true">📦</span>`;
+    const on = r.code === _bagChoicePick;
+    return `
+      <button type="button" class="bag-item-card bag-choice-card${on ? ' is-selected' : ''}" data-choice="${escapeHtml(r.code)}"
+              role="radio" aria-checked="${on ? 'true' : 'false'}">
+        <div class="bag-item-preview">${preview}</div>
+        <p class="bag-item-name">${escapeHtml(r.name)}</p>
+        <p class="bag-choice-owned">보유 ${r.quantity}</p>
+      </button>`;
+  }).join('');
+  // 이미지가 없거나 깨지면 기존 placeholder 로 교체(깨진 이미지 아이콘 노출 방지)
+  grid.querySelectorAll('img.bag-item-img').forEach(im => {
+    im.addEventListener('error', () => {
+      const ph = document.createElement('span');
+      ph.className = 'bag-item-ph';
+      ph.setAttribute('aria-hidden', 'true');
+      ph.textContent = '📦';
+      im.replaceWith(ph);
+    }, { once: true });
+  });
+  grid.querySelectorAll('[data-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (_bagActionBusy) return;
+      _bagChoicePick = btn.dataset.choice;
+      grid.querySelectorAll('[data-choice]').forEach(b => {
+        const on = b.dataset.choice === _bagChoicePick;
+        b.classList.toggle('is-selected', on);
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      bagSyncChoiceConfirm();
+    });
+  });
+  bagSyncChoiceConfirm();
+}
+
+function bagSyncChoiceConfirm() {
+  const btn = document.getElementById('bagChoiceConfirmBtn');
+  const sel = document.getElementById('bagChoiceSelected');
+  const picked = _bagChoiceRows.find(r => r.code === _bagChoicePick);
+  sel.textContent = picked ? `선택: ${picked.name} 1개` : '재료를 선택해 주세요.';
+  btn.disabled = !picked || _bagActionBusy;
+  btn.textContent = _bagActionBusy ? '처리 중...' : '선택 확정';
+}
+
+function closeBagChoice() {
+  if (_bagActionBusy) return;   // 요청 중에는 닫지 않음(결과를 반드시 보여주기 위해)
+  ++_bagChoiceSeq;
+  document.getElementById('bagChoiceModal').style.display = 'none';
+  _bagChoiceCode = null;
+  _bagChoicePick = null;
+  _bagChoiceRows = [];
+}
+
+async function confirmBagChoice() {
+  if (_bagActionBusy) return;
+  const code = _bagChoiceCode;
+  const pick = _bagChoicePick;
+  if (!code || !pick || !_bagChoiceRows.some(r => r.code === pick)) return;
+
+  _bagActionBusy = true;
+  bagSyncChoiceConfirm();
+  bagSyncTransferBtn();
+
+  let result = null;
+  let errCode = null;
+  try {
+    const { data, error } = await sb.rpc('use_choice_item', { p_item_code: code, p_choice_code: pick });
+    if (error || !data || data.success !== true) {
+      errCode = (data && data.error) || null;
+      alert(bagRpcErrorMsg(errCode, '사용'));
+    } else {
+      result = data.result;
+    }
+  } catch (e) {
+    console.error('[my-bag] 선택형 아이템 사용 오류:', e);
+    alert('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+  }
+
+  try {
+    await refreshAfterBagAction();   // 성공/실패 모두 서버 기준 수량으로 다시 그림
+  } finally {
+    _bagActionBusy = false;
+    bagSyncTransferBtn();
+  }
+
+  // 성공 / 더 이상 쓸 수 없음 → 선택 화면 닫기. 그 밖의 실패는 다시 고를 수 있게 열어 둔다.
+  if (result || errCode === 'INSUFFICIENT_QUANTITY' || errCode === 'NOT_USABLE' || errCode === 'ITEM_NOT_FOUND') {
+    closeBagChoice();
+  } else {
+    bagSyncChoiceConfirm();
+  }
+  if (result) {
+    bagShowOpenResult(result, '사용 결과');
+    window.syncLabberAchievements?.({ afterActivity: true });   // 획득 → 도감 업적 즉시 판정(서버 검증)
+  }
 }
 
 // ── SUBJECT 등록 신청 (2026-09-24 승인형 · 2026-10-01 이미지 필수/운영진 승인 대상) ──────────────
@@ -1369,6 +1554,9 @@ function bagRpcErrorMsg(code, action) {
     NOT_TRANSFERABLE:     '전송할 수 없는 아이템입니다.',
     NOT_OPENABLE:         '열 수 없는 아이템입니다.',
     POOL_EMPTY:           '현재 나올 수 있는 결과물이 없습니다. 운영진에게 문의해주세요.',
+    NOT_USABLE:           '사용할 수 없는 아이템입니다.',
+    INVALID_CHOICE:       '선택할 수 없는 재료입니다. 다시 선택해주세요.',
+    GRANT_FAILED:         '재료를 받지 못해 사용이 취소됐어요. (보관함은 그대로 남아 있어요)',
     INSUFFICIENT_QUANTITY:'보유 수량이 부족합니다.',
     SELF_TRANSFER:        '본인에게는 전송할 수 없습니다.',
     RECEIVER_NOT_FOUND:   '받는 유저를 찾을 수 없습니다.',

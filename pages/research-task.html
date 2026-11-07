@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>연구 과제 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+      <div id="notFound" class="gl-empty gl-hidden">과제를 찾을 수 없어요.<br><br><a href="research-tasks.html" class="btn-ghost">연구 과제로</a></div>
+
+      <div id="page" class="gl-hidden" style="max-width:860px;padding-top:24px;">
+        <a href="research-tasks.html" class="gl-post-board">‹ 연구 과제</a>
+        <div id="head"></div>
+
+        <section class="rt-detail-sec" id="guideBox">
+          <h2 class="gl-section-title">과제 설명</h2>
+          <div class="rt-guide">
+            <div id="guide"></div>
+            <div id="promptBox" class="rt-prompt gl-hidden">
+              <div class="rt-prompt-title">프롬프트 조건</div>
+              <div id="promptBody"></div>
+            </div>
+          </div>
+        </section>
+        <section class="rt-detail-sec" id="condBox">
+          <h2 class="gl-section-title">참여 조건</h2>
+          <div id="conditions" class="rt-guide"></div>
+        </section>
+        <section class="rt-detail-sec">
+          <h2 class="gl-section-title">보상</h2>
+          <div id="rewardTable" style="max-width:360px;"></div>
+          <p class="gl-sub gl-muted" style="font-size:12px;margin-top:8px;" id="rewardNote"></p>
+        </section>
+        <div id="submitRow" class="rt-detail-actions"></div>
+
+        <!-- 내 제출은 MY > 내 연구 한 곳에서(이 과제로 필터). 회차 기록(공개)은 개인 제출과 구분해 따로 -->
+        <a id="myLink" class="btn-ghost rt-my-link gl-hidden" href="my-research.html">내 연구 확인</a>
+        <details class="rt-mine gl-hidden" id="weeksBox">
+          <summary class="rt-mine-sum">회차 기록</summary>
+          <div class="rt-mine-body"><div id="weeks" class="rt-sub-list"></div></div>
+        </details>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const taskId = Number(new URLSearchParams(location.search).get('id')) || null;   // 없으면 주간 과제
+    let task = null, user = null;
+
+    function weeklyHead(t, w) {
+      const state = researchWeekState(w);
+      if (state !== 'ok') {
+        return `<div class="rt-detail-head"><div class="rt-detail-info">
+          <span class="rt-cat">${glEsc(t.category || '주간 연구')}</span>
+          <span class="rt-title" style="font-size:19px;">${glEsc(t.title)}</span>
+          <span class="rs-hero-name" style="font-size:15px;">${glEsc(state === 'unavailable' ? RESEARCH_TEXT.unavailable : RESEARCH_TEXT.preparing)}</span>
+          <span class="gl-sub">${glEsc(state === 'unavailable' ? RESEARCH_TEXT.unavailableSub : RESEARCH_TEXT.preparingSub)}</span>
+        </div></div>`;
+      }
+      const c = w.character;
+      const sens = c.is_sensitive && characterHasVisibleRealImage(c);
+      return `<div class="rt-detail-head">
+        <a href="character.html?id=${encodeURIComponent(c.id)}" class="rt-detail-img${sens ? ' blurred' : ''}" style="background-image:url('${glCssUrl(resolveCharacterImage(c, { thumb: false }))}')" aria-label="개체 상세"></a>
+        <div class="rt-detail-info">
+          <span class="rt-cat">${glEsc(t.category || '주간 연구')} · ${glEsc(w.title)}</span>
+          <span class="rt-title" style="font-size:19px;">${glEsc(t.title)}</span>
+          <a class="rs-hero-name" href="character.html?id=${encodeURIComponent(c.id)}">${glEsc(glCharName(c))}</a>
+          <span class="rs-hero-species">${glEsc(c.species_name || '')} · 소유주 ${glEsc(c.owner_nickname || c.owner_user_nick || '—')}</span>
+          <dl class="rt-facts">
+            <dt>참여 기간</dt><dd>${glEsc(rtRangeText(w.starts_at, w.ends_at))}</dd>
+            <dt>보상</dt><dd>${glEsc(rtRewardText(t))} · 승인 시</dd>
+            <dt>제출 제한</dt><dd>${glEsc(rtLimitText(t))}</dd>
+          </dl>
+        </div>
+      </div>`;
+    }
+
+    function generalHead(t) {
+      const img = t.image_url;
+      return `<div class="rt-detail-head">
+        ${img ? `<span class="rt-detail-img" style="background-image:url('${glCssUrl(img)}')"></span>` : ''}
+        <div class="rt-detail-info">
+          ${t.category ? `<span class="rt-cats">${rtCatBadges(t.category)}</span>` : ''}
+          <span class="rt-title" style="font-size:19px;">${glEsc(t.title)}</span>
+          ${t.summary ? `<span class="rt-summary">${glEsc(t.summary)}</span>` : ''}
+          <dl class="rt-facts">
+            <dt>참여 기간</dt><dd>${glEsc(rtRangeText(t.starts_at, t.ends_at))}</dd>
+            <dt>보상</dt><dd>${glEsc(rtRewardText(t))}${t.reward_amount ? ' · 승인 시' : ''}</dd>
+            <dt>제출 제한</dt><dd>${glEsc(rtLimitText(t))}</dd>
+          </dl>
+        </div>
+      </div>`;
+    }
+
+    async function renderWeeks() {
+      const { data, error } = await sb.rpc('research_list_weeks', { p_limit: 30, p_offset: 0 });
+      $('weeksBox').classList.remove('gl-hidden');
+      if (error) { $('weeks').innerHTML = `<p class="gl-sub gl-muted">${glEsc(glRpcError(error, '회차 기록을 불러오지 못했어요.'))}</p>`; return; }
+      const items = data?.items || [];
+      if (!items.length) { $('weeks').innerHTML = '<p class="gl-sub gl-muted">아직 회차 기록이 없어요.</p>'; return; }
+      $('weeks').innerHTML = items.map(w => `<div class="rt-sub"><div class="rt-sub-row">
+        <b>${glEsc(w.title)}</b>
+        <span>${w.character ? glEsc(glCharName(w.character)) : glEsc(w.status === 'no_candidate' ? '미선정(후보 없음)' : w.status === 'selected' ? '대상 정보를 볼 수 없음' : '추첨 전')}</span>
+        <span class="gl-muted">· ${glEsc(rtRangeText(w.starts_at, w.ends_at))}</span>
+      </div></div>`).join('');
+    }
+
+    async function load() {
+      const { data: t, error } = await sb.rpc('research_get_task', { p_task_id: taskId });
+      $('pageLoading').style.display = 'none';
+      if (error || !t) {
+        // 백엔드 미적용·오류는 가짜 데이터로 숨기지 않고 그대로 안내
+        if (error) $('notFound').innerHTML = `${glEsc(glRpcError(error, '과제를 불러오지 못했어요.'))}<br><br><a href="research-tasks.html" class="btn-ghost">연구 과제로</a>`;
+        $('notFound').classList.remove('gl-hidden'); return;
+      }
+      task = t;
+      document.title = `${t.title} — 연구 과제 — 종족연구소`;
+      $('head').innerHTML = t.kind === 'weekly' ? weeklyHead(t, t.current_week) : generalHead(t);
+      $('guide').textContent = t.guide || t.summary || '';   // 주의사항 영역은 두지 않음(수정·삭제 제한·심사 내용 보존은 서버에서 그대로)
+      // 프롬프트 조건 — 구조화된 항목(prompt_spec) 우선, 없으면 예전 그림/글 한 줄(prompt_image/prompt_text)
+      const promptHtml = rtPromptHtml(t);
+      $('promptBody').innerHTML = promptHtml;
+      $('promptBox').classList.toggle('gl-hidden', !promptHtml);
+      $('guideBox').classList.toggle('gl-hidden', !(t.guide || t.summary || promptHtml));
+      // 참여 조건 — 과제마다 관리자가 적는다. 비어 있으면 기본 기준(글·그림 모두 가능)만 안내
+      $('conditions').textContent = t.conditions || '· 그림과 글 모두 참여할 수 있어요 — 글만 / 그림만 / 글과 그림 모두.';
+      $('rewardTable').innerHTML = rtRewardTableHtml(t);
+      $('rewardNote').textContent = t.reward_amount
+        ? (t.test_mode || t.rewards_enabled === false
+            ? '※ 지금은 테스트 기간이에요. 테스트 기간 제출은 승인되어도 연구기록이 지급되지 않고, 나중에 소급 지급되지도 않아요. 정식 주 1회 참여 제한에도 포함되지 않아요.'
+            : '※ 보상은 제출할 때의 보상 조건으로 정해지고, 승인될 때 지급돼요.')
+        : '';
+      const canSubmit = t.is_open_now && (t.kind !== 'weekly' || researchWeekState(t.current_week) === 'ok');
+      $('submitRow').innerHTML = canSubmit
+        ? `<a class="btn-secondary" href="${user ? `research-submit.html?task=${t.id}` : 'login.html'}">과제 제출</a>`
+        : `<span class="gl-notice gl-notice--warn">지금은 제출할 수 없어요.</span>`;
+      if (user) { $('myLink').href = `my-research.html?task=${t.id}`; $('myLink').classList.remove('gl-hidden'); }
+      $('page').classList.remove('gl-hidden');
+      if (t.kind === 'weekly') renderWeeks();
+    }
+
+    (async () => { user = await getUser(); load(); })();
+  </script>
+</body>
+</html>

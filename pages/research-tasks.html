@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>연구 과제 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div class="gl-head">
+        <h1 class="list-page-title">연구 과제</h1>
+        <p class="gl-sub" style="margin-top:6px;">과제를 고르고, 연구 자료 보관소에 등록한 연구(그림·글)를 제출해요. 승인되면 과제별 보상을 받아요.</p>
+        <div class="gl-head-row">
+          <a href="gallery-research.html" class="btn-ghost rs-btn-sm">연구 자료 보관소</a>
+          <span id="opRow" class="gl-hidden" style="display:flex;gap:6px;">
+            <a href="research-review.html" class="btn-ghost rs-btn-sm">제출 심사</a>
+            <a href="research-task-admin.html" class="btn-ghost rs-btn-sm" id="adminLink">과제 관리</a>
+          </span>
+        </div>
+      </div>
+      <p id="loadState" class="gl-empty">불러오는 중...</p>
+      <div id="taskGrid" class="rt-list"></div>
+      <h2 class="gl-section-title gl-hidden" id="closedTitle">마감된 과제</h2>
+      <div id="closedGrid" class="rt-list"></div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    let user = null;
+    // 과제 항목(전체 너비, 이미지 없음): 분류 배지 / 제목(상세 링크) / 기간 / 제출 제한(빨강 굵게) / 짧은 소개 / 보상 표 / 자세히 보기
+    //   분류·기간·보상은 실제 과제 설정값 — 주간 과제 기간은 지금 주차의 시작·끝, 일반 과제는 과제 기간(없으면 상시).
+    function rowHtml(t, week) {
+      const weekly = t.kind === 'weekly';
+      const period = weekly ? (week ? rtRangeText(week.starts_at, week.ends_at) : '준비 중') : rtRangeText(t.starts_at, t.ends_at);
+      const detail = `research-task.html?id=${t.id}`;
+      return `<article class="rt-row${weekly ? ' is-weekly' : ''}${t.is_open_now ? '' : ' is-closed'}">
+        <div class="rt-row-head">
+          ${t.category ? `<span class="rt-cats">${rtCatBadges(t.category)}</span>` : ''}
+          <a class="rt-row-title" href="${detail}">${glEsc(t.title)}</a>
+          <div class="rt-row-line">기간 : ${glEsc(period)}</div>
+        </div>
+        ${t.summary ? `<p class="rt-row-intro">${glEsc(t.summary)}</p>` : ''}
+        <div class="rt-row-reward">${rtRewardTableHtml(t)}</div>
+        <div class="rt-row-bottom">
+          <div class="rt-row-limit">제출 제한 : ${glEsc(rtLimitText(t))}</div>
+          <a class="btn-ghost rs-btn-sm rt-row-more" href="${detail}">자세히 보기</a>
+        </div>
+      </article>`;
+    }
+    const cardHtml = rowHtml;
+    (async () => {
+      user = await getUser();
+      const role = user?.app_metadata?.role;
+      if (role === 'admin' || role === 'staff') document.getElementById('opRow').classList.remove('gl-hidden');
+      if (role !== 'admin') document.getElementById('adminLink').classList.add('gl-hidden');
+      const { data, error } = await sb.rpc('research_list_tasks');
+      document.getElementById('loadState').classList.add('gl-hidden');
+      if (error) { document.getElementById('taskGrid').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error, '과제를 불러오지 못했어요.'))}</p>`; return; }
+      const items = data?.items || [];
+      const open = items.filter(t => t.status === 'open'), closed = items.filter(t => t.status !== 'open');
+      document.getElementById('taskGrid').innerHTML = open.map(t => cardHtml(t, data.current_week)).join('') || '<p class="gl-empty">진행 중인 과제가 없어요.</p>';
+      if (closed.length) {
+        document.getElementById('closedTitle').classList.remove('gl-hidden');
+        document.getElementById('closedGrid').innerHTML = closed.map(t => cardHtml(t, data.current_week)).join('');
+      }
+    })();
+  </script>
+</body>
+</html>

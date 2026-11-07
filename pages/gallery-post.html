@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>갤러리 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <article id="post" class="gl-post gl-hidden">
+        <p id="doneNotice" class="gl-notice gl-hidden" style="margin-bottom:10px;" role="status"></p>
+        <a id="boardLink" class="gl-post-board" href="gallery-free.html"></a>
+        <h1 class="gl-post-title" id="postTitle"></h1>
+        <div class="gl-post-meta">
+          <a id="postAuthor" href="#"></a>
+          <span id="postDate"></span>
+          <a id="weekChip" class="gl-week-chip gl-hidden" href="#"></a>
+          <span class="gl-post-actions">
+            <a id="editBtn" class="btn-ghost rs-btn-sm gl-hidden" href="#">수정</a>
+            <button id="deleteBtn" type="button" class="btn-danger rs-btn-sm gl-hidden">삭제</button>
+          </span>
+        </div>
+
+        <div id="postContent" class="gl-post-content"></div>
+        <div id="postImages" class="gl-post-images"></div>
+
+        <section id="charSection" class="gl-hidden">
+          <h2 class="gl-section-title">관련 개체</h2>
+          <div id="postChars" class="gl-chars"></div>
+        </section>
+
+        <section id="comments" class="gl-comments"></section>
+      </article>
+
+      <div id="notFound" class="gl-empty gl-hidden">
+        글을 찾을 수 없어요. 삭제되었을 수 있어요.<br><br>
+        <a href="gallery-free.html" class="btn-ghost">자유갤러리로</a>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/image-zoom-viewer.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    (async () => {
+      const id = Number(new URLSearchParams(location.search).get('id'));
+      const user = await getUser();
+      const { data: p, error } = id ? await sb.rpc('gallery_get_post', { p_post_id: id }) : { data: null };
+      document.getElementById('pageLoading').style.display = 'none';
+      if (error || !p) { document.getElementById('notFound').classList.remove('gl-hidden'); return; }
+
+      const board = GALLERY_BOARDS[p.board] || GALLERY_BOARDS.free;
+      if (typeof markGalleryMenu === 'function') markGalleryMenu(p.board);
+      document.title = `${p.title} — ${board.label} — 종족연구소`;
+
+      const boardLink = document.getElementById('boardLink');
+      boardLink.textContent = `‹ ${board.label}`;
+      boardLink.href = board.list;
+
+      document.getElementById('postTitle').textContent = p.title;
+      const author = document.getElementById('postAuthor');
+      author.textContent = p.nickname || '(탈퇴한 회원)';
+      author.href = `profile.html?user=${encodeURIComponent(p.user_id)}`;
+      document.getElementById('postDate').textContent = glFmtDate(p.created_at, true) + (p.edited_at ? ' (수정됨)' : '');
+
+      if (p.week) {
+        const chip = document.getElementById('weekChip');
+        chip.textContent = `연구 참여 · ${p.week.title}`;
+        chip.href = 'research-task.html';
+        chip.classList.remove('gl-hidden');
+      }
+
+      document.getElementById('postContent').textContent = p.content || '';
+      if (!p.content) document.getElementById('postContent').classList.add('gl-hidden');
+
+      // 본 이미지는 상세에서만(목록·사이드바는 썸네일). 가로·세로를 알려줘 레이아웃 흔들림 방지.
+      document.getElementById('postImages').innerHTML = (p.images || []).map(img =>
+        `<img src="${glEsc(glImgUrl(img.path))}" width="${img.width}" height="${img.height}" alt="" loading="lazy" decoding="async" data-zoom>`).join('');
+      document.getElementById('postImages').addEventListener('click', e => {
+        const img = e.target.closest('img[data-zoom]');
+        if (img && typeof openImageZoomViewer === 'function') openImageZoomViewer(img.src);
+      });
+
+      const chars = p.characters || [];
+      if (chars.length) {
+        document.getElementById('postChars').innerHTML = chars.map(c => glCharCardHtml(c)).join('');
+        document.getElementById('charSection').classList.remove('gl-hidden');
+      }
+
+      if (p.can_edit) {
+        const e = document.getElementById('editBtn');
+        e.href = `gallery-write.html?board=${p.board}&id=${p.id}`;
+        e.classList.remove('gl-hidden');
+      }
+      if (p.can_delete) {
+        const d = document.getElementById('deleteBtn');
+        d.classList.remove('gl-hidden');
+        d.addEventListener('click', async () => {
+          if (!confirm('이 글을 삭제할까요? 이미지와 댓글도 함께 삭제돼요.')) return;
+          d.disabled = true;
+          const { error: delErr } = await sb.rpc('gallery_delete_post', { p_post_id: p.id });
+          if (delErr) { d.disabled = false; alert(glRpcError(delErr)); return; }
+          glInvokeImageFn({ action: 'purge' }).catch(() => {});   // 지운 이미지 파일 정리(실패해도 다음 호출 때 이어서)
+          location.href = boardLink.href;
+        });
+      }
+
+      // 등록 시 연결한 연구 과제(제출·심사 이력과 별개 — 표시만)
+      if (p.board === 'research') {
+        const { data: link } = await sb.rpc('research_post_link', { p_post_id: p.id });
+        if (link) {
+          const chip = document.createElement('a');
+          chip.className = 'gl-task-chip';
+          chip.href = `research-task.html?id=${link.task_id}`;
+          chip.textContent = `연구 과제 · ${link.task_title}${link.week_title ? ` · ${link.week_title}` : ''}${link.week_character_name ? ` · ${link.week_character_name}` : ''}`;
+          document.getElementById('postTitle').insertAdjacentElement('beforebegin', chip);
+        }
+      }
+      // 연구 등록·수정 완료 안내(작성 화면에서 ?done= 으로 넘어옴, 한 번 보이고 주소에서 지움)
+      const done = new URLSearchParams(location.search).get('done');
+      if (done === 'registered' || done === 'edited') {
+        const n = document.getElementById('doneNotice');
+        n.innerHTML = done === 'registered'
+          ? `연구를 등록했어요.${p.board === 'research' ? ' <a href="research-tasks.html" style="color:var(--sky-deep);font-weight:700;">연구 과제</a>에 제출할 수 있어요.' : ''}`
+          : '연구를 수정했어요.';
+        n.classList.remove('gl-hidden');
+        const u = new URL(location.href); u.searchParams.delete('done'); history.replaceState(null, '', u);
+      }
+      document.getElementById('post').classList.remove('gl-hidden');
+      mountGalleryComments(document.getElementById('comments'), p.id, user);
+    })();
+  </script>
+</body>
+</html>

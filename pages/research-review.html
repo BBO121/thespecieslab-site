@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>제출 심사 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+      <div id="denied" class="gl-empty gl-hidden">운영진(관리자·스태프)만 볼 수 있는 화면이에요.</div>
+
+      <div id="page" class="gl-hidden" style="max-width:900px;">
+        <div class="gl-head">
+          <a href="admin.html#Research" class="gl-post-board">‹ 관리자 페이지</a>
+          <h1 class="list-page-title" style="margin-top:6px;">연구 과제 제출 심사</h1>
+          <p class="gl-sub" style="margin-top:6px;">승인하면 제출 당시 보상이 서버에서 한 번만 지급돼요(중복 클릭·동시 승인에도 1회). 반려 사유는 제출자에게 보여요.
+            심사할 때의 제목·본문·이미지·관련 개체가 기록으로 남아, 나중에 원래 글이 수정돼도 확인할 수 있어요.
+            <span class="rt-flag-test">테스트</span> 제출(테스트 기간)은 승인해도 지급하지 않고 소급 지급도 하지 않아요.</p>
+          <p class="gl-sub gl-muted" id="rewardNote" style="font-size:12px;"></p>
+        </div>
+        <div class="rt-tabs" id="tabs">
+          <button type="button" class="rt-tab active" data-st="pending">승인 대기</button>
+          <button type="button" class="rt-tab" data-st="approved">승인</button>
+          <button type="button" class="rt-tab" data-st="rejected">반려</button>
+          <button type="button" class="rt-tab" data-st="withdrawn">제출 취소</button>
+          <button type="button" class="rt-tab" data-st="">전체</button>
+        </div>
+        <div id="list"></div>
+        <div id="paginationWrap"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const PER = 20;
+    let status = 'pending', page = 1;
+
+    function itemHtml(s) {
+      const reward = rtSubRewardText(s) + (s.reward_status === 'paid' && s.reward_paid_at ? ` (${glFmtDate(s.reward_paid_at, true)})` : '');   // 연구기록·아이템·무작위 결과 포함
+      const snapCover = s.snapshot?.images?.[0]?.thumb_path || s.post_cover;
+      return `<div class="rt-review-item" data-id="${s.id}">
+        ${snapCover ? `<a href="gallery-post.html?id=${s.post_id}&b=research" target="_blank" rel="noopener"><img class="rt-review-thumb" src="${glEsc(glImgUrl(snapCover))}" alt="" loading="lazy"></a>`
+                    : '<span class="rt-review-thumb" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-mute);">글 연구</span>'}
+        <div style="min-width:0;">
+          <div class="rt-sub-row">${rtStatusBadge(s.status)}${s.is_test ? '<span class="rt-flag-test">테스트</span>' : ''}<b>${glEsc(s.task_title || '')}</b>${s.week_title ? `<span class="gl-muted">· ${glEsc(s.week_title)}${s.week_character ? ` (${glEsc(glCharName(s.week_character))})` : ''}</span>` : ''}</div>
+          <div class="gl-sub" style="font-size:12.5px;margin-top:2px;">
+            연구 ${s.post_id ? `<a href="gallery-post.html?id=${s.post_id}&b=research" target="_blank" rel="noopener" style="color:var(--sky-deep);font-weight:700;">${glEsc(s.post_title || '')}</a>` : '<span class="gl-muted">(삭제됨)</span>'}
+            ${s.post_edited_after ? '<span class="rs-flag rs-flag--warn" style="margin-left:4px;">제출·심사 뒤 수정됨</span>' : ''}
+            · 제출자 <a href="profile.html?user=${encodeURIComponent(s.user_id)}" target="_blank" rel="noopener">${glEsc(s.user_nick || '(탈퇴한 회원)')}</a>
+            · 제출 ${glFmtDate(s.created_at, true)}
+          </div>
+          ${s.message ? `<div class="gl-sub" style="margin-top:4px;">전달 사항: ${glEsc(s.message)}</div>` : ''}
+          ${s.entry_check ? `<div class="rt-entry">${glEsc(rtEntryText(s.entry_check))} · 제출 당시 서버 확인</div>` : ''}
+          <div class="gl-sub gl-muted" style="font-size:12px;margin-top:4px;">${glEsc(reward)}${s.reviewed_at ? ` · 처리 ${glEsc(s.reviewed_by_nick || '')} ${glFmtDate(s.reviewed_at, true)}` : ''}</div>
+          ${s.status === 'approved' && s.review_comment ? `<div class="rt-comment" style="margin-top:6px;"><b>운영진 코멘트</b>${glEsc(s.review_comment)}</div>` : ''}
+          ${s.status === 'rejected' && s.reject_reason ? `<div class="rt-reason" style="margin-top:6px;">반려 사유: ${glEsc(s.reject_reason)}</div>` : ''}
+          <details class="rt-snap-wrap" ${s.status === 'pending' ? 'open' : ''}>
+            <summary class="gl-sub" style="font-size:12px;cursor:pointer;margin-top:6px;">${s.status === 'pending' ? '제출 당시 내용' : '심사 당시 내용'} (제목·본문·이미지·관련 개체)</summary>
+            ${rtSnapshotHtml(s.snapshot)}
+          </details>
+          ${s.status === 'pending' ? `<div class="rt-review-actions">
+            <button type="button" class="btn-secondary rs-btn-sm" data-act="approve">승인</button>
+            <textarea class="form-input" maxlength="500" placeholder="제출자에게 보낼 말 — 승인: 운영진 코멘트(선택) · 반려: 반려 사유(필수). 제출자의 내 연구에 보여요"></textarea>
+            <button type="button" class="btn-danger rs-btn-sm" data-act="reject">반려</button>
+          </div>` : ''}
+        </div>
+      </div>`;
+    }
+
+    async function load() {
+      const { data, error } = await sb.rpc('research_review_list', { p_status: status || null, p_task_id: null, p_limit: PER, p_offset: (page - 1) * PER });
+      if (error) { $('list').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error))}</p>`; return false; }
+      const c = data.counts || {};
+      document.querySelectorAll('#tabs .rt-tab').forEach(b => {
+        const n = b.dataset.st ? (c[b.dataset.st] || 0) : Object.values(c).reduce((a, x) => a + x, 0);
+        b.textContent = b.textContent.replace(/\s\d+$/, '') + ` ${n}`;
+      });
+      $('list').innerHTML = (data.items || []).map(itemHtml).join('') || '<p class="gl-empty">해당하는 제출이 없어요.</p>';
+      glRenderPager($('paginationWrap'), data.total, page, PER, p => { page = p; load(); });
+      return true;
+    }
+
+    $('tabs').addEventListener('click', e => {
+      const b = e.target.closest('.rt-tab'); if (!b) return;
+      document.querySelectorAll('#tabs .rt-tab').forEach(x => x.classList.toggle('active', x === b));
+      status = b.dataset.st; page = 1; load();
+    });
+    $('list').addEventListener('click', async e => {
+      const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+      const box = b.closest('[data-id]');
+      const reason = box.querySelector('textarea')?.value.trim() || '';
+      if (b.dataset.act === 'reject' && !reason) { alert('반려 사유를 입력해주세요.'); return; }
+      if (b.dataset.act === 'approve' && !confirm(reason ? '이 제출을 승인하고 운영진 코멘트를 보낼까요? 승인하면 되돌릴 수 없어요.' : '이 제출을 승인할까요? (코멘트 없음) 승인하면 되돌릴 수 없어요.')) return;
+      box.querySelectorAll('[data-act]').forEach(x => { x.disabled = true; });   // 중복 클릭 방지(서버도 1회만 처리)
+      const { data, error } = await sb.rpc('research_review_submission', { p_submission_id: Number(box.dataset.id), p_decision: b.dataset.act, p_reason: reason || null });
+      if (error) { alert(glRpcError(error)); box.querySelectorAll('[data-act]').forEach(x => { x.disabled = false; }); return; }
+      if (data?.already) alert('이미 처리된 제출이에요(추가 지급 없음).');
+      else if (data?.reward_status === 'test') alert('승인했어요. 테스트 제출이라 연구기록은 지급되지 않아요.');
+      load();
+    });
+
+    (async () => {
+      const user = await getUser();
+      if (!user) { location.href = 'login.html'; return; }
+      const role = user.app_metadata?.role;   // 표시용 — 실제 권한은 서버가 다시 판정
+      $('pageLoading').style.display = 'none';
+      if (role !== 'admin' && role !== 'staff') { $('denied').classList.remove('gl-hidden'); return; }
+      const ok = await load();
+      if (ok) $('page').classList.remove('gl-hidden'); else $('denied').classList.remove('gl-hidden');
+    })();
+  </script>
+</body>
+</html>

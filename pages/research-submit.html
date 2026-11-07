@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>과제 제출 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+      <div id="blocked" class="gl-empty gl-hidden"></div>
+
+      <form id="form" class="gl-form rt-submit gl-hidden" novalidate>
+        <a id="backLink" href="research-tasks.html" class="gl-post-board">‹ 과제로</a>
+        <h1 class="list-page-title" style="margin-top:6px;">과제 제출</h1>
+
+        <!-- 과제: 과제에서 들어오면 이름만, 아니면 선택(필수) -->
+        <section class="rt-sec">
+          <label class="form-label" for="taskSelect">과제</label>
+          <div id="taskBox" class="gl-notice rt-task-name gl-hidden"></div>
+          <select id="taskSelect" class="form-input gl-hidden" aria-describedby="taskErr"><option value="">과제를 선택해 주세요</option></select>
+          <p class="rt-field-err" id="taskErr" hidden>과제를 선택해 주세요.</p>
+        </section>
+
+        <!-- 제출할 연구 + 새 연구 등록 링크(한 묶음) -->
+        <section class="rt-sec">
+          <p id="doneNotice" class="gl-notice gl-hidden" style="margin-bottom:10px;" role="status">연구를 등록했어요. 아래에서 고른 뒤 과제에 제출해 주세요.</p>
+          <label class="form-label">제출할 연구 <span class="gl-muted">(내 연구 자료 보관소 — 글·그림 모두 가능)</span></label>
+          <div id="posts" class="rt-pick-grid" tabindex="-1" aria-describedby="postsErr"></div>
+          <p class="rt-field-err" id="postsErr" hidden>제출할 연구를 선택해 주세요.</p>
+          <p class="gl-sub rt-sec-link" id="noPosts"></p>
+        </section>
+
+        <!-- 참여 개체(과제 규칙에 따라) — 서버가 제출 당시 소유·관계를 다시 확인하고 기록 -->
+        <section class="rt-sec gl-hidden" id="entryBox">
+          <label class="form-label" id="entryLabel">참여 개체</label>
+          <p class="gl-sub gl-muted" id="entryHint" style="font-size:12px;margin:0 0 8px;"></p>
+          <!-- 공통 개체 검색·선택 컴포넌트(1체 선택, 내 개체만 — 래버 과제는 내 래버 + 래버 NPC). 보관소 원문의 관련 개체는 바꾸지 않는다 -->
+          <div id="entryPicker" class="rt-entry-picker" tabindex="-1" aria-describedby="entryErr"></div>
+          <p class="rt-field-err" id="entryErr" hidden>참여 개체를 선택해 주세요.</p>
+          <div id="partnerWrap" class="gl-hidden" style="margin-top:14px;">
+            <label class="form-label" for="entryPartner">관계 상대 <span class="gl-muted">(고른 참여 개체의 관계란에 등록된 관계만)</span></label>
+            <select id="entryPartner" class="form-input" aria-describedby="partnerErr"></select>
+            <p class="gl-sub gl-muted" id="partnerState" style="font-size:12px;margin-top:6px;"></p>
+            <p class="rt-field-err" id="partnerErr" hidden>관계 상대를 선택해 주세요.</p>
+          </div>
+        </section>
+
+        <section class="rt-sec">
+          <label class="form-label" for="msg">전달 사항 <span class="gl-muted">(선택)</span></label>
+          <textarea id="msg" class="form-input" maxlength="500" rows="3" placeholder="심사자에게 전할 말이 있으면 적어주세요"></textarea>
+          <p class="gl-counter"><span id="msgCount">0</span> / 500</p>
+        </section>
+
+        <section class="rt-sec rt-sec-foot">
+          <p class="gl-sub gl-muted" style="font-size:12px;margin:0;">
+            제출한 연구는 심사가 끝날 때까지 수정·삭제할 수 없어요(제출 취소 후 가능). 승인된 연구는 이미지를 바꾸거나 삭제할 수 없어요.
+            제출할 때의 제목·본문·이미지·관련 개체는 심사 기록으로 따로 보관돼요. 연구 공개 여부와 과제 승인 상태는 따로 관리돼요.
+          </p>
+          <div class="rt-submit-btns">
+            <a id="cancelBtn" href="research-tasks.html" class="btn-ghost">취소</a>
+            <button id="submitBtn" type="submit" class="btn-secondary">제출</button>
+          </div>
+        </section>
+      </form>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const q = new URLSearchParams(location.search);
+    const taskParam = Number(q.get('task')) || null;   // 과제에서 들어오면 고정, 없으면 선택(필수)
+    const preselect = Number(q.get('post')) || null;
+    const clientKey = glUuid();
+    let selected = null, busy = false, task = null;
+    let entryOk = () => true, entryVal = () => null, entryRule = 'none';
+
+    function block(html) { $('pageLoading').style.display = 'none'; $('blocked').innerHTML = html; $('blocked').classList.remove('gl-hidden'); }
+
+    // ── 필드 오류: 빨간 안내 + 빨간 테두리 + 포커스·스크롤. 고치면 바로 사라진다 ──
+    function showErr(errId, fieldEl) {
+      $(errId).hidden = false; fieldEl.classList.add('is-invalid');
+      fieldEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { fieldEl.focus({ preventScroll: true }); } catch (e) { fieldEl.focus(); }
+    }
+    function clearErr(errId, fieldEl) { $(errId).hidden = true; fieldEl.classList.remove('is-invalid'); }
+
+    // ── 과제 적용: 이름만 표시(보상·제한·회차·대상 문구 없음 — 검증·보상·연결은 서버 그대로) + 참여 개체 ──
+    let picker = null, partnerSeq = 0, partnerState = 'idle';   // idle | loading | ok | none | error
+    function setPartnerOptions(list) {
+      $('entryPartner').innerHTML = '<option value="">선택해 주세요</option>'
+        + list.map(p => `<option value="${p.id}">${glEsc(p.name)}${p.label ? ` · ${glEsc(p.label)}` : ''}${p.species_name ? ` (${glEsc(p.species_name)})` : ''}</option>`).join('');
+    }
+    // 고른 참여 개체의 관계 상대(양방향, 개체 상세 관계란과 같은 데이터). 개체를 바꾸면 목록·선택값을 새로 채운다.
+    async function loadPartners(cid) {
+      const my = ++partnerSeq;
+      clearErr('partnerErr', $('entryPartner'));
+      $('partnerWrap').classList.toggle('gl-hidden', !cid);
+      $('entryPartner').innerHTML = '<option value="">선택해 주세요</option>';
+      if (!cid) { partnerState = 'idle'; $('partnerState').textContent = ''; return; }
+      partnerState = 'loading'; $('entryPartner').disabled = true; $('partnerState').textContent = '관계 상대를 불러오는 중…';
+      const { data, error } = await sb.rpc('research_relation_partners', { p_character_id: cid });
+      if (my !== partnerSeq) return;   // 그 사이 다른 개체를 고름
+      $('entryPartner').disabled = false;
+      if (error) {   // 조회 실패 ≠ 관계 없음
+        partnerState = 'error';
+        $('partnerState').innerHTML = `관계 상대를 불러오지 못했어요: ${glEsc(glRpcError(error))} <button type="button" class="btn-ghost rs-btn-sm" id="partnerRetry">다시 불러오기</button>`;
+        $('partnerRetry').onclick = () => loadPartners(cid);
+        return;
+      }
+      const list = data?.partners || [];
+      partnerState = list.length ? 'ok' : 'none';
+      setPartnerOptions(list);
+      $('partnerState').textContent = list.length ? '' : '이 개체의 관계란에 등록된 관계가 없어요. 개체 상세의 관계란에서 등록한 뒤 다시 골라 주세요.';
+    }
+    async function applyTask(t) {
+      task = t;
+      const back = t ? `research-task.html?id=${t.id}` : 'research-tasks.html';
+      $('backLink').href = back; $('cancelBtn').href = back;
+      $('noPosts').innerHTML = `원하는 연구가 없나요? <a href="gallery-write.html?board=research${t ? `&task=${t.id}` : ''}" style="color:var(--sky-deep);font-weight:700;">새 연구 등록</a>`;
+      entryOk = () => true; entryVal = () => null; entryRule = 'none'; picker = null; partnerSeq++;
+      $('entryBox').classList.add('gl-hidden'); $('entryPicker').innerHTML = '';
+      clearErr('entryErr', $('entryPicker')); clearErr('partnerErr', $('entryPartner')); $('partnerWrap').classList.add('gl-hidden');
+      if (!t || !t.entry_rule || t.entry_rule === 'none') return true;
+      const rule = entryRule = t.entry_rule;
+      $('entryBox').classList.remove('gl-hidden');
+      $('entryLabel').textContent = '참여 개체';
+      $('entryHint').textContent = rule === 'labber_or_npc' ? '본인 소유 래버를 검색해 고르거나, 래버 NPC 를 골라 주세요. (서브젝트는 개체로 고르지 않아요)'
+        : rule === 'own_character_relation' ? '본인 소유 개체 1체를 고르면, 그 개체의 관계란에 등록된 상대가 아래에 나와요. (상대 소유자는 상관없어요)'
+        : '본인 소유 개체 1체를 검색해 골라 주세요.';
+      // 공통 개체 검색·선택 컴포넌트(전체/개체명/소유주명/종족명/유저명) — 내 개체만, 1체
+      picker = createCharacterPicker($('entryPicker'), {
+        single: true,
+        scope: rule === 'labber_or_npc' ? 'mine_labber' : 'mine',
+        extraChoices: rule === 'labber_or_npc' ? [{ id: 'npc', name: '래버 NPC', note: '래버 NPC 1체로 참여', is_extra: true }] : [],
+        onChange: (ids, items) => {
+          clearErr('entryErr', $('entryPicker'));
+          if (rule === 'own_character_relation') loadPartners(ids[0] || null);
+        },
+      });
+      $('entryPartner').onchange = () => clearErr('partnerErr', $('entryPartner'));
+      const sel = () => (picker ? picker.getSelected()[0] : null);
+      entryOk = () => !!sel() && (rule !== 'own_character_relation' || !!$('entryPartner').value);
+      entryVal = () => { const c = sel(); if (!c) return null;
+        if (c.is_extra && c.id === 'npc') return { npc: true };
+        return rule === 'own_character_relation' ? { character_id: Number(c.id), partner_id: Number($('entryPartner').value) } : { character_id: Number(c.id) }; };
+      return true;
+    }
+    const taskBlockMsg = t => {
+      const st = researchWeekState(t.current_week);
+      return t.kind === 'weekly' && st !== 'ok' ? (st === 'unavailable' ? RESEARCH_TEXT.unavailable : RESEARCH_TEXT.preparing) : '지금은 제출할 수 없는 과제예요.';
+    };
+    const taskOpen = t => t.is_open_now && (t.kind !== 'weekly' || researchWeekState(t.current_week) === 'ok');
+
+    (async () => {
+      const user = await getUser();
+      if (!user) { location.href = 'login.html'; return; }
+
+      if (taskParam) {
+        const { data: t } = await sb.rpc('research_get_task', { p_task_id: taskParam });
+        if (!t) { block('과제를 찾을 수 없어요.<br><br><a class="btn-ghost" href="research-tasks.html">연구 과제로</a>'); return; }
+        if (!taskOpen(t)) { block(`${glEsc(taskBlockMsg(t))}<br><br><a class="btn-ghost" href="research-task.html?id=${t.id}">과제로</a>`); return; }
+        $('taskBox').innerHTML = `<strong>${glEsc(t.title)}</strong>`;   // 과제 이름만
+        $('taskBox').classList.remove('gl-hidden');
+        $('taskSelect').closest('.rt-sec').querySelector('label').removeAttribute('for');
+        if (!(await applyTask(t))) return;
+      } else {
+        // 과제 선택(필수) — 진행 중이고 지금 제출 가능한 과제만
+        const { data: list, error } = await sb.rpc('research_list_tasks');
+        if (error) { block(glEsc(glRpcError(error))); return; }
+        const opts = (list?.items || []).filter(t => t.status === 'open' && t.is_open_now && (t.kind !== 'weekly' || researchWeekState(list.current_week) === 'ok'));
+        $('taskSelect').innerHTML = '<option value="">과제를 선택해 주세요</option>' + opts.map(t => `<option value="${t.id}">${glEsc(t.title)}</option>`).join('');
+        $('taskSelect').classList.remove('gl-hidden');
+        await applyTask(null);
+        $('taskSelect').addEventListener('change', async () => {
+          clearErr('taskErr', $('taskSelect'));
+          if (!$('taskSelect').value) { await applyTask(null); return; }
+          const { data: t } = await sb.rpc('research_get_task', { p_task_id: Number($('taskSelect').value) });
+          await applyTask(t && taskOpen(t) ? t : null);
+        });
+      }
+
+      const { data: mine, error } = await sb.rpc('research_my_archive_posts', { p_limit: 60, p_offset: 0 });
+      if (error) { block(glEsc(glRpcError(error))); return; }
+      // 심사 중(pending)·승인(approved)인 연구는 제출 목록에서 뺀다 — 반려·취소된 연구는 다시 고를 수 있다(보관소 글은 그대로)
+      const all = mine?.items || [];
+      const items = all.filter(p => p.lock === 'none');
+      const hiddenN = all.length - items.length;
+      // 등록한 연구가 없어도 제출 폼은 그대로 — 선택란에 빈 상태 표시(서버도 본인 연구 없이는 거부)
+      if (!items.length) $('posts').innerHTML = `<p class="rt-pick-empty">${all.length ? '제출할 수 있는 연구가 없어요' : '등록한 연구가 없어요'}</p>`;
+      else $('posts').innerHTML = items.map(p => `<button type="button" class="rt-pick" data-id="${p.id}" ${p.lock === 'pending' ? 'disabled' : ''}>
+          ${p.lock !== 'none' ? `<span class="rt-pick-lock">${p.lock === 'pending' ? '심사 중' : '승인된 연구'}</span>` : ''}
+          ${p.cover_thumb_path ? `<img src="${glEsc(glImgUrl(p.cover_thumb_path))}" alt="" loading="lazy">` : `<span class="rt-pick-text">${glEsc(p.excerpt || '')}</span>`}
+          <span>${glEsc(p.title)}</span>
+        </button>`).join('');
+      const pick = id => {
+        selected = id;
+        $('posts').querySelectorAll('.rt-pick').forEach(b => b.classList.toggle('is-selected', Number(b.dataset.id) === id));
+        clearErr('postsErr', $('posts'));
+      };
+      $('posts').addEventListener('click', e => { const b = e.target.closest('.rt-pick'); if (b && !b.disabled) pick(Number(b.dataset.id)); });
+      if (hiddenN) $('noPosts').insertAdjacentHTML('afterbegin', `<span class="gl-muted">심사 중이거나 승인된 연구 ${hiddenN}개는 목록에서 빠져요. </span>`);
+      if (preselect && items.some(p => p.id === preselect)) pick(preselect);
+      $('msg').addEventListener('input', e => { $('msgCount').textContent = e.target.value.length; });
+
+      // 제출: 빠진 항목은 조용히 막지 않고 그 칸 아래에 안내(과제 → 연구 → 참여 개체 → 관계 상대 순)
+      $('form').addEventListener('submit', async e => {
+        e.preventDefault();
+        if (busy) return;
+        if (!task) { showErr('taskErr', $('taskSelect')); return; }
+        if (!selected) {
+          $('postsErr').textContent = items.length ? '제출할 연구를 선택해 주세요.' : '제출할 수 있는 연구가 없어요. 먼저 연구를 등록해 주세요.';
+          showErr('postsErr', $('posts')); return;
+        }
+        if (entryRule !== 'none') {
+          if (!picker || !picker.getSelected().length) { $('entryErr').textContent = entryRule === 'labber_or_npc' ? '본인 소유 래버나 래버 NPC 를 골라 주세요.' : '참여할 본인 소유 개체를 골라 주세요.'; showErr('entryErr', $('entryPicker')); picker?.focus(); return; }
+          if (entryRule === 'own_character_relation' && !$('entryPartner').value) {
+            $('partnerErr').textContent = partnerState === 'none' ? '이 개체의 관계란에 등록된 관계가 없어 제출할 수 없어요. 다른 개체를 고르거나 관계란에 등록해 주세요.'
+              : partnerState === 'error' ? '관계 상대를 불러오지 못했어요. 다시 불러오기를 눌러 주세요.' : '관계 상대를 선택해 주세요.';
+            showErr('partnerErr', $('entryPartner')); return;
+          }
+        }
+        busy = true; $('submitBtn').disabled = true; $('submitBtn').textContent = '제출 중…';
+        const { error: err } = await sb.rpc('research_submit', { p_task_id: task.id, p_post_id: selected, p_message: $('msg').value.trim() || null, p_client_key: clientKey, p_entry: entryVal() });
+        if (err) {
+          busy = false; $('submitBtn').disabled = false; $('submitBtn').textContent = '제출';
+          const m = glRpcError(err);
+          if (entryRule !== 'none' && /관계 상대|관계란|관계가 아니/.test(m)) { $('partnerErr').textContent = m; showErr('partnerErr', $('entryPartner')); return; }
+          if (entryRule !== 'none' && /참여|개체|래버|NPC/.test(m)) { $('entryErr').textContent = m; showErr('entryErr', $('entryPicker')); return; }
+          alert(m); return;
+        }
+        location.href = `research-task.html?id=${task.id}`;
+      });
+
+      if (q.get('done') === 'registered') $('doneNotice').classList.remove('gl-hidden');   // 방금 연구 등록 후 넘어옴
+      $('pageLoading').style.display = 'none';
+      $('form').classList.remove('gl-hidden');
+    })();
+  </script>
+</body>
+</html>

@@ -328,6 +328,21 @@
         </div>
 
         <!-- 월급계산기 탭 (관리자·스태프. 권한은 서버 RPC 가 판정) -->
+        <!-- 연구과제 탭 (2026-11-07) — 과제 관리(admin)·제출 심사(admin/staff)·주간 연구대상 관리(admin) -->
+        <div id="tabResearch" class="tab-content" style="display:none;">
+          <section class="section">
+            <div class="section-header" style="margin-bottom:12px;">
+              <h2 class="settings-section-title" style="margin-bottom:0;">연구과제</h2>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <a href="research-review.html" class="btn-secondary" style="justify-content:space-between;">제출 심사 <span id="researchPendingCount">…</span></a>
+              <a href="research-task-admin.html" class="btn-ghost" data-admin-only>연구 과제 관리 (관리자)</a>
+              <a href="research-admin.html" class="btn-ghost" data-admin-only>이번 주의 연구대상 관리 (관리자)</a>
+            </div>
+            <p style="font-size:12px;color:var(--text-mute);margin-top:10px;">승인·반려는 관리자·스태프 모두 할 수 있어요. 과제 등록·보상 설정과 주간 연구대상 관리는 관리자만 할 수 있어요.</p>
+          </section>
+        </div>
+
         <div id="tabSalary" class="tab-content" style="display:none;">
           <section class="section">
             <div class="section-header" style="margin-bottom:12px;">
@@ -475,7 +490,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
-  <script src="../js/sidebar.js?v=3.1.5"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
   <script src="../js/notifications.js"></script>
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
@@ -521,7 +536,7 @@
     }
 
     // ── 탭 전환 (왼쪽 관리자 사이드바 → 주소 해시) ──────────────
-    // 각 탭은 처음 열 때 한 번만 불러온다(tabLoaded). 같은 탭을 다시 골라도 다시 불러오지 않는다.
+    // 각 탭은 처음 열 때 한 번만 불러온다(tabLoaded). 같은 탭을 다시 골라도 다시 불러오지 않는다(연구과제는 대기 건수만 새로 조회).
     const tabLoaded = { Notices: true, Users: true };   // initPage 가 처음에 불러옴
     let currentTab = null;
     function showTab(name) {
@@ -548,6 +563,7 @@
       if (name === 'Adoptions' && !tabLoaded.Adoptions) {
         tabLoaded.Adoptions = true; loadAdminAdoptions();
       }
+      if (name === 'Research' && typeof loadResearchAdminTab === 'function') loadResearchAdminTab();
       if (name === 'AdminLogs' && !tabLoaded.AdminLogs) {
         tabLoaded.AdminLogs = true; loadAdminLogs();
       }
@@ -1668,6 +1684,16 @@
     }
 
     initPage();
+  </script>
+  <script>
+    // 연구과제 탭 — 대기 건수만 가볍게 조회(권한은 서버가 판정). DB 미적용이면 "—" 표시.
+    async function loadResearchAdminTab() {
+      const el = document.getElementById('researchPendingCount');
+      const role = (await getUser())?.app_metadata?.role;
+      document.querySelectorAll('#tabResearch [data-admin-only]').forEach(a => { a.style.display = role === 'admin' ? '' : 'none'; });
+      const { data, error } = await sb.rpc('research_review_list', { p_status: 'pending', p_task_id: null, p_limit: 1, p_offset: 0 });
+      el.textContent = error ? '—' : `대기 ${data?.total ?? 0}건`;
+    }
   </script>
 </body>
 </html>

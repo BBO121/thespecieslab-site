@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>내 연구 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <!-- 내 연구(MY): 모든 연구 과제에 낸 내 제출 내역 — 서버가 로그인한 본인 제출만 돌려준다(research_my_submissions) -->
+      <div class="gl-head">
+        <h1 class="list-page-title">내 연구</h1>
+        <p class="gl-sub" style="margin-top:6px;">연구 과제에 제출한 내역이에요. 본인 제출만 보여요.</p>
+      </div>
+
+      <div class="gl-filter-row rt-my-filters">
+        <label class="gl-sub" for="fTask" style="font-weight:700;">과제</label>
+        <select id="fTask" class="form-input" aria-label="과제별 보기"><option value="">모든 과제</option></select>
+        <label class="gl-sub" for="fStatus" style="font-weight:700;">상태</label>
+        <select id="fStatus" class="form-input" aria-label="상태별 보기">
+          <option value="">전체</option><option value="pending">승인 대기</option><option value="approved">승인</option>
+          <option value="rejected">반려</option><option value="withdrawn">제출 취소</option>
+        </select>
+      </div>
+      <p class="list-page-count" id="count" style="margin:0 0 10px;"></p>
+      <p id="loadState" class="gl-empty">불러오는 중...</p>
+      <div id="list" class="rt-sub-list"></div>
+      <div id="paginationWrap"></div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const PER = 10;
+    const qs = new URLSearchParams(location.search);
+    let page = Math.max(1, parseInt(qs.get('page'), 10) || 1);
+    const STATUS_LABEL = { pending: '승인 대기', approved: '승인', rejected: '반려', withdrawn: '제출 취소' };
+
+    function itemHtml(s) {
+      const post = s.post_id
+        ? `<a href="gallery-post.html?id=${s.post_id}&b=research" class="rt-my-title">${glEsc(s.post_title || '연구')}</a>`
+        : `<span class="rt-my-title gl-muted">${glEsc(s.post_title || '연구')} (삭제된 연구)</span>`;
+      return `<article class="rt-my" data-id="${s.id}">
+        <div class="rt-sub-row">${rtStatusBadge(s.status)}${s.is_test ? '<span class="rt-flag-test">테스트</span>' : ''}
+          <a href="research-task.html?id=${s.task_id}" class="rt-my-task">${glEsc(s.task_title || '')}</a>
+          ${s.week_title ? `<span class="gl-muted">· ${glEsc(s.week_title)}</span>` : ''}
+          ${s.status === 'pending' ? `<button type="button" class="btn-ghost rs-btn-sm" data-withdraw="${s.id}" style="margin-left:auto;">제출 취소</button>` : ''}
+        </div>
+        ${post}
+        <dl class="rt-my-facts">
+          <dt>제출일</dt><dd>${glFmtDate(s.created_at, true)}</dd>
+          ${s.reviewed_at ? `<dt>처리일</dt><dd>${glFmtDate(s.reviewed_at, true)}</dd>` : ''}
+          <dt>보상</dt><dd>${glEsc(rtSubRewardText(s))}</dd>
+          ${s.entry_check ? `<dt>참여</dt><dd>${glEsc(rtEntryText(s.entry_check).replace(/^참여: /, ''))}</dd>` : ''}
+        </dl>
+        ${s.status === 'approved' && s.review_comment ? `<div class="rt-comment"><b>운영진 코멘트</b>${glEsc(s.review_comment)}</div>` : ''}
+        ${s.status === 'rejected' && s.reject_reason ? `<div class="rt-reason"><b>반려 사유</b> ${glEsc(s.reject_reason)}<br><span style="font-size:11.5px;">연구를 수정한 뒤 다시 제출할 수 있어요.</span></div>` : ''}
+      </article>`;
+    }
+
+    function syncUrl() {
+      const u = new URL(location.href);
+      for (const [k, v] of [['task', $('fTask').value], ['status', $('fStatus').value], ['page', page > 1 ? page : '']]) { if (v) u.searchParams.set(k, v); else u.searchParams.delete(k); }
+      history.replaceState(null, '', u);
+    }
+
+    // 주소의 필터(과제 상세에서 들어오면 ?task=)를 첫 요청 전에 적용 — 과제 목록은 첫 응답으로 채운다
+    let urlTask = /^\d+$/.test(qs.get('task') || '') ? qs.get('task') : '';
+    { const st = qs.get('status') || ''; if ([...$('fStatus').options].some(o => o.value === st)) $('fStatus').value = st; }
+    const curTask = () => ($('fTask').options.length > 1 ? $('fTask').value : urlTask);
+
+    async function load(first = false) {
+      $('loadState').classList.remove('gl-hidden');
+      const reqTask = curTask();
+      const { data, error } = await sb.rpc('research_my_submissions', {
+        p_task_id: Number(reqTask) || null, p_status: $('fStatus').value || null, p_limit: PER, p_offset: (page - 1) * PER });
+      $('loadState').classList.add('gl-hidden');
+      if (error) { $('list').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error, '내 연구를 불러오지 못했어요.'))}</p>`; return; }
+      if (first) {
+        $('fTask').innerHTML = '<option value="">모든 과제</option>' + (data.tasks || []).map(t => `<option value="${t.id}">${glEsc(t.title)}</option>`).join('');
+        $('fTask').value = [...$('fTask').options].some(o => o.value === reqTask) ? reqTask : '';
+        if ($('fTask').value !== reqTask) { urlTask = ''; return load(false); }   // 없는 과제 번호면 모든 과제로 다시
+      }
+      const c = data.counts || {};
+      [...$('fStatus').options].forEach(o => { o.textContent = (o.value ? STATUS_LABEL[o.value] : '전체') + ` (${o.value ? (c[o.value] || 0) : Object.values(c).reduce((a, n) => a + n, 0)})`; });
+      $('count').textContent = data.total ? `제출 ${data.total}건` : '';
+      $('list').innerHTML = (data.items || []).map(itemHtml).join('')
+        || `<p class="gl-empty">${$('fTask').value || $('fStatus').value ? '조건에 맞는 제출이 없어요.' : '아직 제출한 연구가 없어요.'}<br><br><a class="btn-ghost" href="research-tasks.html">연구 과제 보기</a></p>`;
+      glRenderPager($('paginationWrap'), data.total || 0, page, PER, p => { page = p; syncUrl(); window.scrollTo({ top: 0, behavior: 'smooth' }); load(); });
+    }
+
+    $('fTask').addEventListener('change', () => { page = 1; syncUrl(); load(); });
+    $('fStatus').addEventListener('change', () => { page = 1; syncUrl(); load(); });
+    $('list').addEventListener('click', async e => {
+      const b = e.target.closest('[data-withdraw]');
+      if (!b || b.disabled || !confirm('이 제출을 취소할까요? 취소하면 연구를 수정하거나 다시 제출할 수 있어요.')) return;
+      b.disabled = true;
+      const { error } = await sb.rpc('research_withdraw_submission', { p_submission_id: Number(b.dataset.withdraw) });
+      if (error) { b.disabled = false; alert(glRpcError(error)); return; }
+      load();
+    });
+
+    (async () => {
+      const user = await getUser();
+      if (!user) { location.href = 'login.html'; return; }
+      load(true);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>연구 과제 관리 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+      <div id="denied" class="gl-empty gl-hidden">관리자만 볼 수 있는 화면이에요.</div>
+
+      <div id="page" class="gl-hidden" style="max-width:900px;">
+        <div class="gl-head">
+          <a href="admin.html#Research" class="gl-post-board">‹ 관리자 페이지</a>
+          <h1 class="list-page-title" style="margin-top:6px;">연구 과제 관리</h1>
+          <div class="gl-head-row">
+            <span style="display:flex;gap:6px;flex-wrap:wrap;">
+              <a href="research-review.html" class="btn-ghost rs-btn-sm">제출 심사</a>
+              <a href="research-admin.html" class="btn-ghost rs-btn-sm">이번 주의 연구대상 관리</a>
+            </span>
+            <button type="button" class="btn-secondary rs-btn-sm" id="newBtn">+ 새 과제</button>
+          </div>
+          <p class="gl-sub gl-muted" style="font-size:12px;margin-top:6px;">
+            보상·제출 제한은 과제마다 정해요. 보상을 바꾸면 <b>바꾼 뒤 제출된 건부터</b> 적용되고, 이미 제출된 건은 제출 당시 보상으로 처리돼요.
+            ‘이번 주의 연구대상’ 과제는 기간·제출 제한(주차마다 1인 1회)을 바꿀 수 없어요.
+          </p>
+        </div>
+
+        <form id="editor" class="rs-admin-week gl-hidden" style="margin-bottom:16px;" novalidate>
+          <strong id="edTitle">새 과제</strong>
+          <div class="rs-admin-form">
+            <label class="form-label" style="margin:0;">제목<input class="form-input" data-f="title" maxlength="60" required></label>
+            <label class="form-label" style="margin:0;">분류(쉼표로 여러 개)<input class="form-input" data-f="category" maxlength="20" placeholder="예) 월간,래버"></label>
+            <label class="form-label" style="margin:0;">상태
+              <select class="form-input" data-f="status"><option value="draft">초안(비공개)</option><option value="open">진행</option><option value="closed">마감</option></select></label>
+            <label class="form-label" style="margin:0;">정렬 순서<input class="form-input" data-f="sort_order" type="number" value="0"></label>
+            <label class="form-label" style="margin:0;" data-period>시작(KST, 비우면 상시)<input class="form-input" data-f="starts_at" type="datetime-local"></label>
+            <label class="form-label" style="margin:0;" data-period>종료(KST, 비우면 상시)<input class="form-input" data-f="ends_at" type="datetime-local"></label>
+            <label class="form-label" style="margin:0;">보상(연구기록)<input class="form-input" data-f="reward_amount" type="number" min="0" max="10000" value="0"></label>
+            <label class="form-label" style="margin:0;" data-limit>제출 제한
+              <select class="form-input" data-f="submit_limit"><option value="once_per_user">1인 1회</option><option value="once_per_user_week">매주 1인 1회</option>
+                <option value="per_user_week">매주 1인 N회</option><option value="per_user_month">매월 1인 N회</option><option value="unlimited">제한 없음(연구마다)</option></select></label>
+            <label class="form-label" style="margin:0;" data-limit>N(매주·매월 횟수)<input class="form-input" data-f="limit_count" type="number" min="1" max="20" value="1"></label>
+            <label class="form-label" style="margin:0;">참여 개체(제출 때 서버 확인)
+              <select class="form-input" data-f="entry_rule"><option value="none">확인 안 함</option><option value="own_character">본인 소유 개체 1체</option>
+                <option value="own_character_relation">본인 개체 + 관계란에 등록된 상대</option><option value="labber_or_npc">본인 소유 래버 또는 래버 NPC</option></select></label>
+          </div>
+          <div class="rt-admin-reward">
+            <div class="form-label" style="margin:0;">아이템 보상(승인 1회당) <span class="gl-muted" style="font-weight:400;">— 표시명·수량만 먼저 저장하고, 실제 아이템은 나중에 찾아 연결할 수 있어요</span></div>
+            <div id="edItems" class="rt-rw-list"></div>
+            <button type="button" class="btn-ghost rs-btn-sm" id="edItemAdd" style="align-self:flex-start;">+ 아이템 보상 추가</button>
+            <div class="form-label" style="margin:6px 0 0;">무작위 아이템 보상(후보 중 1개) <span class="gl-muted" style="font-weight:400;">— 가중치 = 확률 비율</span></div>
+            <div id="edRandom" class="rt-rw-list"></div>
+            <button type="button" class="btn-ghost rs-btn-sm" id="edRandomAdd" style="align-self:flex-start;">+ 무작위 후보 추가</button>
+            <p class="gl-sub gl-muted" style="font-size:12px;margin:0;">‘아이템 연결 필요’가 남아 있으면 정식 승인(지급)이 서버에서 막혀요. 테스트 제출 모의 심사는 가능해요.</p>
+            <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;"><input type="checkbox" id="randConfirmed"> 무작위 확률 확정(체크해야 정식 승인 때 지급 — 테스트 제출은 지급 없음)</label>
+            <p class="gl-sub gl-muted" style="font-size:12px;margin:0;" id="rewardNow"></p>
+          </div>
+          <label class="form-label" style="margin:0;">이미지 주소(https:// 또는 ../images/…, 선택)<input class="form-input" data-f="image_url" maxlength="500"></label>
+          <label class="form-label" style="margin:0;">요약 설명(목록에 보임)<textarea class="form-input" data-f="summary" maxlength="300" rows="2"></textarea></label>
+          <label class="form-label" style="margin:0;">과제 설명(상세페이지 전체 설명)<textarea class="form-input" data-f="guide" maxlength="5000" rows="6"></textarea></label>
+          <div class="rs-admin-form">
+            <label class="form-label" style="margin:0;">프롬프트 조건 — 그림(선택)<input class="form-input" data-f="prompt_image" maxlength="200" placeholder="예) 개체 전신 채색"></label>
+            <label class="form-label" style="margin:0;">프롬프트 조건 — 글(선택)<input class="form-input" data-f="prompt_text" maxlength="200" placeholder="예) 공백 미포함 1,000자 이상"></label>
+          </div>
+          <label class="form-label" style="margin:0;">프롬프트 조건(구조, 선택) — 있으면 위 두 칸 대신 이걸로 표시. 강조는 <code>**굵게**</code>
+            <textarea class="form-input" data-f="prompt_spec" rows="5" spellcheck="false" style="font-family:ui-monospace,Consolas,monospace;font-size:12px;"
+              placeholder='{"common":"…(선택)","image":{"lead":"아래 중 하나(선택)","lines":[{"t":"본인 소유 개체 **1체**","sub":"(선택)"}]},"text":{"lines":[{"t":"공백 미포함 **1,000자 이상**"}]},"notes":["※ …"],"either":true}'></textarea></label>
+          <label class="form-label" style="margin:0;">참여 조건 — 글·그림 참여 기준 등(비우면 “글·그림 모두 가능” 기본 안내)
+            <textarea class="form-input" data-f="conditions" maxlength="2000" rows="4" placeholder="예) · 그림과 글 모두 참여할 수 있어요 — 글만 / 그림만 / 글과 그림 모두.&#10;· 글은 500자 이상 권장"></textarea></label>
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <button type="button" class="btn-ghost rs-btn-sm" id="edCancel">닫기</button>
+            <button type="submit" class="btn-secondary rs-btn-sm" id="edSave">저장</button>
+          </div>
+        </form>
+
+        <div id="tasks"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const kstToIso = v => v ? new Date(`${v}:00+09:00`).toISOString() : null;
+    const isoToKst = iso => iso ? new Date(new Date(iso).getTime() + 9 * 3600000).toISOString().slice(0, 16) : '';
+    let tasks = [], editing = null;
+
+    function open(t) {
+      editing = t || null;
+      const f = n => $('editor').querySelector(`[data-f="${n}"]`);
+      $('edTitle').textContent = t ? `과제 수정 #${t.id}` : '새 과제';
+      for (const k of ['title', 'category', 'summary', 'guide', 'conditions', 'prompt_image', 'prompt_text', 'image_url']) f(k).value = t?.[k] || '';
+      f('status').value = t?.status || 'draft';
+      f('sort_order').value = t?.sort_order ?? 0;
+      f('reward_amount').value = t?.reward_amount ?? 0;
+      f('submit_limit').value = t?.submit_limit || 'once_per_user';
+      f('limit_count').value = t?.limit_count || 1;
+      f('prompt_spec').value = t?.prompt_spec ? JSON.stringify(t.prompt_spec, null, 1) : '';
+      f('entry_rule').value = t?.entry_rule || 'none';
+      const ra = t?.rewards_admin || {};
+      itemsEd.set((ra.items || []).map(i => ({ name: i.name, item_id: i.unlinked ? null : i.item_id, code: i.code, item_name: i.unlinked ? null : (i.code ? i.name : null), n: i.qty || 1 })));
+      randEd.set((ra.random?.options || []).map(o => ({ name: o.name, item_id: o.unlinked ? null : o.item_id, code: o.code, item_name: o.unlinked ? null : o.name, n: o.weight ?? 1 })));
+      $('randConfirmed').checked = !!ra.random?.confirmed;
+      $('rewardNow').textContent = (ra.items || []).length || (ra.random?.options || []).length
+        ? `현재: ${[...(ra.items || []).map(i => `${i.name} ×${i.qty}`), ...((ra.random?.options || []).length ? [`무작위 1개(${ra.random.options.map(o => `${o.name} ${o.weight}`).join(' : ')}${ra.random.confirmed ? ', 확정' : ', 미확정'})`] : [])].join(' / ')}` : '';
+      f('starts_at').value = isoToKst(t?.starts_at); f('ends_at').value = isoToKst(t?.ends_at);
+      const weekly = t?.kind === 'weekly';
+      $('editor').querySelectorAll('[data-period], [data-limit]').forEach(el => el.classList.toggle('gl-hidden', weekly));
+      $('editor').classList.remove('gl-hidden');
+      $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function load() {
+      const { data, error } = await sb.rpc('research_admin_list_tasks');
+      if (error) { $('tasks').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error))}</p>`; return false; }
+      tasks = data || [];
+      const ST = { draft: '초안', open: '진행', closed: '마감' };
+      $('tasks').innerHTML = tasks.map(t => `<div class="rs-admin-week">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <strong>${glEsc(t.title)}${t.kind === 'weekly' ? ' <span class="rs-flag rs-flag--ok">주간</span>' : ''}</strong>
+          <span class="rs-admin-flags"><span class="rs-flag ${t.status === 'open' ? 'rs-flag--ok' : ''}">${ST[t.status]}</span>
+            ${t.needs_item_link ? '<span class="rs-flag rs-flag--bad">아이템 연결 필요</span>' : ''}
+            ${t.pending_count ? `<span class="rs-flag rs-flag--warn">심사 대기 ${t.pending_count}</span>` : ''}
+            <span class="rs-flag">승인 ${t.approved_count}</span></span>
+        </div>
+        <div class="gl-sub" style="font-size:12px;">${glEsc(t.category || '분류 없음')} · 기간 ${glEsc(t.kind === 'weekly' ? '주차별(월 00:00 KST 교체)' : rtPeriodText(t.starts_at, t.ends_at))}
+          · 보상 ${glEsc(rtRewardText(t))} · 제출 ${glEsc(rtLimitText(t))}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn-ghost rs-btn-sm" data-edit="${t.id}">수정</button>
+          <a class="btn-ghost rs-btn-sm" href="research-task.html?id=${t.id}" target="_blank" rel="noopener">보기</a>
+          ${t.pending_count ? `<a class="btn-ghost rs-btn-sm" href="research-review.html">심사하기</a>` : ''}
+        </div>
+      </div>`).join('');
+      return true;
+    }
+
+    // 보상 아이템 줄 편집기: 표시명 / 수량(가중치) / 연결 상태 / 아이템 찾기·연결 / 연결 해제 / 삭제
+    function rewardEditor(root, addBtn, nLabel, nMin) {
+      let rows = [];
+      const draw = () => {
+        root.innerHTML = rows.map((r, i) => `<div class="rt-rw" data-i="${i}">
+          <input class="form-input rt-rw-name" placeholder="표시명(예: 기다란 철사)" value="${glEsc(r.name || '')}" maxlength="40">
+          <label class="rt-rw-n">${nLabel}<input class="form-input" type="number" min="${nMin}" value="${r.n}"></label>
+          <span class="rt-rw-link">${r.item_id ? `<span class="rs-flag rs-flag--ok">연결됨</span> ${glEsc(r.item_name || r.name || '')}${r.code ? ` <code>${glEsc(r.code)}</code>` : ''}`
+                                               : '<span class="rs-flag rs-flag--bad">아이템 연결 필요</span>'}</span>
+          <span class="rt-rw-find"><input class="form-input" placeholder="아이템 이름·코드로 찾기" data-q><span class="rt-rw-res" data-res></span></span>
+          <span class="rt-rw-btns">${r.item_id ? '<button type="button" class="btn-ghost rs-btn-sm" data-unlink>연결 해제</button>' : ''}<button type="button" class="btn-ghost rs-btn-sm" data-del>삭제</button></span>
+        </div>`).join('') || '<p class="gl-sub gl-muted" style="margin:0;font-size:12px;">없음</p>';
+      };
+      root.addEventListener('input', e => {
+        const row = e.target.closest('.rt-rw'); if (!row) return; const r = rows[Number(row.dataset.i)];
+        if (e.target.classList.contains('rt-rw-name')) r.name = e.target.value;
+        else if (e.target.type === 'number') r.n = Math.max(nMin, Number(e.target.value) || nMin);
+        else if (e.target.hasAttribute('data-q')) {
+          clearTimeout(r._t); const q = e.target.value.trim(); const box = row.querySelector('[data-res]');
+          r._t = setTimeout(async () => {
+            if (!q) { box.innerHTML = ''; return; }
+            const { data, error } = await sb.rpc('research_admin_search_items', { p_q: q });
+            box.innerHTML = error ? `<span class="gl-muted">${glEsc(glRpcError(error))}</span>`
+              : (data || []).map(it => `<button type="button" class="rt-rw-pick" data-pick="${it.item_id}" data-code="${glEsc(it.code || '')}" data-name="${glEsc(it.name)}">${glEsc(it.name)} <code>${glEsc(it.code || '')}</code></button>`).join('') || '<span class="gl-muted">찾는 아이템이 없어요</span>';
+          }, 250);
+        }
+      });
+      root.addEventListener('click', e => {
+        const row = e.target.closest('.rt-rw'); if (!row) return; const i = Number(row.dataset.i);
+        const pick = e.target.closest('[data-pick]');
+        if (pick) { Object.assign(rows[i], { item_id: pick.dataset.pick, code: pick.dataset.code, item_name: pick.dataset.name }); if (!rows[i].name) rows[i].name = pick.dataset.name; draw(); }
+        else if (e.target.closest('[data-unlink]')) { Object.assign(rows[i], { item_id: null, code: null, item_name: null }); draw(); }
+        else if (e.target.closest('[data-del]')) { rows.splice(i, 1); draw(); }
+      });
+      addBtn.addEventListener('click', () => { rows.push({ name: '', item_id: null, n: 1 }); draw(); });
+      return { set: v => { rows = v.map(x => ({ ...x })); draw(); }, get: () => rows.filter(r => (r.name || '').trim() || r.item_id).map(r => ({ ...r, name: (r.name || '').trim() })) };
+    }
+    const itemsEd = rewardEditor($('edItems'), $('edItemAdd'), '수량', 1);
+    const randEd = rewardEditor($('edRandom'), $('edRandomAdd'), '가중치', 0);
+    $('newBtn').addEventListener('click', () => open(null));
+    $('edCancel').addEventListener('click', () => $('editor').classList.add('gl-hidden'));
+    $('tasks').addEventListener('click', e => { const b = e.target.closest('[data-edit]'); if (b) open(tasks.find(t => t.id === Number(b.dataset.edit))); });
+    $('editor').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = n => $('editor').querySelector(`[data-f="${n}"]`).value;
+      if (!f('title').trim()) { alert('제목을 입력해주세요.'); return; }
+      let promptSpec = null;
+      if (f('prompt_spec').trim()) { try { promptSpec = JSON.parse(f('prompt_spec')); if (!promptSpec || typeof promptSpec !== 'object' || Array.isArray(promptSpec)) throw 0; } catch (err) { alert('프롬프트 조건(구조) JSON 형식이 올바르지 않아요.'); return; } }
+      if (editing && Number(f('reward_amount')) !== editing.reward_amount
+          && !confirm('보상을 바꾸면 이후 제출부터 적용되고, 이미 제출된 건은 제출 당시 보상으로 처리돼요. 저장할까요?')) return;
+      $('edSave').disabled = true;
+      const { error } = await sb.rpc('research_admin_save_task', { p_task: {
+        id: editing?.id || null, title: f('title').trim(), category: f('category').trim(), summary: f('summary'), guide: f('guide'),
+        conditions: f('conditions'), notes: editing?.notes || null, prompt_image: f('prompt_image').trim(), prompt_text: f('prompt_text').trim(),   // 주의사항 영역 제거(값은 보존만)
+        image_url: f('image_url').trim(), starts_at: kstToIso(f('starts_at')), ends_at: kstToIso(f('ends_at')),
+        reward_amount: Number(f('reward_amount') || 0), submit_limit: f('submit_limit'), status: f('status'), sort_order: Number(f('sort_order') || 0),
+        limit_count: Number(f('limit_count') || 1), entry_rule: f('entry_rule'), prompt_spec: promptSpec,
+        // 아이템은 코드 또는 ID 로만 지정 — 서버가 실제 items.id 로 바꿔 저장(이름으로는 찾지 않음)
+        // 연결된 아이템은 실제 items.id 로, 미연결은 표시명만 — 서버가 다시 확인(이름으로 아이템을 찾지 않음)
+        reward_items: itemsEd.get().map(r => ({ name: r.name, item_id: r.item_id || null, qty: r.n })),
+        reward_random: randEd.get().length ? { confirmed: $('randConfirmed').checked, options: randEd.get().map(r => ({ name: r.name, item_id: r.item_id || null, weight: r.n })) } : null,
+      } });
+      $('edSave').disabled = false;
+      if (error) { alert(glRpcError(error)); return; }
+      $('editor').classList.add('gl-hidden');
+      load();
+    });
+
+    (async () => {
+      const user = await getUser();
+      if (!user) { location.href = 'login.html'; return; }
+      $('pageLoading').style.display = 'none';
+      if (user.app_metadata?.role !== 'admin') { $('denied').classList.remove('gl-hidden'); return; }
+      if (await load()) $('page').classList.remove('gl-hidden'); else $('denied').classList.remove('gl-hidden');
+    })();
+  </script>
+</body>
+</html>

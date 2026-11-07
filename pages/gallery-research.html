@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>연구 자료 보관소 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <!-- 2026-11-07: 연구갤러리 → 연구 자료 보관소. 주간 연구 안내·참여 방법·주차 선택은 연구 과제 상세로 이동.
+           기존 게시물(board='research')·댓글·관련 개체·주차 연결은 그대로 보존·표시 -->
+      <div class="gl-head">
+        <h1 class="list-page-title">연구 자료 보관소</h1>
+        <p class="gl-sub" style="margin-top:6px;">연구원들의 연구(그림·글)를 모아두는 곳이에요. 등록한 연구는 <a href="research-tasks.html" style="color:var(--sky-deep);font-weight:700;">연구 과제</a>에 제출할 수 있어요.</p>
+        <div class="gl-head-row">
+          <p class="list-page-count" id="postCount" style="margin-top:0;"></p>
+          <a href="gallery-write.html?board=research" class="btn-secondary" id="writeBtn">연구 등록</a>
+        </div>
+      </div>
+
+      <!-- 과제별 필터(단일 목록): 모두 보기 / 과제 이름 — 그 과제에 제출(승인 대기·승인)되거나 등록 때 연결한 연구.
+           '이번 주의 연구대상'은 과거~현재 모든 주차를 합쳐 페이지 처리 -->
+
+      <div class="gl-filter-row">
+        <label class="gl-sub" for="taskFilter" style="font-weight:700;">과제</label>
+        <select id="taskFilter" class="form-input" aria-label="과제별 보기">
+          <option value="">모두 보기</option>
+        </select>
+      </div>
+
+      <div id="postGrid" class="gl-grid"></div>
+      <p id="emptyState" class="gl-empty gl-hidden">아직 등록된 연구가 없어요.</p>
+      <p id="loadState" class="gl-empty">불러오는 중...</p>
+      <div id="paginationWrap"></div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const PER = GALLERY_LIMITS.PAGE_SIZE;
+    const qs = () => new URLSearchParams(location.search);
+    const page0 = () => { const p = parseInt(qs().get('page'), 10); return p >= 1 ? p : 1; };
+    const sel = document.getElementById('taskFilter');
+    // 필터 값: '' = 모두 보기 / 't:<과제 id>' / 'w:<주차 id>' (주간 연구의 주차·연구대상)
+    const parseFilter = v => ({ task: /^t:\d+$/.test(v) ? Number(v.slice(2)) : null, week: /^w:\d+$/.test(v) ? Number(v.slice(2)) : null });
+    let useArchiveFn = true;   // 1107 미적용 백엔드면 기존 전체 목록으로(필터 숨김)
+
+    async function loadFilters() {
+      const { data, error } = await sb.rpc('research_archive_filters');
+      if (error) { useArchiveFn = false; sel.closest('.gl-filter-row').classList.add('gl-hidden'); return; }
+      // 단일 목록: 모두 보기 + 과제 이름(그룹 제목·전체 주차·회차별 항목 없음). 순서는 서버 순서(주간 연구대상 → 정렬 순서)
+      //   '이번 주의 연구대상' = 과거~현재 모든 주차의 관련 연구(주차 제출 + 1106 주차 참여작 + 등록 시 연결), 페이지 처리
+      const tasks = data?.tasks || [];
+      sel.innerHTML = '<option value="">모두 보기</option>'
+        + tasks.map(t => `<option value="t:${t.id}">${glEsc(t.title)}${t.status === 'closed' ? ' (마감)' : ''}</option>`).join('');
+      const want = qs().get('f') || '';   // 예전 회차 주소(f=w:…)는 '모두 보기'로
+      sel.value = [...sel.options].some(o => o.value === want) ? want : '';
+    }
+
+    async function loadPage(page) {
+      document.getElementById('loadState').classList.remove('gl-hidden');
+      const f = parseFilter(sel.value);
+      const { data, error } = useArchiveFn
+        ? await sb.rpc('research_archive_list', { p_task_id: f.task, p_week_id: f.week, p_limit: PER, p_offset: (page - 1) * PER })
+        : await sb.rpc('gallery_list_posts', { p_board: 'research', p_week_id: null, p_limit: PER, p_offset: (page - 1) * PER });
+      document.getElementById('loadState').classList.add('gl-hidden');
+      if (error) { document.getElementById('postGrid').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error, '목록을 불러오지 못했어요.'))}</p>`; return; }
+      const total = data?.total || 0;
+      document.getElementById('postCount').textContent = total ? `연구 ${total}개` : '';
+      const empty = document.getElementById('emptyState');
+      empty.textContent = sel.value ? '이 과제에 제출된 연구가 아직 없어요.' : '아직 등록된 연구가 없어요.';
+      empty.classList.toggle('gl-hidden', total > 0);
+      document.getElementById('postGrid').innerHTML = (data?.items || []).map(p => glPostCardHtml(p, 'research')).join('');
+      glRenderPager(document.getElementById('paginationWrap'), total, page, PER, p => {
+        const url = new URL(location.href);
+        if (p <= 1) url.searchParams.delete('page'); else url.searchParams.set('page', p);
+        history.replaceState(null, '', url);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        loadPage(p);
+      });
+    }
+
+    sel.addEventListener('change', () => {
+      const url = new URL(location.href);
+      url.searchParams.delete('page');
+      if (sel.value) url.searchParams.set('f', sel.value); else url.searchParams.delete('f');
+      history.replaceState(null, '', url);
+      loadPage(1);
+    });
+
+    (async () => {
+      const user = await getUser();
+      if (!user) document.getElementById('writeBtn').href = 'login.html';
+      await loadFilters();
+      loadPage(page0());
+    })();
+  </script>
+</body>
+</html>

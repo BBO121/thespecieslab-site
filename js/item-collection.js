@@ -118,14 +118,35 @@ window.ItemDogam = (function () {
   let _icCards  = [];   // expandCards(_icRows) 결과 — idx 가 고정되어 탭 필터와 무관하게 모달 조회에 쓰인다.
   let _icMajor  = 'all'; // 1차 탭
   let _icMinor  = 'all'; // 2차 탭 — _icMajor 바뀌면 항상 'all'로 리셋
+  let _icUsageByCode = {}; // code → 사용 안내(items.metadata.usage_guide). 뷰에 metadata 가 없어 따로 조회(2026-11-07)
+
+  // 사용 안내가 있는 아이템만 조회(현재 E의 보관함). 실패해도 도감 표시엔 영향 없음 — 안내 줄만 안 보인다.
+  async function loadUsageGuides() {
+    _icUsageByCode = {};
+    try {
+      const { data, error } = await sb
+        .from('items')
+        .select('code, metadata')
+        .not('metadata->>usage_guide', 'is', null);
+      if (error) throw error;
+      (data || []).forEach(r => {
+        const g = r.metadata && r.metadata.usage_guide;
+        if (typeof g === 'string' && g) _icUsageByCode[r.code] = g;
+      });
+    } catch (e) {
+      console.warn('[아이템 도감] 사용 안내 조회 실패:', e.message || e);
+    }
+  }
 
   async function initPage() {
-    const { data, error } = await sb
-      .from('my_item_collection')
-      .select('*')
-      .order('category_sort', { ascending: true })
-      .order('rarity_sort',   { ascending: true })
-      .order('sort_order',    { ascending: true });
+    const [{ data, error }] = await Promise.all([
+      sb.from('my_item_collection')
+        .select('*')
+        .order('category_sort', { ascending: true })
+        .order('rarity_sort',   { ascending: true })
+        .order('sort_order',    { ascending: true }),
+      loadUsageGuides(),
+    ]);
 
     if (error) throw error;
     _icRows  = data || [];
@@ -386,6 +407,14 @@ window.ItemDogam = (function () {
     document.getElementById('icDetailAcquisition').innerHTML = secret
       ? `<span class="labber-trait-acquisition-label">획득처</span> : <span class="labber-trait-acquisition-null">???</span>`
       : `<span class="labber-trait-acquisition-label">획득처</span> : ${icAcquisitionValueHtml(link)}`;
+
+    // 사용 안내(items.metadata.usage_guide) — 설명과 같은 규칙: 획득한 아이템만 보여주고, 없으면 줄 숨김.
+    const usageEl = document.getElementById('icDetailUsage');
+    if (usageEl) {
+      const guide = (!secret && r.acquired && _icUsageByCode[r.code]) || '';
+      usageEl.textContent  = guide;
+      usageEl.style.display = guide ? '' : 'none';
+    }
 
     // 등급(rarity) — r.rarity_label 은 item_rarities.label 을 그대로 조인해온 값이라
     // JS 는 손댈 게 없다. LABBER 아이템은 rarity 컬럼 자체가 전용 code(labber_standard/

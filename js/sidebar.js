@@ -90,7 +90,7 @@ async function initSidebar() {
   const path = window.location.pathname.split('/').pop();
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
-  // 관리 화면에서는 관리자 메뉴를 사용한다.
+  // 어드민·관리 페이지는 관리자 전용 사이드바로 교체(일반 페이지는 아래 기존 사이드바 그대로)
   if (isAdminNavPage(path)) { initAdminSidebar(sidebar, path); return; }
 
   sidebar.innerHTML = `
@@ -131,6 +131,18 @@ async function initSidebar() {
       </div>
     </div>
 
+    <!-- ── 연구과제 아코디언 (리스트 아래, MY 위 — 2026-11-06 갤러리 → 2026-11-07 연구과제) ── -->
+    <div class="sidebar-accordion" id="accGallery">
+      <button class="sidebar-accordion-btn" onclick="toggleAccordion('accGallery')">
+        연구과제<svg class="sidebar-accordion-arrow" id="arrGallery" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="sidebar-accordion-body" id="bodyGallery">
+        <a href="research-tasks.html"   data-gallery-board="tasks"    class="sidebar-subitem ${galleryBoardOfPage(path) === 'tasks'    ? 'active' : ''}">연구 과제</a>
+        <a href="gallery-research.html" data-gallery-board="research" class="sidebar-subitem ${galleryBoardOfPage(path) === 'research' ? 'active' : ''}">연구 자료 보관소</a>
+        <a href="gallery-free.html"     data-gallery-board="free"     class="sidebar-subitem ${galleryBoardOfPage(path) === 'free'     ? 'active' : ''}">자유 갤러리</a>
+      </div>
+    </div>
+
     <!-- ── MY 아코디언 (로그인 전용) ────────────────── -->
     <div class="sidebar-accordion sidebar-login" id="accMy">
       <button class="sidebar-accordion-btn" onclick="toggleAccordion('accMy')">
@@ -138,10 +150,11 @@ async function initSidebar() {
       </button>
       <div class="sidebar-accordion-body" id="bodyMy">
         <a href="my-species.html"       class="sidebar-subitem ${path === 'my-species.html'       ? 'active' : ''}">내 종족</a>
-        <a href="my-characters.html"    class="sidebar-subitem ${path === 'my-characters.html'    ? 'active' : ''}">내 캐릭터</a>
+        <a href="my-characters.html"    class="sidebar-subitem ${path === 'my-characters.html' || path === 'research-settings.html' ? 'active' : ''}">내 캐릭터</a>
         <a href="my-designs.html"       class="sidebar-subitem ${path === 'my-designs.html'       ? 'active' : ''}">내 디자인</a>
         <a href="my-slots.html"         class="sidebar-subitem ${path === 'my-slots.html'         ? 'active' : ''}">내 디자인권</a>
         <a href="my-adoptions.html"     class="sidebar-subitem ${path === 'my-adoptions.html'     ? 'active' : ''}">내 분양</a>
+        <a href="my-research.html"      class="sidebar-subitem ${path === 'my-research.html'      ? 'active' : ''}">내 연구</a>
         <div class="sidebar-divider" style="margin:8px 0;"></div>
         <a href="profile.html"          class="sidebar-subitem ${path === 'profile.html' && !new URLSearchParams(window.location.search).get('user') ? 'active' : ''}">프로필</a>
         <a href="achievements.html"     class="sidebar-subitem ${path === 'achievements.html' ? 'active' : ''}">업적</a>
@@ -212,6 +225,9 @@ async function initSidebar() {
       <span class="server-clock server-clock--sidebar">서버시간 --:--:--</span>
     </div>
 
+    <!-- ── 이번 주의 연구대상 카드 (서버 시간 아래, 후원 배너 위) — loadResearchSideCard() 가 채움 ── -->
+    <div class="rs-side-card" id="rsSideCard" hidden></div>
+
     <!-- ── 서버비 후원 카드 ─────────────────────────── -->
     <a href="https://ctee.kr/place/thespecieslab/donation" target="_blank" rel="noopener noreferrer" class="sidebar-donate-card">
       <img src="../images/donate.png" alt="" class="sidebar-donate-card-img">
@@ -230,8 +246,10 @@ async function initSidebar() {
   const listPages    = ['species.html','species-list.html','character-list.html','character.html',
                         'adoption.html','adoption-detail.html','adoption-write.html','users.html'];
   const myPages      = ['my-species.html','my-characters.html','my-designs.html','my-slots.html',
-                        'my-adoptions.html','notifications.html','transfer-history.html','my-wallet.html','my-bag.html',
-                        'item-transfer-history.html','settings.html'];
+                        'my-adoptions.html','my-research.html','notifications.html','transfer-history.html','my-wallet.html','my-bag.html',
+                        'item-transfer-history.html','settings.html','research-settings.html'];
+  const galleryPages = ['gallery-free.html','gallery-research.html','gallery-post.html','gallery-write.html','research-admin.html',
+                        'research-tasks.html','research-task.html','research-submit.html','research-review.html','research-task-admin.html'];
   const supportPages = ['inquiry.html','inquiry-write.html','inquiry-detail.html',
                         'bug-report.html','bug-report-write.html','bug-report-detail.html',
                         'species-apply.html','species-apply-write.html','species-apply-detail.html'];
@@ -257,6 +275,7 @@ async function initSidebar() {
   if (homePages.includes(path))              openAccordion('Home');
   if (listPages.includes(path) || isUserProfile) openAccordion('List');
   if (myPages.includes(path)   || isMyProfile)   openAccordion('My');
+  if (galleryPages.includes(path))           openAccordion('Gallery');
   if (supportPages.includes(path))           openAccordion('Support');
   if (shopPages.includes(path))              openAccordion('Shop');
   if (labberPages.includes(path))            openAccordion('Labber');
@@ -295,11 +314,14 @@ async function initSidebar() {
   initEmailVerifyPopup();
   initHamburger();
   refreshEventAttendanceMenu();
+  ensureGalleryStyles();
+  loadResearchSideCard();
+  initResearchNoticeLoader();
 }
 
 // ── 관리자 전용 사이드바 (2026-11-07) ─────────────────────────────
 // admin.html 의 상단 탭을 왼쪽 메뉴로 옮겼다. admin.html 안의 메뉴는 주소 해시(admin.html#Events)로 탭을 고르고,
-// 별도 관리 페이지(작성 화면)는 그 페이지가 속한 메뉴를 강조한다.
+// 별도 관리 페이지(작성·연구과제 관리)는 그 페이지가 속한 메뉴를 강조한다.
 // 메뉴 숨김은 표시용일 뿐 — 실제 권한은 각 페이지의 진입 검사와 서버(RLS/RPC)가 그대로 판정한다.
 const ADMIN_NAV = [
   { tab: 'Notices',     label: '공지 관리',     pages: ['notice-write.html'] },
@@ -312,6 +334,11 @@ const ADMIN_NAV = [
   { tab: 'Adoptions',   label: '분양 관리' },
   { tab: 'AdminLogs',   label: '관리자 로그' },
   { tab: 'Salary',      label: '월급계산기' },
+  { tab: 'Research',    label: '연구과제', children: [
+    { href: 'research-review.html',     label: '제출 심사' },
+    { href: 'research-task-admin.html', label: '과제 관리',     adminOnly: true },
+    { href: 'research-admin.html',      label: '연구대상 관리', adminOnly: true },
+  ] },
 ];
 window.ADMIN_TABS = ADMIN_NAV.map(n => n.tab);
 
@@ -366,7 +393,7 @@ function initAdminSidebar(sidebar, path) {
   markAdminNav(path);
   if (path === 'admin.html') window.addEventListener('hashchange', () => markAdminNav(path));
 
-  // 운영진일 때만 메뉴 표시(서버가 설정한 app_metadata 역할 기준)
+  // 운영진일 때만 메뉴 표시(관리자 전용 하위 메뉴는 서버 기준 role = app_metadata 로, 연구과제 페이지 진입 검사와 같은 기준)
   getUser().then(user => {
     const um = user?.user_metadata?.role, am = user?.app_metadata?.role;
     if (!user || !(isAdminOrStaff(um) || isAdminOrStaff(am))) return;
@@ -377,6 +404,7 @@ function initAdminSidebar(sidebar, path) {
   updateSidebarLogin();
   initEmailVerifyPopup();
   initHamburger();
+  ensureGalleryStyles();   // 연구과제 관리 화면이 gallery.css 를 사이드바 주입에 기대고 있음
 }
 
 function setAdminNavGroupOpen(group, open) {
@@ -431,6 +459,153 @@ function ensureAdminNavStyles() {
   document.head.appendChild(st);
 }
 
+// ── 갤러리 (2026-11-06) ─────────────────────────────────────────
+// 현재 페이지가 어느 갤러리인지 — 목록/관리 페이지는 경로로, 상세·작성은 ?board= / ?b= 힌트로.
+// (상세 페이지는 글을 불러온 뒤 markGalleryMenu(board) 로 서버 값 기준으로 다시 맞춘다)
+function galleryBoardOfPage(path) {
+  if (path === 'gallery-free.html') return 'free';
+  if (path === 'gallery-research.html') return 'research';
+  if (['research-tasks.html', 'research-task.html', 'research-submit.html',
+       'research-admin.html', 'research-review.html', 'research-task-admin.html'].includes(path)) return 'tasks';
+  if (path === 'gallery-post.html' || path === 'gallery-write.html') {
+    const q = new URLSearchParams(window.location.search);
+    const b = q.get('board') || q.get('b');
+    return b === 'research' ? 'research' : b === 'free' ? 'free' : null;
+  }
+  return null;
+}
+
+function markGalleryMenu(board) {
+  document.querySelectorAll('#bodyGallery [data-gallery-board]').forEach(a =>
+    a.classList.toggle('active', a.dataset.galleryBoard === board));
+}
+
+// 사이드바 카드 스타일(css/gallery.css)을 모든 페이지에 1회 주입 — style.css(압축 산출물)는 건드리지 않는다
+function ensureGalleryStyles() {
+  if (document.querySelector('link[href$="css/gallery.css"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = '../css/gallery.css';
+  document.head.appendChild(link);
+}
+
+// ── 이번 주의 연구대상 안내 문구 — 사이드바·연구갤러리·작성 화면·관리 화면 공통(서버 오류 문구도 같은 뜻) ──
+const RESEARCH_TEXT = {
+  preparing:      '이번 주 연구대상을 준비 중이에요.',
+  preparingSub:   '연구대상이 정해지면 참여할 수 있어요.',
+  unavailable:    '이번 주 연구대상 정보를 볼 수 없어요.',
+  unavailableSub: '개체가 삭제되었거나 조회할 수 없는 상태라 지금은 참여할 수 없어요.',
+};
+window.RESEARCH_TEXT = RESEARCH_TEXT;
+
+// 주차 상태 → 'ok' | 'preparing'(주차 없음·추첨 전·후보 없음) | 'unavailable'(선정됐지만 개체 조회 불가)
+function researchWeekState(week) {
+  if (!week || week.status !== 'selected') return 'preparing';
+  return week.character ? 'ok' : 'unavailable';
+}
+window.researchWeekState = researchWeekState;
+
+// ── 이번 주의 연구대상 카드 ──
+// 서버 RPC research_get_current 의 작은 정보(대상 1개의 이름·종족·썸네일 경로)만 조회한다.
+// 캐시(탭 세션):
+//   · 대상 없음(준비 중)  → 5분 캐시, 그동안 다시 묻지 않는다.
+//   · 대상 있음           → 캐시로 이름·종족만 먼저 그리고(이미지 없이), 페이지마다 서버에 다시 확인한 뒤에만 이미지를 붙인다.
+//     → 선정 뒤 민감 요소로 바뀌거나 삭제된 개체의 이미지가 캐시 때문에 보이지 않는다.
+// 이미지는 개체의 썸네일(thumbnail_url)만 쓴다. 민감 요소 개체는 이미지 대신 표시만.
+const RS_SIDE_CACHE_KEY = 'rsCurrentCache';
+const RS_SIDE_CACHE_MS  = 5 * 60 * 1000;
+
+async function loadResearchSideCard() {
+  const box = document.getElementById('rsSideCard');
+  if (!box || typeof sb === 'undefined') return;
+  let cached = null;
+  try {
+    const c = JSON.parse(sessionStorage.getItem(RS_SIDE_CACHE_KEY) || 'null');
+    const endsAt = c?.data?.week?.ends_at ? Date.parse(c.data.week.ends_at) : Infinity;
+    if (c && Date.now() - c.at < RS_SIDE_CACHE_MS && Date.now() < endsAt) cached = c.data;
+  } catch (e) { /* 캐시 없음 */ }
+
+  if (cached && researchWeekState(cached.week) !== 'ok') {   // 준비 중은 캐시만으로 충분
+    renderResearchSideCard(box, cached.week, { withImage: false });
+    return;
+  }
+  if (cached) renderResearchSideCard(box, cached.week, { withImage: false });   // 이름만 먼저(깜빡임 방지)
+
+  // 로컬(localhost)에서 미리보기가 켜져 있으면(기본) 갤러리 화면과 같은 미리보기 데이터를 쓴다(js/gallery-preview.js, 운영 저장 없음)
+  const res = await galleryPreviewWanted()
+    ? await window.__galleryPreview.rpc('research_get_current', {})
+    : await sb.rpc('research_get_current');
+  if (res.error) return;   // 기능 미배포/오류 — 카드 숨김 유지(또는 이름만, 이미지 없이) — 기존 메뉴 영향 없음
+  try { sessionStorage.setItem(RS_SIDE_CACHE_KEY, JSON.stringify({ at: Date.now(), data: res.data })); } catch (e) { /* 무시 */ }
+  renderResearchSideCard(box, res.data?.week || null, { withImage: true });
+}
+
+function renderResearchSideCard(box, week, { withImage = true } = {}) {
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const state = researchWeekState(week);
+  const c = state === 'ok' ? week.character : null;
+  if (!c) {
+    box.innerHTML = `<span class="rs-side-card-title">이번 주의 연구대상</span>
+      <p class="rs-side-card-empty">${esc(state === 'unavailable' ? RESEARCH_TEXT.unavailable : RESEARCH_TEXT.preparing)}</p>`;
+    box.hidden = false;
+    return;
+  }
+  const name = (c.owner_custom_name || '').trim() || c.name || '';
+  const href = `character.html?id=${encodeURIComponent(c.id)}`;
+  const realImg = !c.default_image_index && (c.thumbnail_url || c.image_url);
+  const imgUrl = typeof resolveCharacterImage === 'function' ? resolveCharacterImage(c, { thumb: true }) : (c.thumbnail_url || '');
+  // 세로형(2026-11-07): 제목 → 큰 정사각 이미지(contain, 잘림 없음) → 개체명 → 종족명 → 마감일 → 버튼(전체 너비)
+  const img = !withImage
+    ? ''                                                           // 서버 확인 전 — 이미지 없이 자리만
+    : c.is_sensitive && realImg
+    ? '<span class="rs-side-card-sens">민감한 이미지</span>'
+    : `<img src="${esc(imgUrl)}" alt="" loading="lazy" decoding="async">`;
+  box.innerHTML = `<span class="rs-side-card-title">이번 주의 연구대상</span>
+    <a class="rs-side-card-img" href="${href}" aria-label="${esc(name)} 개체 상세">${img}</a>
+    <a class="rs-side-card-name" href="${href}">${esc(name)}</a>
+    ${c.species_name ? `<span class="rs-side-card-species">${esc(c.species_name)}</span>` : ''}
+    ${week.ends_at ? `<span class="rs-side-card-until">~ ${esc(rsUntilText(week.ends_at))}</span>` : ''}
+    <a class="rs-side-card-btn" href="research-task.html">연구 참여하기</a>`;
+  box.hidden = false;
+}
+
+// 끝 시각 직전 날짜(KST) — 2026-11-16 00:00 KST → '11월 15일까지'
+function rsUntilText(endsAt) {
+  const k = new Date(new Date(endsAt).getTime() - 1 + 9 * 3600000);
+  return `${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일까지`;
+}
+
+// ── 로컬 미리보기 로더 — localhost·127.0.0.1 에서만. 운영 호스트에서는 항상 false(아무것도 불러오지 않음) ──
+function isGalleryPreviewHost() {
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+async function galleryPreviewWanted() {
+  if (!isGalleryPreviewHost()) return false;
+  const q = new URLSearchParams(location.search).get('preview');
+  let mode = q || null;
+  try { mode = mode || localStorage.getItem('galleryPreviewMode') || 'on'; } catch (e) { mode = mode || 'on'; }
+  if (mode !== 'on') return false;
+  if (window.__galleryPreview) return true;
+  await new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = '../js/gallery-preview.js';
+    s.onload = resolve; s.onerror = resolve;
+    document.head.appendChild(s);
+  });
+  return !!window.__galleryPreview;
+}
+
+// ── 연구대상 안내 팝업 — 로그인 유저만 js/research-notice.js 를 불러온다(비로그인은 추가 요청 없음) ──
+async function initResearchNoticeLoader() {
+  const user = await getUser();
+  if (!user) return;
+  const run = () => window.initResearchNotice?.(user);
+  if (window.initResearchNotice) { run(); return; }
+  const s = document.createElement('script');
+  s.src = '../js/research-notice.js?v=20261107-research';
+  s.onload = run;
+  document.head.appendChild(s);
+}
 
 // ── 이벤트 출석 데이터 조회 (사이드바 + 출석 페이지 공용) ───────────
 // PUBLIC  : get_event_attendance_status 만 — 서버 KST 날짜가 노출 기간일 때만 이벤트를 준다.

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>연구대상 관리 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+      <div id="denied" class="gl-empty gl-hidden">관리자만 볼 수 있는 화면이에요.</div>
+
+      <div id="pageContent" class="gl-hidden" style="max-width:860px;">
+        <div class="gl-head">
+          <a href="research-task-admin.html" class="gl-post-board">‹ 연구 과제 관리</a>
+          <h1 class="list-page-title" style="margin-top:6px;">이번 주의 연구대상 관리</h1>
+          <p class="gl-sub" style="margin-top:6px;">
+            매주 <b>월요일 00:00(KST)</b>에 자동으로 새 주차를 만들고, 선정 동의한 개체 중에서 무작위로 1개를 뽑아요(첫 회차는 공오 지정, 11월 15일까지).
+            한 번 선정된 주차는 다시 뽑거나 덮어쓸 수 없고, 후보가 없으면 ‘미선정’으로 남아요(OFF 개체를 임의로 뽑지 않음).
+            재선정 제한·진행 중 대체 추첨 정책은 아직 없어요.
+          </p>
+        </div>
+
+        <div class="gl-notice" id="candidateInfo" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+          <button type="button" class="btn-secondary rs-btn-sm" id="rolloverBtn">주간 교체 지금 실행(누락 복구)</button>
+          <span class="gl-sub gl-muted" style="font-size:12px;">자동 실행이 누락됐을 때만 눌러요. 여러 번 눌러도 이번 주 주차는 한 번만 만들어지고 추첨돼요.</span>
+        </div>
+
+        <section class="rs-admin-week" style="margin-bottom:18px;">
+          <strong style="font-size:14px;">새 주차 만들기 (KST)</strong>
+          <div class="rs-admin-form">
+            <label class="form-label" style="margin:0;">이름<input id="wTitle" class="form-input" maxlength="40" placeholder="예) 11월 2주차"></label>
+            <label class="form-label" style="margin:0;">시작<input id="wStart" class="form-input" type="datetime-local"></label>
+            <label class="form-label" style="margin:0;">종료<input id="wEnd" class="form-input" type="datetime-local"></label>
+            <label class="form-label" style="margin:0;">메모(선택)<input id="wNote" class="form-input" maxlength="500"></label>
+          </div>
+          <div><button type="button" id="createBtn" class="btn-secondary rs-btn-sm">주차 만들기</button></div>
+        </section>
+
+        <div id="weeks"></div>
+
+        <!-- 갤러리 이미지 정리 (D/E) — 파일 삭제는 Edge Function 만, 정상 사용 중인 파일은 지우지 않는다 -->
+        <section class="rs-admin-week" style="margin-top:24px;" id="storageBox">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
+            <strong style="font-size:14px;">갤러리 이미지 정리</strong>
+            <span style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" class="btn-ghost rs-btn-sm" data-st="refresh">새로고침</button>
+              <button type="button" class="btn-secondary rs-btn-sm" data-st="purge">정리 실행</button>
+              <button type="button" class="btn-ghost rs-btn-sm" data-st="orphans">고아 파일 찾기 → 대기열</button>
+              <button type="button" class="btn-ghost rs-btn-sm" data-st="retry-all">실패 전체 재시도</button>
+            </span>
+          </div>
+          <p class="gl-sub" style="font-size:12px;">
+            정리 실행 = 삭제 대기열·오래된 미게시 업로드·미확정 업로드 슬롯을 처리해요. 지우기 직전에 게시글 이미지·업로드·진행 중 업로드에서
+            쓰는 파일인지 다시 확인하고, 쓰는 중이면 지우지 않아요. 고아 파일 = 버킷에 있지만 어디에도 기록되지 않은 1일 지난 파일.
+          </p>
+          <div class="rs-admin-flags" id="stStats"></div>
+          <div id="stFailed"></div>
+          <div id="stOrphans"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    // datetime-local 값(KST 로 입력)을 절대 시각으로 — 브라우저 시간대와 무관
+    const kstToIso = v => v ? new Date(`${v}:00+09:00`).toISOString() : null;
+    const isoToKstInput = iso => {
+      const d = new Date(new Date(iso).getTime() + 9 * 3600000);
+      return d.toISOString().slice(0, 16);
+    };
+    const STATUS = { pending: '추첨 전', selected: '선정됨', no_candidate: '후보 없음(재추첨 가능)' };
+
+    function weekHtml(w, now) {
+      const ended = new Date(w.ends_at) <= now;
+      const running = new Date(w.starts_at) <= now && !ended;
+      const c = w.character;
+      const flags = [
+        `<span class="rs-flag ${w.status === 'selected' ? 'rs-flag--ok' : w.status === 'no_candidate' ? 'rs-flag--warn' : ''}">${STATUS[w.status] || w.status}</span>`,
+        running ? '<span class="rs-flag rs-flag--ok">진행 중</span>' : ended ? '<span class="rs-flag">종료</span>' : '<span class="rs-flag">예정</span>',
+        w.character_deleted ? `<span class="rs-flag rs-flag--bad">${glEsc(RESEARCH_TEXT.unavailable)}</span>` : '',
+        c && !w.consent_now ? '<span class="rs-flag rs-flag--bad">현재 선정 동의 OFF(철회/이전)</span>' : '',
+        c && w.owner_changed ? '<span class="rs-flag rs-flag--warn">선정 후 소유주 변경됨</span>' : '',
+        c && c.is_sensitive ? '<span class="rs-flag rs-flag--warn">선정 후 민감 요소 표시됨</span>' : '',
+      ].join('');
+      return `<div class="rs-admin-week" data-id="${w.id}">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <strong>${glEsc(w.title)}</strong>
+          <span class="gl-muted" style="font-size:12px;">${glFmtDate(w.starts_at, true)} ~ ${glFmtDate(w.ends_at, true)}</span>
+        </div>
+        <div class="rs-admin-flags">${flags}</div>
+        ${c ? `<div class="gl-chars">${glCharCardHtml(c)}</div>` : ''}
+        <div class="gl-sub" style="font-size:12px;">참여작 ${w.post_count}개${w.candidate_count != null ? ` · 추첨 당시 후보 ${w.candidate_count}개` : ''}${w.drawn_at ? ` · 추첨 ${glFmtDate(w.drawn_at, true)} (${glEsc(w.drawn_by_nick || '')})` : ''}${w.note ? ` · 메모: ${glEsc(w.note)}` : ''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${w.status !== 'selected' && !ended ? '<button type="button" class="btn-secondary rs-btn-sm" data-act="draw">무작위 추첨</button>' : ''}
+          <button type="button" class="btn-ghost rs-btn-sm" data-act="edit">기간·이름 수정</button>
+          ${w.status !== 'selected' && !w.post_count ? '<button type="button" class="btn-danger rs-btn-sm" data-act="delete">삭제</button>' : ''}
+        </div>
+        <div class="rs-admin-form gl-hidden" data-edit>
+          <label class="form-label" style="margin:0;">이름<input class="form-input" data-f="title" maxlength="40" value="${glEsc(w.title)}"></label>
+          <label class="form-label" style="margin:0;">시작<input class="form-input" type="datetime-local" data-f="start" value="${isoToKstInput(w.starts_at)}"></label>
+          <label class="form-label" style="margin:0;">종료<input class="form-input" type="datetime-local" data-f="end" value="${isoToKstInput(w.ends_at)}"></label>
+          <label class="form-label" style="margin:0;">메모<input class="form-input" data-f="note" maxlength="500" value="${glEsc(w.note || '')}"></label>
+          <div><button type="button" class="btn-secondary rs-btn-sm" data-act="save">저장</button></div>
+        </div>
+      </div>`;
+    }
+
+    async function load() {
+      const { data, error } = await sb.rpc('research_admin_list_weeks', { p_limit: 60, p_offset: 0 });
+      if (error) { $('weeks').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error))}</p>`; return false; }
+      const now = new Date(data.server_now);
+      $('candidateInfo').innerHTML = `지금 추첨하면 후보는 <b>${data.candidate_count_now}개</b>예요 (선정 동의 ON · 동의한 사람 = 현재 소유주 · 민감 요소 아님 · LABBER 아님 · 이전 진행 중 아님).`;
+      $('weeks').innerHTML = (data.items || []).map(w => weekHtml(w, now)).join('') || '<p class="gl-empty">아직 만든 주차가 없어요.</p>';
+      return true;
+    }
+
+    $('rolloverBtn').addEventListener('click', async () => {
+      const btn = $('rolloverBtn');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const { data, error } = await sb.rpc('research_weekly_rollover');
+      btn.disabled = false;
+      if (error) { alert(glRpcError(error)); return; }
+      const A = { none: '이미 이번 주 주차가 있어요(변경 없음).', created: '이번 주 주차를 만들고 추첨했어요.', drew_existing: '이번 주 주차를 추첨했어요.', skipped_overlap: '다른 실행이 먼저 처리했어요.' };
+      alert(`${A[data?.action] || '처리했어요.'}${data?.status ? ` (상태: ${data.status})` : ''}`);
+      try { sessionStorage.removeItem('rsCurrentCache'); } catch (e) { /* 무시 */ }
+      load();
+    });
+
+    $('createBtn').addEventListener('click', async () => {
+      const btn = $('createBtn');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const { error } = await sb.rpc('research_admin_create_week', {
+        p_title: $('wTitle').value.trim(), p_starts_at: kstToIso($('wStart').value), p_ends_at: kstToIso($('wEnd').value), p_note: $('wNote').value.trim() || null,
+      });
+      btn.disabled = false;
+      if (error) { alert(glRpcError(error)); return; }
+      $('wTitle').value = ''; $('wNote').value = '';
+      load();
+    });
+
+    $('weeks').addEventListener('click', async e => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const box = btn.closest('[data-id]');
+      const id = Number(box.dataset.id);
+      if (btn.dataset.act === 'edit') { box.querySelector('[data-edit]').classList.toggle('gl-hidden'); return; }
+      if (btn.disabled) return;
+      if (btn.dataset.act === 'draw' && !confirm('이 주차의 연구대상을 지금 무작위로 뽑을까요? 선정되면 다시 뽑을 수 없어요.')) return;
+      if (btn.dataset.act === 'delete' && !confirm('이 주차를 삭제할까요?')) return;
+      btn.disabled = true;
+      let res;
+      if (btn.dataset.act === 'draw') res = await sb.rpc('research_admin_draw', { p_week_id: id });
+      if (btn.dataset.act === 'delete') res = await sb.rpc('research_admin_delete_week', { p_week_id: id });
+      if (btn.dataset.act === 'save') {
+        const v = f => box.querySelector(`[data-f="${f}"]`).value;
+        res = await sb.rpc('research_admin_update_week', {
+          p_week_id: id, p_title: v('title').trim(), p_starts_at: kstToIso(v('start')), p_ends_at: kstToIso(v('end')), p_note: v('note').trim() || null,
+        });
+      }
+      btn.disabled = false;
+      if (res?.error) { alert(glRpcError(res.error)); load(); return; }
+      if (btn.dataset.act === 'draw') {
+        alert(res.data?.status === 'selected'
+          ? `선정됐어요: ${glCharName(res.data.character)} (후보 ${res.data.candidate_count}개)`
+          : '후보가 없어 선정하지 못했어요. 동의한 개체가 생기면 다시 추첨할 수 있어요.');
+        try { sessionStorage.removeItem('rsCurrentCache'); } catch (e2) { /* 무시 */ }
+      }
+      load();
+    });
+
+    // ── 갤러리 이미지 정리 ──
+    async function loadStorage() {
+      const { data: r, error } = await sb.rpc('gallery_admin_storage_report');
+      if (error) { $('stStats').innerHTML = `<span class="rs-flag rs-flag--bad">${glEsc(glRpcError(error))}</span>`; return; }
+      const mb = n => (Number(n || 0) / 1048576).toFixed(1) + 'MB';
+      const f = (label, n, cls) => `<span class="rs-flag ${n ? cls : ''}">${label} ${n}</span>`;
+      $('stStats').innerHTML = [
+        `<span class="rs-flag">버킷 ${r.bucket_objects}개 · ${mb(r.bucket_bytes)}</span>`,
+        f('삭제 대기', r.queue_pending, 'rs-flag--warn'), f('삭제 실패(5회↑)', r.queue_failed, 'rs-flag--bad'),
+        f('24h 지난 미게시 업로드', r.stale_uploads, 'rs-flag--warn'), f('미확정 업로드 슬롯', r.stale_slots, 'rs-flag--warn'),
+        f('고아 파일', r.orphan_objects, 'rs-flag--warn'),
+      ].join('');
+      $('stFailed').innerHTML = (r.failed || []).length
+        ? `<p class="form-label" style="margin:8px 0 4px;">삭제 실패 목록</p>` + r.failed.map(x =>
+            `<div class="gl-sub" style="font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <code style="word-break:break-all;">${glEsc(x.path)}</code><span class="gl-muted">${glEsc(x.reason || '')} · ${x.attempts}회</span>
+              <button type="button" class="btn-ghost rs-btn-sm" data-st="retry" data-qid="${x.id}">재시도</button></div>`).join('')
+        : '';
+      $('stOrphans').innerHTML = (r.orphans || []).length
+        ? `<p class="form-label" style="margin:8px 0 4px;">고아 파일(최대 50개 표시)</p>` + r.orphans.map(x =>
+            `<div class="gl-sub" style="font-size:12px;"><code style="word-break:break-all;">${glEsc(x.path)}</code> <span class="gl-muted">${mb(x.size)} · ${glFmtDate(x.created_at, true)}</span></div>`).join('')
+        : '';
+    }
+    $('storageBox').addEventListener('click', async e => {
+      const b = e.target.closest('[data-st]');
+      if (!b || b.disabled) return;
+      b.disabled = true;
+      try {
+        const act = b.dataset.st;
+        if (act === 'purge') {
+          const r = await glInvokeImageFn({ action: 'purge' });
+          alert(`정리 결과: 삭제 ${r.purged} · 사용 중이라 유지 ${r.kept_in_use} · 실패 ${r.failed} · 만료 슬롯 ${r.expired_slots}`);
+        } else if (act === 'orphans') {
+          if (!confirm('고아 파일을 삭제 대기열에 넣을까요? (실제 삭제는 "정리 실행" 때, 지우기 직전에 사용 여부를 다시 확인해요)')) return;
+          const { data, error } = await sb.rpc('gallery_admin_enqueue_orphans', { p_limit: 200 });
+          if (error) throw error;
+          alert(`대기열에 ${data}개를 넣었어요.`);
+        } else if (act === 'retry-all' || act === 'retry') {
+          const { data, error } = await sb.rpc('gallery_admin_retry_purge', { p_ids: act === 'retry' ? [Number(b.dataset.qid)] : null });
+          if (error) throw error;
+          alert(`${data}개를 다시 시도할 수 있게 했어요. "정리 실행"을 눌러 주세요.`);
+        }
+      } catch (err) {
+        alert(err.message || glRpcError(err));
+      } finally {
+        b.disabled = false;
+        loadStorage();
+      }
+    });
+
+    (async () => {
+      const user = await getUser();
+      if (!user) { location.href = 'login.html'; return; }
+      // 화면 표시는 app_metadata 기준, 실제 권한은 서버 RPC 가 다시 판정한다
+      if (user.app_metadata?.role !== 'admin') { $('pageLoading').style.display = 'none'; $('denied').classList.remove('gl-hidden'); return; }
+      const ok = await load();
+      $('pageLoading').style.display = 'none';
+      if (ok) { $('pageContent').classList.remove('gl-hidden'); loadStorage(); } else $('denied').classList.remove('gl-hidden');
+    })();
+  </script>
+</body>
+</html>

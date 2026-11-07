@@ -14,6 +14,7 @@
 //   (supabase/labber_crafting_cartridge_0926.sql). + 조합법 미공개 카드 3종(locked: true — 아래 설명).
 // 2026-11 업데이트: 조형 카트리지(cartridge_sculpt) + 장식 카트리지(cartridge_decoration) 추가 → 서버 25개
 //   (supabase/labber_cartridges_launch_1101.sql — 공개일에만 운영 적용).
+// 2026-11-07: E의 보관함(e_locker = 기다란 철사×5, 기타) 추가 → 서버 26개 (supabase/e_locker_apply_1107.sql).
 //
 // 조합 판정(재료·수량·결과)은 전부 서버 RPC `craft_labber_subject(p_recipe_code)` 가 결정한다.
 // 아래 CRAFT_RECIPES 는 화면 표시 전용이며, 클라이언트는 recipe_code 문자열만 서버에 넘긴다.
@@ -122,6 +123,11 @@ const CRAFT_RECIPES = [
   { key: 'sticker_snack_random', category: 'misc',
     materials: [['dogam_lounge_snack_03', 20]],
     result: 'random_snack_sticker' },   // 2026-09-26: 개봉형 아이템 지급(추첨은 가방 [열기])
+  // 2026-11-07 신규 — E의 보관함(기다란 철사×5). 보관함은 가방 [사용하기]에서 재료 1종을 골라 1개 획득(use_choice_item).
+  //   서버 분기는 supabase/e_locker_apply_1107.sql. 아트웍 없음 → 재료/결과 모두 기존 placeholder.
+  { key: 'e_locker', category: 'misc',
+    materials: [['dogam_lab_junk_long_wire', 5]],
+    result: 'dogam_collectible_e_locker', resultLabel: 'E의 보관함' },
 
   // 기록물 랜덤 — 2026-09-26 부터 개봉형 아이템(random_record) 지급. 11종 추첨은 가방 [열기] 시 open_random_item.
   { key: 'memo_restore', category: 'lab',

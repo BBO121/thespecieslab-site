@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>연구 등록 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <form id="writeForm" class="gl-form gl-hidden" novalidate>
+        <h1 class="list-page-title" id="pageTitle">연구 등록</h1>
+
+        <div id="researchInfo" class="gl-notice gl-hidden" style="margin-top:12px;"></div>
+
+        <!-- 연구 과제 연결(연구 자료 보관소만) — 등록·수정 때 저장. 심사 제출과 별개(제출은 과제 화면의 [과제 제출]) -->
+        <div class="form-group gl-hidden" id="taskGroup" style="margin-top:16px;">
+          <label class="form-label" for="taskSelect">연구 과제</label>
+          <select id="taskSelect" class="form-input"><option value="">선택 안 함</option></select>
+        </div>
+
+        <div class="form-group" style="margin-top:16px;">
+          <label class="form-label" for="titleInput">제목</label>
+          <input id="titleInput" class="form-input" type="text" maxlength="100" placeholder="제목을 입력해주세요" required>
+          <p class="gl-counter"><span id="titleCount">0</span> / 100</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="contentInput">본문 <span class="gl-muted" id="contentOptional">(글만 / 그림만 / 글과 그림 모두 — 본문이나 이미지 중 하나는 꼭 필요해요)</span></label>
+          <textarea id="contentInput" class="form-input gl-textarea" maxlength="5000" placeholder="내용을 입력해주세요"></textarea>
+          <p class="gl-counter"><span id="contentCount">0</span> / 5000</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">이미지 <span class="gl-muted">(선택)</span> <span class="gl-muted" id="imgCountLabel"></span></label>
+          <p class="gl-sub">JPG·PNG·WebP · 1장당 최대 2MB · 가로·세로 최대 2000px(더 크면 비율 그대로 자동 축소, 작은 이미지는 그대로)<br>
+            투명 배경은 유지돼요. 움짤·영상은 아직 올릴 수 없어요.</p>
+          <div class="gl-img-list" id="imgList"></div>
+          <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        </div>
+
+        <div class="form-group gl-char-group">
+          <label class="form-label">관련 개체 <span class="gl-muted">(선택)</span></label>
+          <p class="gl-sub" style="margin-bottom:8px;">이 글이나 그림에 등장하는 개체를 추가해 주세요.</p>
+          <div id="charPicker"></div>
+        </div>
+
+        <div class="register-actions" style="display:flex;gap:10px;justify-content:flex-end;margin:24px 0 40px;">
+          <a id="cancelBtn" href="gallery-free.html" class="btn-ghost">취소</a>
+          <button id="submitBtn" type="submit" class="btn-secondary">등록하기</button>
+        </div>
+      </form>
+
+      <div id="blocked" class="gl-empty gl-hidden"></div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const params   = new URLSearchParams(location.search);
+    const editId   = Number(params.get('id')) || null;
+    const fromTask = Number(params.get('task')) || null;   // 연구 과제에서 '새 연구 등록 후 제출'로 들어온 경우
+    let board      = params.get('board') === 'research' ? 'research' : 'free';
+    const clientKey = glUuid();          // 같은 작성 화면의 중복 제출 → 서버가 같은 글로 처리
+    let picker     = null;
+    let submitting = false, submitted = false;
+    let accessToken = null;
+    // 이미지 항목: { key, kind:'existing'|'new', image_id?, upload_id?, url, status:'ready'|'processing'|'uploading'|'error', error? }
+    let images = [];
+    let seq = 0;
+
+    const $ = id => document.getElementById(id);
+
+    function block(html) {
+      $('pageLoading').style.display = 'none';
+      $('blocked').innerHTML = html;
+      $('blocked').classList.remove('gl-hidden');
+    }
+
+    function renderImages() {
+      const list = $('imgList');
+      const n = images.length;
+      $('imgCountLabel').textContent = `(${n} / ${GALLERY_LIMITS.MAX_IMAGES})`;
+      list.innerHTML = images.map((it, i) => `
+        <div class="gl-img-item${it.status === 'error' ? ' is-error' : ''}" data-key="${it.key}">
+          ${it.url ? `<img src="${glEsc(it.url)}" alt="">` : ''}
+          <span class="gl-img-tools">
+            ${i > 0 && it.status === 'ready' ? `<button type="button" data-left="${it.key}" aria-label="앞으로">‹</button>` : ''}
+            ${it.status !== 'processing' && it.status !== 'uploading' ? `<button type="button" data-del="${it.key}" aria-label="삭제">×</button>` : ''}
+          </span>
+          ${it.status !== 'ready' ? `<span class="gl-img-state">${it.status === 'processing' ? '최적화 중…' : it.status === 'uploading' ? '올리는 중…' : glEsc(it.error || '실패')}</span>` : ''}
+        </div>`).join('')
+        + `<button type="button" class="gl-img-add" id="addImgBtn" ${n >= GALLERY_LIMITS.MAX_IMAGES ? 'disabled' : ''}>+ 이미지 추가</button>`;
+      $('addImgBtn').addEventListener('click', () => $('fileInput').click());
+    }
+
+    async function addFiles(files) {
+      const room = GALLERY_LIMITS.MAX_IMAGES - images.length;
+      const list = [...files].slice(0, Math.max(0, room));
+      if (files.length > room) alert(`이미지는 최대 ${GALLERY_LIMITS.MAX_IMAGES}장까지 올릴 수 있어요.`);
+      for (const file of list) {
+        const it = { key: 'k' + (++seq), kind: 'new', status: 'processing', url: '' };
+        images.push(it);
+        renderImages();
+        try {
+          const processed = await glProcessImage(file);
+          it.url = processed.previewUrl;
+          it.status = 'uploading';
+          renderImages();
+          const res = await glUploadProcessed(processed);
+          if (!images.includes(it)) { glDiscardUploads([res.upload_id]); continue; }   // 올리는 중에 지운 경우
+          it.upload_id = res.upload_id;
+          it.status = 'ready';
+        } catch (e) {
+          it.status = 'error';
+          it.error = e.message;
+          alert(`${file.name || '이미지'}: ${e.message}`);
+        }
+        renderImages();
+      }
+    }
+
+    function pendingUploadIds() {
+      return images.filter(it => it.kind === 'new' && it.upload_id).map(it => it.upload_id);
+    }
+
+    // 화면을 떠날 때(취소·뒤로가기) 아직 게시하지 않은 업로드를 정리 — keepalive 요청(실패해도 서버가 24시간 뒤 자동 정리)
+    function discardOnLeave() {
+      if (submitted) return;
+      if (window.__galleryPreview?.active?.()) return;   // 로컬 미리보기: 업로드는 탭 안 가짜 데이터 — 실제 서버로 보내지 않음
+      const ids = pendingUploadIds();
+      if (!ids.length || !accessToken) return;
+      try {
+        fetch(`${SUPABASE_URL}/functions/v1/gallery-image`, {
+          method: 'POST', keepalive: true,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, apikey: SUPABASE_KEY },
+          body: JSON.stringify({ action: 'discard', upload_ids: ids }),
+        });
+      } catch (e) { /* 자동 정리에 맡김 */ }
+    }
+    window.addEventListener('pagehide', discardOnLeave);
+
+    $('fileInput').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+    $('imgList').addEventListener('click', e => {
+      const del = e.target.closest('[data-del]');
+      const left = e.target.closest('[data-left]');
+      if (del) {
+        const idx = images.findIndex(it => it.key === del.dataset.del);
+        if (idx < 0) return;
+        const [it] = images.splice(idx, 1);
+        if (it.kind === 'new' && it.upload_id) glDiscardUploads([it.upload_id]);   // 기존 이미지는 저장할 때 서버가 정리
+        renderImages();
+      } else if (left) {
+        const idx = images.findIndex(it => it.key === left.dataset.left);
+        if (idx > 0) { [images[idx - 1], images[idx]] = [images[idx], images[idx - 1]]; renderImages(); }
+      }
+    });
+    $('titleInput').addEventListener('input', e => { $('titleCount').textContent = e.target.value.length; });
+    $('contentInput').addEventListener('input', e => { $('contentCount').textContent = e.target.value.length; });
+
+    // 연구 과제 드롭다운(보관소만): 기본 '선택 안 함', 진행 중 과제 + (수정 시) 이미 연결된 과제.
+    //   주간 과제는 지금 회차(연구대상)를 보여주고, 저장하면 서버가 그 회차를 함께 기록한다.
+    async function setupTaskSelect(preselect, postId) {
+      const sel = $('taskSelect');
+      const [{ data: list, error }, linkRes] = await Promise.all([
+        sb.rpc('research_list_tasks'),
+        postId ? sb.rpc('research_post_link', { p_post_id: postId }) : Promise.resolve({ data: null }),
+      ]);
+      if (error) { $('taskGroup').classList.add('gl-hidden'); return; }   // 1107 미적용 백엔드 — 드롭다운 없이 등록
+      const link = linkRes?.data || null;
+      const week = list?.current_week || null;
+      // 과제 이름만 표시(회차·연구대상 문구 없음). 주간 과제의 회차·대상 연결은 저장할 때 서버가 그대로 기록한다
+      const opts = (list?.items || []).filter(t => t.status === 'open' && t.is_open_now).map(t =>
+        ({ id: t.id, label: t.title, ok: t.kind !== 'weekly' || researchWeekState(week) === 'ok' }));
+      if (link && !opts.some(o => o.id === link.task_id)) opts.push({ id: link.task_id, label: link.task_title, ok: true });   // 이미 연결된(마감 등) 과제
+      sel.innerHTML = '<option value="">선택 안 함</option>' + opts.map(o => `<option value="${o.id}" ${o.ok ? '' : 'disabled'}>${glEsc(o.label)}</option>`).join('');
+      const want = link ? link.task_id : preselect;
+      if (want && opts.some(o => o.id === Number(want) && o.ok)) sel.value = String(want);
+      $('taskGroup').classList.remove('gl-hidden');
+    }
+
+    $('writeForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (submitting) return;
+      const title = $('titleInput').value.trim();
+      const content = $('contentInput').value.trim();
+      if (!title) { alert('제목을 입력해주세요.'); return; }
+      if (images.some(it => it.status === 'processing' || it.status === 'uploading')) { alert('이미지를 올리는 중이에요. 잠시만 기다려주세요.'); return; }
+      const ready = images.filter(it => it.status === 'ready');
+      if (images.some(it => it.status === 'error')) {
+        if (!confirm('올리지 못한 이미지는 빼고 저장할까요?')) return;
+        images = ready; renderImages();
+      }
+      // 글만 / 그림만 / 글+그림 모두 가능 — 제목만 있는 빈 연구만 막는다(서버도 같은 기준)
+      if (!ready.length && !content) { alert('본문을 쓰거나 이미지를 1장 이상 올려주세요. (제목만 있는 빈 연구는 등록할 수 없어요)'); return; }
+
+      const payload = ready.map(it => it.kind === 'existing' ? { image_id: it.image_id } : { upload_id: it.upload_id });
+      submitting = true;
+      $('submitBtn').disabled = true;
+      $('submitBtn').textContent = '저장 중…';
+      const { data, error } = editId
+        ? await sb.rpc('gallery_update_post', { p_post_id: editId, p_title: title, p_content: content, p_images: payload, p_character_ids: picker.getIds(),
+            ...(board === 'research' ? { p_task_link: { task_id: Number($('taskSelect').value) || null } } : {}) })
+        : await sb.rpc('gallery_create_post', { p_board: board, p_title: title, p_content: content, p_images: payload, p_character_ids: picker.getIds(), p_client_key: clientKey,
+            ...(board === 'research' ? { p_task_id: Number($('taskSelect').value) || null } : {}) });
+      if (error) {
+        submitting = false;
+        $('submitBtn').disabled = false;
+        $('submitBtn').textContent = editId ? '수정 완료' : '등록하기';
+        alert(glRpcError(error, '저장하지 못했어요. 다시 시도해주세요.'));   // 업로드는 유지 → 바로 다시 시도 가능
+        return;
+      }
+      submitted = true;
+      if (editId) glInvokeImageFn({ action: 'purge' }).catch(() => {});   // 수정으로 뺀 이미지 파일 정리
+      // 과제에서 들어온 새 연구 → 그 과제가 선택된 제출 화면으로(방금 연구 자동 선택)
+      location.href = (!editId && board === 'research' && fromTask)
+        ? `research-submit.html?task=${fromTask}&post=${data}&done=registered`
+        : `gallery-post.html?id=${data}&b=${board}&done=${editId ? 'edited' : 'registered'}`;
+    });
+
+    (async () => {
+      const user = await getUser();
+      if (!user) { location.href = 'login.html'; return; }
+      accessToken = (await sb.auth.getSession()).data.session?.access_token || null;
+      sb.auth.onAuthStateChange((_e, s) => { accessToken = s?.access_token || accessToken; });
+
+      let selected = [], locked = null;
+
+      if (editId) {
+        const { data: p } = await sb.rpc('gallery_get_post', { p_post_id: editId });
+        if (!p) { block('글을 찾을 수 없어요.'); return; }
+        if (!p.can_edit) { block('본인이 쓴 글만 수정할 수 있어요.'); return; }
+        board = p.board;
+        $('pageTitle').textContent = `${GALLERY_BOARDS[board].label} 연구 수정`;
+        $('titleInput').value = p.title; $('titleCount').textContent = p.title.length;
+        $('contentInput').value = p.content || ''; $('contentCount').textContent = (p.content || '').length;
+        images = (p.images || []).map(img => ({ key: 'k' + (++seq), kind: 'existing', image_id: img.id, url: glImgUrl(img.thumb_path), status: 'ready' }));
+        locked = (p.characters || []).find(c => c.is_research_target) || null;
+        selected = (p.characters || []).filter(c => !c.is_research_target);
+        $('cancelBtn').href = `gallery-post.html?id=${p.id}&b=${board}`;
+        $('submitBtn').textContent = '수정 완료';
+        if (board === 'research' && p.week) {
+          $('researchInfo').innerHTML = `<strong>${glEsc(p.week.title)}</strong> 참여작이에요. 주차와 연구대상 연결은 바꿀 수 없어요.`;
+          $('researchInfo').classList.remove('gl-hidden');
+        }
+        if (board === 'research') await setupTaskSelect(null, editId);
+      } else if (board === 'research') {
+        // 연구 자료 보관소 연구 등록 — 주차·연구대상 연결 없이 등록(과제 제출은 별도 화면)
+        $('pageTitle').textContent = '연구 자료 보관소 연구 등록';
+        await setupTaskSelect(fromTask, null);
+        $('cancelBtn').href = fromTask ? `research-task.html?id=${fromTask}` : 'gallery-research.html';
+      } else {
+        $('pageTitle').textContent = '자유 갤러리 연구 등록';
+      }
+      if (typeof markGalleryMenu === 'function') markGalleryMenu(board);
+
+      picker = createCharacterPicker($('charPicker'), { selected, locked });
+      renderImages();
+      $('pageLoading').style.display = 'none';
+      $('writeForm').classList.remove('gl-hidden');
+    })();
+  </script>
+</body>
+</html>

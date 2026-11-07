@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>자유갤러리 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div class="gl-head">
+        <h1 class="list-page-title">자유갤러리</h1>
+        <p class="gl-sub" style="margin-top:6px;">글과 그림을 자유롭게 올리고 이야기를 나누는 공간이에요.</p>
+        <div class="gl-head-row">
+          <p class="list-page-count" id="postCount" style="margin-top:0;"></p>
+          <a href="gallery-write.html?board=free" class="btn-secondary" id="writeBtn">연구 등록</a>
+        </div>
+      </div>
+
+      <div id="postGrid" class="gl-grid"></div>
+      <p id="emptyState" class="gl-empty gl-hidden">아직 등록된 연구가 없어요. 첫 연구를 등록해보세요!</p>
+      <p id="loadState" class="gl-empty">불러오는 중...</p>
+      <div id="paginationWrap"></div>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/achievements.js"></script>
+  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/gallery.js?v=20261107-research"></script>
+  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script>
+    const PER = GALLERY_LIMITS.PAGE_SIZE;
+
+    function currentPage() {
+      const p = parseInt(new URLSearchParams(location.search).get('page'), 10);
+      return p >= 1 ? p : 1;
+    }
+
+    async function loadPage(page) {
+      document.getElementById('loadState').classList.remove('gl-hidden');
+      const { data, error } = await sb.rpc('gallery_list_posts', {
+        p_board: 'free', p_week_id: null, p_limit: PER, p_offset: (page - 1) * PER,
+      });
+      document.getElementById('loadState').classList.add('gl-hidden');
+      if (error) {
+        document.getElementById('postGrid').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error, '목록을 불러오지 못했어요.'))}</p>`;
+        return;
+      }
+      const total = data?.total || 0;
+      const items = data?.items || [];
+      document.getElementById('postCount').textContent = total ? `총 ${total}개` : '';
+      document.getElementById('emptyState').classList.toggle('gl-hidden', total > 0);
+      document.getElementById('postGrid').innerHTML = items.map(p => glPostCardHtml(p, 'free')).join('');
+      glRenderPager(document.getElementById('paginationWrap'), total, page, PER, go);
+    }
+
+    function go(p) {
+      const url = new URL(location.href);
+      if (p <= 1) url.searchParams.delete('page'); else url.searchParams.set('page', p);
+      history.replaceState(null, '', url);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      loadPage(p);
+    }
+
+    (async () => {
+      const user = await getUser();
+      if (!user) document.getElementById('writeBtn').href = 'login.html';
+      loadPage(currentPage());
+    })();
+  </script>
+</body>
+</html>

@@ -16,7 +16,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>갤러리 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261107-link">
 </head>
 <body>
 
@@ -52,6 +52,7 @@
 
         <div id="postContent" class="gl-post-content"></div>
         <div id="postImages" class="gl-post-images"></div>
+        <div id="linkBox" class="gl-link-box gl-hidden"></div>
 
         <section id="charSection" class="gl-hidden">
           <h2 class="gl-section-title">관련 개체</h2>
@@ -82,8 +83,8 @@
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
   <script src="../js/image-zoom-viewer.js"></script>
-  <script src="../js/gallery.js?v=20261107-research"></script>
-  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script src="../js/gallery.js?v=20261107-link"></script>
+  <script src="../js/gallery-preview.js?v=20261107-link"></script>
   <script>
     (async () => {
       const id = Number(new URLSearchParams(location.search).get('id'));
@@ -124,6 +125,8 @@
         if (img && typeof openImageZoomViewer === 'function') openImageZoomViewer(img.src);
       });
 
+      // 내 개체 갤러리에 담기 — 이 게시물에 직접 올라간 이미지가 있고 로그인했을 때만(작성자 본인 글도 가능)
+      if (typeof mountGalleryLinkButton === 'function') mountGalleryLinkButton(document.getElementById('linkBox'), p, user);   // 예전 gallery.js 캐시여도 상세는 그대로
       const chars = p.characters || [];
       if (chars.length) {
         document.getElementById('postChars').innerHTML = chars.map(c => glCharCardHtml(c)).join('');

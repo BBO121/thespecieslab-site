@@ -59,6 +59,12 @@
     }
     .gallery-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .gallery-empty { color: var(--text-mute); font-size: 13px; padding: 4px 0 0; }
+    /* 게시물에서 담은 그림(1107) — 직접 등록 그리드와 분리해 기존 순서를 바꾸지 않는다 */
+    .char-gallery-linked { margin-top: 18px; }
+    .char-gallery-subtitle { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--text-sub); }
+    .char-gallery-subtitle span { font-weight: 600; color: var(--text-mute); }
+    .gallery-tile-badge { position: absolute; left: 6px; bottom: 6px; padding: 1px 7px; border-radius: 20px; background: rgba(15,23,42,.62); color: #fff; font-size: 10.5px; font-weight: 700; pointer-events: none; }
+    #galleryLightboxSource a { color: var(--sky-deep); font-weight: 700; text-decoration: none; word-break: break-all; }
 
     /* 갤러리 등록 모달 — 등록 방식 탭 / 일괄 등록 그리드 / 수정 모드 미리보기 */
     .gallery-mode-tabs {
@@ -513,9 +519,11 @@
         <div id="galleryLightboxCategory"></div>
         <div id="galleryLightboxDescription" style="white-space:pre-wrap; color:var(--text);"></div>
         <div id="galleryLightboxUploader" style="color:var(--text-mute); font-size:12px;"></div>
+        <div id="galleryLightboxSource" style="display:none;"></div>
       </div>
       <div class="gallery-lb-actions">
         <button class="btn-ghost" onclick="closeGalleryLightbox()">닫기</button>
+        <button id="galleryLightboxUnlinkBtn" onclick="unlinkCurrentLinkedItem()" style="display:none; padding:6px 14px; border:1px solid #fca5a5; border-radius:8px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; font-family:inherit;">갤러리에서 빼기</button>
         <div id="galleryLightboxManage" style="display:none; gap:8px;">
           <button id="galleryLightboxEditBtn" onclick="openGalleryEditModal()" style="padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text); font-size:13px; cursor:pointer; font-family:inherit;">수정</button>
           <button id="galleryLightboxDeleteBtn" onclick="deleteCurrentGalleryItem()" style="padding:6px 14px; border:1px solid #fca5a5; border-radius:8px; background:#fff; color:#ef4444; font-size:13px; cursor:pointer; font-family:inherit;">삭제</button>
@@ -738,6 +746,13 @@
     let _galleryFile        = null;
     let _galleryDesigners   = [];   // { type:'site', userId, nickname } | { type:'external', name, contact }
     let _galleryLightboxIdx = null;
+    // 게시물에서 담은 그림(character_gallery_post_links_list RPC, 1107) — 직접 등록(_galleryItems)과 별도 목록
+    let _galleryLinked         = [];
+    let _galleryLinkedManage   = false;  // 서버 판정(현재 소유주 / 운영진) — 클라이언트 role 로 정하지 않는다
+    let _galleryLinkedExpanded = false;
+    let _galleryLinkedLbIdx    = null;
+    let _galleryLinkedError    = '';     // 조회 실패 안내(함수 없음=미적용은 제외 — 그때만 구역을 숨긴다)
+    let _galleryLinkedRevealed = new Set(); // 민감 개체: 이 화면에서 직접 눌러 본 그림(image_id) — 다시 그려도 유지
     let _galleryLbPrevOverflow = null;   // 라이트박스 오픈 전 body overflow 값 (스크롤 잠금 복원용)
 
     // 갤러리 모달 모드 — 등록(add: 개별 single / 일괄 batch)과 수정(edit)을 명확히 분리한다.
@@ -836,8 +851,107 @@
       return html;
     }
 
+    // ── 게시물에서 담은 그림 (1107) ──
+    // 원본은 갤러리 게시물의 업로드 이미지(gallery 버킷). 서버가 열람 가능한 원본만 내려준다.
+    function galleryLinkedUrl(path) {
+      if (!path) return '';
+      return `${SUPABASE_URL}/storage/v1/object/public/gallery/${String(path).split('/').map(encodeURIComponent).join('/')}`;
+    }
+
+    // 민감 요소 개체(is_sensitive)의 담은 그림은 이 페이지 대표·추가 이미지와 같은 정책으로 가린다:
+    //   .blurred + .sensitive-overlay → 눌러야 보임. '민감한 요소 바로 표시'(html.show-sensitive) 사용자만 바로 보임.
+    //   확대(라이트박스)는 가림을 푼 뒤에만 열린다 — 키보드 Enter/Space 로 타일을 눌러도 먼저 가림 해제만 한다.
+    function linkedTileNeedsReveal(it) {
+      return !!(_charData && _charData.is_sensitive) && !_galleryLinkedRevealed.has(String(it.image_id));
+    }
+
+    function renderGalleryLinkedGridInner() {
+      const limit = _galleryLinkedExpanded ? _galleryLinked.length : Math.min(4, _galleryLinked.length);
+      let html = '';
+      for (let i = 0; i < limit; i++) {
+        const it = _galleryLinked[i];
+        const hide = linkedTileNeedsReveal(it);
+        html += `<button type="button" class="gallery-tile" onclick="onLinkedGalleryTileClick(this, ${i})" aria-label="${hide ? '민감한 요소가 있는 그림 — 눌러서 보기' : '게시물에서 담은 그림'}">`
+          + `<img src="${escapeHtml(galleryLinkedUrl(it.thumb_path || it.path))}" loading="lazy" alt=""${hide ? ' class="blurred"' : ''}>`
+          + (hide ? `<span class="sensitive-overlay"><span style="color:#b91c1c;font-size:11px;font-weight:700;text-align:center;line-height:1.5;">민감한 요소<br><span style="font-weight:400;color:#aaa;">누르면 보기</span></span></span>` : '')
+          + `<span class="gallery-tile-badge">게시물</span></button>`;
+      }
+      return html;
+    }
+
+    function onLinkedGalleryTileClick(btn, idx) {
+      const it = _galleryLinked[idx];
+      if (!it) return;
+      const autoReveal = document.documentElement.classList.contains('show-sensitive');
+      if (!autoReveal && btn.querySelector('.sensitive-overlay')) {
+        _galleryLinkedRevealed.add(String(it.image_id));
+        btn.querySelectorAll('.blurred').forEach(el => el.classList.remove('blurred'));
+        btn.querySelector('.sensitive-overlay').remove();
+        btn.setAttribute('aria-label', '게시물에서 담은 그림');
+        return;
+      }
+      openLinkedGalleryLightbox(idx);
+    }
+
+    async function reloadLinkedGallery() {
+      const d = await fetchLinkedGallery();
+      applyLinkedGallery(d);
+      refreshGallerySection();
+    }
+
+    // 조회: 함수 없음(SQL 미적용)만 "구역 숨김"으로 처리하고, 권한·네트워크·서버 오류는 안내를 보여준다(빈 갤러리처럼 숨기지 않음).
+    //   함수 없음 = PostgREST 'PGRST202'(스키마에 없음) 또는 PG '42883'(이 함수가 존재하지 않음 — 적용 직후 스키마 캐시 갱신 전)
+    //   둘 다 이 함수 이름이 메시지에 있을 때만 인정한다. 권한(42501)·네트워크·서버 오류는 여기에 해당하지 않는다.
+    function isLinkedRpcMissing(error) {
+      if (!error) return false;
+      const msg = String(error.message || '');
+      const named = /character_gallery_post_links_list/.test(msg);
+      return (error.code === 'PGRST202' && (named || !msg)) || (error.code === '42883' && named);
+    }
+    function fetchLinkedGallery() {
+      if (!/^\d+$/.test(String(charId || ''))) return Promise.resolve({ missing: true });
+      return sb.rpc('character_gallery_post_links_list', { p_character_id: Number(charId), p_limit: 200 })
+        .then(({ data, error }) => {
+          if (isLinkedRpcMissing(error)) return { missing: true };
+          if (error) { console.warn('[character.html] 담은 그림 조회 실패:', error); return { error }; }
+          if (!data || !Array.isArray(data.items)) return { error: { message: 'bad response' } };
+          return { data };
+        }, e => { console.warn('[character.html] 담은 그림 조회 예외:', e); return { error: e }; });
+    }
+    function applyLinkedGallery(r) {
+      _galleryLinked       = r?.data ? r.data.items : [];
+      _galleryLinkedManage = r?.data?.can_manage === true;
+      _galleryLinkedError  = r?.error ? '게시물에서 담은 그림을 불러오지 못했어요.' : '';
+    }
+
+    function renderGalleryLinkedHtml() {
+      if (_galleryLinkedError) {
+        return `
+          <div class="char-gallery-linked" id="galleryLinkedWrap">
+            <h3 class="char-gallery-subtitle">게시물에서 담은 그림</h3>
+            <p class="gallery-empty" role="alert" style="color:#b91c1c;">${escapeHtml(_galleryLinkedError)}
+              <button type="button" class="btn-ghost" style="margin-left:6px; padding:4px 10px; font-size:12px;" onclick="reloadLinkedGallery()">다시 불러오기</button></p>
+          </div>`;
+      }
+      if (!_galleryLinked.length) return '';
+      return `
+          <div class="char-gallery-linked" id="galleryLinkedWrap">
+            <h3 class="char-gallery-subtitle">게시물에서 담은 그림 <span>${_galleryLinked.length}</span></h3>
+            <div id="galleryLinkedGrid" class="character-grid">${renderGalleryLinkedGridInner()}</div>
+            <div style="text-align:center; margin-top:14px; ${_galleryLinked.length > 4 ? '' : 'display:none;'}">
+              <button type="button" class="btn-ghost" id="galleryLinkedMoreBtn" onclick="toggleGalleryLinkedExpand()">${_galleryLinkedExpanded ? '접기' : '더보기'}</button>
+            </div>
+          </div>`;
+    }
+
+    function toggleGalleryLinkedExpand() {
+      _galleryLinkedExpanded = !_galleryLinkedExpanded;
+      document.getElementById('galleryLinkedGrid').innerHTML = renderGalleryLinkedGridInner();
+      document.getElementById('galleryLinkedMoreBtn').textContent = _galleryLinkedExpanded ? '접기' : '더보기';
+    }
+
     function renderGallerySectionHtml() {
-      if (!_galleryItems.length && !_canManageGallery) return '';
+      if (!_galleryItems.length && !_canManageGallery && !_galleryLinked.length && !_galleryLinkedError) return '';
       return `
         <div class="char-gallery-section" id="gallerySectionWrap">
           <div class="char-gallery-header">
@@ -848,7 +962,8 @@
           <div id="galleryGrid" class="character-grid">${renderGalleryGridInner()}</div>
           <div id="galleryMoreWrap" style="text-align:center; margin-top:14px; ${_galleryItems.length > 4 ? '' : 'display:none;'}">
             <button type="button" class="btn-ghost" id="galleryMoreBtn" onclick="toggleGalleryExpand()">${_galleryExpanded ? '접기' : '더보기'}</button>
-          </div>` : `<p class="gallery-empty">등록된 갤러리가 없어요.</p>`}
+          </div>` : (_galleryLinked.length || _galleryLinkedError ? '' : `<p class="gallery-empty">등록된 갤러리가 없어요.</p>`)}
+          ${renderGalleryLinkedHtml()}
         </div>`;
     }
 
@@ -966,6 +1081,9 @@
       const item = _galleryItems[idx];
       if (!item) return;
       _galleryLightboxIdx = idx;
+      _galleryLinkedLbIdx = null;
+      document.getElementById('galleryLightboxSource').style.display = 'none';
+      document.getElementById('galleryLightboxUnlinkBtn').style.display = 'none';
       document.getElementById('galleryLightboxImg').src = item.image_url;
       document.getElementById('galleryLightboxDesigner').textContent = '디자이너 · ' + galleryDesignerDisplay(item);
       const catEl = document.getElementById('galleryLightboxCategory');
@@ -989,9 +1107,72 @@
       }
     }
 
+    // 게시물에서 담은 그림 보기 — 같은 라이트박스를 쓰되 직접 등록용 수정/삭제는 숨기고(_galleryLightboxIdx=null),
+    // 게시물 작성자·원본 게시물 링크·'갤러리에서 빼기'(서버가 허용한 경우만)를 보여준다.
+    // 작성자는 "게시물 작성자"로만 표기한다(그린 사람으로 단정하지 않음).
+    function openLinkedGalleryLightbox(idx) {
+      const it = _galleryLinked[idx];
+      if (!it) return;
+      // 민감 정책 우회 방지: 가림을 풀지 않았으면 확대하지 않는다('바로 표시' 사용자는 예외)
+      if (linkedTileNeedsReveal(it) && !document.documentElement.classList.contains('show-sensitive')) return;
+      _galleryLightboxIdx = null;
+      _galleryLinkedLbIdx = idx;
+      document.getElementById('galleryLightboxImg').src = galleryLinkedUrl(it.path);
+      document.getElementById('galleryLightboxDesigner').innerHTML = it.author_id
+        ? `게시물 작성자 · <a href="profile.html?user=${encodeURIComponent(it.author_id)}" style="color:inherit;">${escapeHtml(it.author_nick || '(탈퇴한 회원)')}</a>`
+        : '게시물 작성자 · (알 수 없음)';
+      document.getElementById('galleryLightboxCategory').style.display = 'none';
+      document.getElementById('galleryLightboxDescription').style.display = 'none';
+      const d = it.linked_at ? new Date(it.linked_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }) : '';
+      document.getElementById('galleryLightboxUploader').textContent = d ? `개체 갤러리에 담은 날 · ${d}` : '';
+      const src = document.getElementById('galleryLightboxSource');
+      src.innerHTML = `원본 게시물 · <a href="gallery-post.html?id=${encodeURIComponent(it.post_id)}">${escapeHtml(it.post_title || '게시물 보기')}</a>`;
+      src.style.display = '';
+      document.getElementById('galleryLightboxManage').style.display = 'none';
+      const ub = document.getElementById('galleryLightboxUnlinkBtn');
+      ub.style.display = _galleryLinkedManage ? '' : 'none';
+      ub.disabled = false;
+      ub.textContent = '갤러리에서 빼기';
+      document.getElementById('galleryLightbox').style.display = 'flex';
+      if (_galleryLbPrevOverflow === null) {
+        _galleryLbPrevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    // 이 개체와 이 그림의 연결만 해제 — 원본 게시물·파일·다른 개체의 연결은 그대로(서버 RPC 가 소유주/운영진 확인)
+    async function unlinkCurrentLinkedItem() {
+      const idx = _galleryLinkedLbIdx;
+      const it = idx === null ? null : _galleryLinked[idx];
+      if (!it) return;
+      if (!confirm('이 그림을 개체 갤러리에서 뺄까요?\n원본 게시물과 그림 파일은 그대로 남아요.')) return;
+      const btn = document.getElementById('galleryLightboxUnlinkBtn');
+      btn.disabled = true;
+      btn.textContent = '빼는 중...';
+      let res;
+      try { res = await sb.rpc('gallery_unlink_image', { p_character_id: Number(charId), p_image_id: it.image_id }); }
+      catch (e) { res = { error: e }; }
+      const { data, error } = res || {};
+      if (error || (data !== true && data !== false)) {
+        // 실패·응답 불명 — 성공으로 표시하지 않는다. 서버 상태를 다시 읽어 화면을 맞춘다.
+        const msg = (error?.message || '').replace(/^.*?ERROR:\s*/, '');
+        alert(/Failed to fetch|NetworkError/i.test(msg)
+          ? '네트워크 오류로 빼지 못했을 수 있어요. 목록을 다시 불러올게요.'
+          : '빼지 못했어요' + (msg ? ': ' + msg : '.'));
+        closeGalleryLightbox();
+        await reloadLinkedGallery();
+        return;
+      }
+      if (data === false) alert('이미 이 개체 갤러리에서 빠진 그림이에요.');
+      _galleryLinked.splice(idx, 1);
+      closeGalleryLightbox();
+      refreshGallerySection();
+    }
+
     function closeGalleryLightbox() {
       document.getElementById('galleryLightbox').style.display = 'none';
       _galleryLightboxIdx = null;
+      _galleryLinkedLbIdx = null;
       if (_galleryLbPrevOverflow !== null) {
         document.body.style.overflow = _galleryLbPrevOverflow;
         _galleryLbPrevOverflow = null;
@@ -1952,6 +2133,9 @@
       // user_settings.character_name_display_mode — MY 캐릭터 설정과 같은 공용 헬퍼(js/utils.js)로 조회.
       // 상세 페이지 "초기" 표시 이름을 정하는 용도로만 쓰고, 여기서 탭을 눌러도 이 설정 자체는 저장하지 않는다.
       // 나머지 3개 쿼리와 병렬로 한 번만 조회해 중복 조회/깜빡임을 방지한다.
+      // 게시물에서 담은 그림(1107) — 기존 조회와 병렬. SQL 미적용(함수 없음)일 때만 구역을 숨기고,
+      // 그 밖의 오류는 '불러오지 못했어요' 안내를 보여준다(fetchLinkedGallery).
+      const linkedPromise = fetchLinkedGallery();
       const [{ data: c, error }, { data: siteUserData }, { data: galleryRows }, nameSettings] = await Promise.all([
         sb.from('characters_public').select(CHAR_SELECT).eq('id', charId).single(),
         sb.rpc('get_all_users'),
@@ -1982,6 +2166,7 @@
       _siteUserData = siteUserData || [];
       _currentUser  = user;
       _galleryItems = galleryRows || [];
+      applyLinkedGallery(await linkedPromise);
 
       // 제작자(디자이너/아티스트) 개인공지(TOS) — 프로필의 "개인공지"(user_profiles.tos)를 그대로 재사용.
       // user_profiles는 공개 SELECT라 anon도 읽을 수 있고, tos 외 다른 컬럼은 가져오지 않는다.

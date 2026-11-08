@@ -695,3 +695,46 @@ a.rt-my-title:hover { color: var(--sky-deep); }
 .rt-comment b, .rt-reason b { display: block; font-size: 11.5px; margin-bottom: 2px; }
 .rt-my-link { display: inline-flex; margin-top: 18px; }
 @media (max-width: 640px) { .rt-my-filters select { flex: 1 1 100%; } }
+
+/* ── 내 개체 갤러리에 담기 (1107) — 팝업은 rs-pop-* 재사용 ── */
+.gl-link-box { margin: -4px 0 16px; display: flex; justify-content: flex-end; }
+.gl-link-card { max-width: 560px; }
+.gl-link-body { padding-bottom: 12px; }
+.gl-link-related .gl-chars { gap: 8px; }
+.gl-link-quick { padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; width: calc(50% - 4px); max-width: 280px; }
+.gl-link-quick .gl-char-card { width: 100%; max-width: none; }
+.gl-link-quick.is-selected .gl-char-card { outline: 2px solid var(--sky-deep); outline-offset: 1px; }
+@media (max-width: 380px) { .gl-link-quick { width: 100%; max-width: none; } }
+.gl-link-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 420px) { .gl-link-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.gl-link-tile {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+}
+.gl-link-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gl-link-tile.is-picked { border-color: var(--sky-deep); box-shadow: 0 0 0 2px var(--sky-pale); }
+.gl-link-tile.is-linked { cursor: default; }
+.gl-link-tile.is-linked img { opacity: .45; }
+.gl-link-state {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, .65);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.gl-link-tile.is-picked .gl-link-state { background: var(--sky-deep); }
+.gl-link-tile.is-linked .gl-link-state { background: #16a34a; }
+.gl-link-msg { margin-top: 10px; line-height: 1.6; word-break: keep-all; }
+.gl-link-msg:empty { display: none; }
+.gl-link-empty { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 4px 0 8px; line-height: 1.6; }

@@ -424,9 +424,17 @@ function createCharacterPicker(root, opts = {}) {
   });
 
   function getIds() { return [...state.selected.keys()].filter(k => /^\d+$/.test(k)).map(Number); }   // 실제 개체 ID 만(래버 NPC 같은 선택지 제외)
+  // 바깥에서 고르기(예: '이 글의 관련 개체 중 내 개체' 바로 선택) — single 은 교체, 아니면 추가
+  function select(c) {
+    if (!c || c.id == null) return;
+    if (opts.single) state.selected.clear();
+    state.selected.set(String(c.id), c);
+    renderResults();
+    renderChosen();
+  }
   renderChosen();
   renderResults();
-  return { getIds, getSelected: () => [...state.selected.values()], focus: () => input.focus(), input };
+  return { getIds, getSelected: () => [...state.selected.values()], select, focus: () => input.focus(), input };
 }
 
 // ============================================================
@@ -702,4 +710,176 @@ function rtTaskImage(t, week) {
     return resolveCharacterImage(c, { thumb: true });
   }
   return t.image_url || '';
+}
+
+// ============================================================
+// 내 개체 갤러리에 담기 (2026-11-07) — supabase/character_gallery_post_links_apply_1107.sql
+//   게시물에 직접 업로드된 이미지만 대상(외부 URL 입력 없음). 파일 복제 없이 (개체, 원본 이미지) 연결만 저장.
+//   개체 1체를 고르고, 그 개체에 담을 이미지를 여러 장 고른다. 이미 담긴 이미지는 '담김'으로 표시·선택 불가.
+//   권한(로그인·현재 소유주)·원본 유효성은 전부 서버가 다시 확인한다 — 여기서는 화면만.
+// ============================================================
+async function mountGalleryLinkButton(root, post, user) {
+  if (!root || !post || !(post.images || []).length || !user) return;   // 이미지 없는 글·비로그인 → 버튼 없음
+  // 이 글에 연결된 개체 중 지금 내 소유 개체가 있을 때만 버튼 표시(판정은 서버 _gallery_post_link_targets 기준)
+  const { data, error } = await sb.rpc('gallery_link_state', { p_post_id: post.id, p_character_id: null });
+  if (error || !(data?.related_mine || []).length) return;
+  root.innerHTML = '<button type="button" class="btn-ghost gl-link-open">내 개체 갤러리에 담기</button>';
+  root.classList.remove('gl-hidden');
+  root.querySelector('.gl-link-open').addEventListener('click', () => openGalleryLinkModal(post));
+}
+
+// 담기 전용 오류 문구 — 함수 미적용(PGRST202)은 '담기 SQL 미적용'으로, 나머지는 공통 glRpcError
+function glLinkError(error, fallback) {
+  if (error?.code === 'PGRST202' || /Could not find the function/i.test(error?.message || '')) return '아직 서버에 적용되지 않은 기능이에요. (갤러리 담기 SQL 미적용)';
+  return glRpcError(error, fallback);
+}
+
+function openGalleryLinkModal(post) {
+  const ov = document.createElement('div');
+  ov.className = 'rs-pop-overlay';
+  ov.innerHTML = `<div class="rs-pop-card gl-link-card" role="dialog" aria-modal="true" aria-labelledby="glLinkTitle">
+    <div class="rs-pop-head">
+      <p class="rs-pop-title" id="glLinkTitle">내 개체 갤러리에 담기</p>
+      <p class="rs-pop-desc">이 글에 연결된 내 개체 1체를 고르고, 그 개체 갤러리에 담을 그림을 골라주세요.
+파일을 새로 올리지 않고 이 게시물의 원본 그림을 연결해요. 원본이 삭제되면 갤러리에서도 함께 사라져요.</p>
+    </div>
+    <div class="rs-pop-body gl-link-body"><p class="gl-sub gl-muted">불러오는 중…</p></div>
+    <div class="rs-pop-foot">
+      <button type="button" class="btn-ghost" data-act="close">닫기</button>
+      <button type="button" class="btn-secondary gl-hidden" data-act="save" disabled>담기</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  const body = ov.querySelector('.gl-link-body');
+  const saveBtn = ov.querySelector('[data-act="save"]');
+  const st = { char: null, images: [], picked: new Set(), busy: false, seq: 0 };
+
+  function markQuick() {
+    body.querySelectorAll('[data-quick]').forEach(b => {
+      const on = !!st.char && b.dataset.quick === String(st.char.id);
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function close() {
+    if (st.busy) return;
+    document.removeEventListener('keydown', onKey);
+    document.body.style.overflow = prevOverflow;
+    ov.remove();
+  }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  document.addEventListener('keydown', onKey);
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('[data-act="close"]').addEventListener('click', close);
+
+  function updateSave() {
+    const n = st.picked.size;
+    saveBtn.classList.toggle('gl-hidden', !st.char);
+    saveBtn.disabled = st.busy || !st.char || n === 0;
+    saveBtn.textContent = st.busy ? '담는 중…' : (n ? `${n}장 담기` : '담기');
+  }
+
+  function renderImages() {
+    const box = body.querySelector('.gl-link-images');
+    if (!box) return;
+    if (!st.char) { box.innerHTML = '<p class="gl-sub gl-muted">먼저 담을 개체를 골라주세요.</p>'; updateSave(); return; }
+    const left = st.images.filter(i => !i.linked).length;
+    box.innerHTML = `
+      <p class="form-label" style="margin-bottom:6px;">담을 그림 <span class="gl-muted">${st.images.length > 1 ? '여러 장 고를 수 있어요' : ''}</span></p>
+      ${left ? '' : '<p class="gl-sub" style="margin-bottom:8px;">이 게시물의 그림이 모두 이 개체 갤러리에 담겨 있어요.</p>'}
+      <div class="gl-link-grid">${st.images.map(img => {
+        const on = st.picked.has(Number(img.id));
+        return `<button type="button" class="gl-link-tile${img.linked ? ' is-linked' : ''}${on ? ' is-picked' : ''}" data-img="${glEsc(img.id)}"
+                  ${img.linked ? 'disabled aria-disabled="true"' : `aria-pressed="${on}"`}>
+          <img src="${glEsc(glImgUrl(img.thumb_path || img.path))}" alt="" loading="lazy" decoding="async">
+          <span class="gl-link-state">${img.linked ? '담김' : (on ? '✓ 선택됨' : '선택')}</span>
+        </button>`;
+      }).join('')}</div>`;
+    updateSave();
+  }
+
+  async function loadFor(charBrief) {
+    const mySeq = ++st.seq;
+    st.char = charBrief || null;
+    st.picked.clear();
+    const box = body.querySelector('.gl-link-images');
+    if (box) box.innerHTML = '<p class="gl-sub gl-muted">불러오는 중…</p>';
+    updateSave();
+    const { data, error } = await sb.rpc('gallery_link_state', { p_post_id: post.id, p_character_id: st.char ? st.char.id : null });
+    if (mySeq !== st.seq) return;   // 더 최근에 고른 개체가 있으면 버림
+    if (error) {
+      if (box) box.innerHTML = `<p class="gl-sub" style="color:#b91c1c;">${glEsc(glLinkError(error, '불러오지 못했어요.'))}</p>`;
+      st.char = null; markQuick(); updateSave(); return;
+    }
+    st.images = data.images || [];
+    if (st.char && data.character) st.char = data.character;
+    markQuick();
+    const free = st.images.filter(i => !i.linked);
+    if (st.char && free.length === 1) st.picked.add(Number(free[0].id));   // 담을 수 있는 그림이 1장이면 미리 선택
+    renderImages();
+  }
+
+  async function init() {
+    const { data, error } = await sb.rpc('gallery_link_state', { p_post_id: post.id, p_character_id: null });
+    if (error) { body.innerHTML = `<p class="gl-sub" style="color:#b91c1c;">${glEsc(glLinkError(error, '불러오지 못했어요.'))}</p>`; return; }
+    st.images = data.images || [];
+    if (!st.images.length) { body.innerHTML = '<p class="gl-sub">이 게시물에는 담을 수 있는 그림이 없어요.</p>'; return; }
+    const related = data.related_mine || [];
+    if (!related.length) { body.innerHTML = '<p class="gl-sub">이 글에 연결된 내 개체가 없어요.</p>'; return; }
+    body.innerHTML = `
+      <div class="gl-link-related">
+        <p class="form-label" style="margin-bottom:6px;">담을 개체 <span class="gl-muted">이 글에 연결된 내 개체만 고를 수 있어요</span></p>
+        <div class="gl-chars">${related.map(c => `<button type="button" class="gl-link-quick" data-quick="${glEsc(c.id)}" aria-pressed="false">${glCharCardHtml(c, { link: false })}</button>`).join('')}</div>
+      </div>
+      <div class="gl-link-images" style="margin-top:14px;"></div>
+      <p class="gl-link-msg gl-sub" role="status" aria-live="polite"></p>`;
+    body.querySelectorAll('[data-quick]').forEach(b => b.addEventListener('click', () => {
+      const c = related.find(x => String(x.id) === b.dataset.quick);
+      if (!c || st.busy || (st.char && String(st.char.id) === b.dataset.quick)) return;
+      body.querySelector('.gl-link-msg').textContent = '';
+      loadFor(c);
+    }));
+    body.addEventListener('click', e => {
+      const t = e.target.closest('.gl-link-tile');
+      if (!t || t.disabled || st.busy) return;
+      const id = Number(t.dataset.img);
+      if (st.picked.has(id)) st.picked.delete(id); else st.picked.add(id);
+      renderImages();
+    });
+    renderImages();
+    if (related.length === 1) loadFor(related[0]);   // 고를 수 있는 개체가 1체면 바로 선택
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    if (st.busy || !st.char || !st.picked.size) return;
+    st.busy = true; updateSave();
+    const msg = body.querySelector('.gl-link-msg');
+    let res;
+    try {
+      res = await sb.rpc('gallery_link_images', { p_post_id: post.id, p_character_id: st.char.id, p_image_ids: [...st.picked] });
+    } catch (e) { res = { error: e }; }
+    st.busy = false;
+    const { data, error } = res || {};
+    if (error || !data || typeof data.added !== 'number' || !Array.isArray(data.linked_image_ids)) {
+      // 실패·응답 불명은 성공으로 표시하지 않는다. 응답만 유실됐을 수 있으니 서버의 실제 담김 상태를 다시 읽어 맞춘다.
+      msg.style.color = '#b91c1c';
+      msg.textContent = error ? glLinkError(error, '담지 못했어요.') : '담기 결과를 확인하지 못했어요. 아래 담김 상태를 확인해 주세요.';
+      const keep = msg.textContent;
+      await loadFor(st.char);
+      msg.textContent = keep;
+      return;
+    }
+    const linked = new Set((data.linked_image_ids || []).map(Number));
+    st.images.forEach(i => { if (linked.has(Number(i.id))) i.linked = true; });
+    st.picked.clear();
+    renderImages();
+    msg.style.color = '';
+    msg.innerHTML = `${glEsc(glCharName(st.char))} 갤러리에 ${Number(data.added) || 0}장을 담았어요.${data.already ? ` (이미 담겨 있던 ${Number(data.already)}장 제외)` : ''}
+      <a href="character.html?id=${encodeURIComponent(st.char.id)}#gallerySectionWrap" style="color:var(--sky-deep);font-weight:700;">개체 갤러리 보기</a>`;
+  });
+
+  init();
 }

@@ -16,7 +16,7 @@
   // 저장 위치(2026-11-07 수정): 탭별 sessionStorage 는 심사 화면의 새 탭(noopener)에 넘어가지 않아 '글을 찾을 수 없어요'가 났고,
   //   시드가 바뀔 때마다 키를 올려 등록한 연구까지 초기화됐다 → 브라우저 공용 localStorage 한 키 + 시드 버전(과제 설정만 갱신, 연구·제출 유지)
   const STORE_KEY = 'galleryPreviewStore';
-  const SEED_VER = 12;   // 과제·주차 시드 문구가 바뀌면 올린다 — 사용자 연구·댓글·제출·이미지는 그대로 두고 시드 과제만 새로 고친다
+  const SEED_VER = 13;   // 과제·주차 시드 문구가 바뀌면 올린다 — 사용자 연구·댓글·제출·이미지는 그대로 두고 시드 과제만 새로 고친다
   const LEGACY_KEYS = ['galleryPreviewStore_v9', 'galleryPreviewStore_v8', 'galleryPreviewStore_v7', 'galleryPreviewStore_v6'];   // 예전 탭별 저장(옮겨 오기)
   const store = { get: () => { try { return localStorage.getItem(STORE_KEY); } catch (e) { return null; } },
                   set: v => { localStorage.setItem(STORE_KEY, v); },
@@ -36,7 +36,8 @@
     'research_my_archive_posts', 'research_submit', 'research_withdraw_submission', 'research_review_list',
     'research_review_submission', 'research_admin_list_tasks', 'research_admin_save_task',
     'gallery_admin_storage_report', 'gallery_admin_enqueue_orphans', 'gallery_admin_retry_purge',
-    'research_archive_filters', 'research_archive_list', 'research_weekly_rollover_recover', 'research_post_link', 'research_entry_options', 'research_admin_search_items', 'research_relation_partners', 'research_my_submissions'];
+    'research_archive_filters', 'research_archive_list', 'research_weekly_rollover_recover', 'research_post_link', 'research_entry_options', 'research_admin_search_items', 'research_relation_partners', 'research_my_submissions',
+    'gallery_link_state', 'gallery_link_images', 'gallery_unlink_image'];   // 내 개체 갤러리에 담기(1107) — 미리보기에선 이 브라우저에만 기록
   const MOCKED = new Set(NAMES);
   const active = () => mode === 'on';
 
@@ -111,21 +112,21 @@
           summary: '이번 주의 연구는 끝냈나요?',
           guide: '이번 주의 연구대상을 연구해 봅시다!\n연구대상의 외형, 성격, 일상 등 무엇이든 자유롭게 표현해 주세요.',
           conditions: '· 그림과 글 모두 참여할 수 있습니다.\n· 해당 주의 연구대상이 등장하거나, 연구의 주제가 되어야 합니다.',
-          prompt_image: '개체 전신 채색', prompt_text: '공백 미포함 1,000자 이상', prompt_spec: {"common":"**이번 주의 연구대상**","image":{"lines":[{"t":"**전신 채색**"}]},"text":{"lines":[{"t":"공백 미포함 **1,000자 이상**"}]},"either":true},
+          prompt_image: '개체 전신 단색이상 채색', prompt_text: '공백 미포함 1,000자 이상', prompt_spec: {"common":"**이번 주의 연구대상**","image":{"lines":[{"t":"**전신 단색이상 채색**"}]},"text":{"lines":[{"t":"공백 미포함 **1,000자 이상**"}]},"either":true},
           notes: null, image_url: null, starts_at: null, ends_at: null },
         { id: 2, code: 'weekly_daily_life', kind: 'general', title: '개체의 일상 탐구', category: '주간', status: 'open', sort_order: 1,
           summary: '여러분의 개체는 평소에 무엇을 하고 있나요?',
           guide: '여러분의 개체는 평소에 무엇을 하고 있나요?\n공부하거나 맛있는 음식을 먹고, 전투를 하거나 잠을 잘 수도 있겠지요.\n여러분의 개체가 보내는 일상을 자유롭게 표현해 주세요.',
           conditions: '· 그림 또는 글 중 하나로 참여할 수 있습니다.',
-          prompt_image: '본인 소유 개체 1체의 전신 채색', prompt_text: '본인 소유 개체 1체가 등장하는 글, 공백 미포함 1,000자 이상', prompt_spec: {"common":"본인 소유 개체 **1체**","image":{"lines":[{"t":"**전신 채색**"}]},"text":{"lines":[{"t":"대상 개체가 등장하는 글"},{"t":"공백 미포함 **1,000자 이상**"}]},"either":true},
+          prompt_image: '본인 소유 개체 1체의 전신 단색이상 채색', prompt_text: '본인 소유 개체 1체가 등장하는 글, 공백 미포함 1,000자 이상', prompt_spec: {"common":"본인 소유 개체 **1체**","image":{"lines":[{"t":"**전신 단색이상 채색**"}]},"text":{"lines":[{"t":"대상 개체가 등장하는 글"},{"t":"공백 미포함 **1,000자 이상**"}]},"either":true},
           reward_amount: 100, reward_items: [{ item_id: null, name: '기다란 철사', qty: 1 }], reward_random: null,
           submit_limit: 'per_user_week', limit_count: 3, entry_rule: 'own_character', image_url: null, starts_at: null, ends_at: null },
         { id: 3, code: 'weekly_relation', kind: 'general', title: '개체의 관계 탐구', category: '주간', status: 'open', sort_order: 2,
           summary: '여러분의 개체는 어떤 관계를 맺고 있나요?',
           guide: '친구, 스승과 제자, 혹은 연인일 수도 있겠지요.\n서로에게 어떤 존재인지, 함께할 때 어떤 모습을 보이는지\n개체들의 관계를 표현해 주세요.',
           conditions: '· 그림 또는 글 중 하나로 참여할 수 있습니다.\n· 개체의 관계란에 등록된 관계여야 합니다.',
-          prompt_image: '본인 소유 개체 1체와 해당 개체의 관계 상대 1체, 총 2체의 전신 채색',
-          prompt_text: '본인 소유 개체 1체와 해당 개체의 관계 상대 1체가 등장하는 글, 공백 미포함 1,000자 이상', prompt_spec: {"common":"본인 소유 개체 **1체** + 관계 상대 **1체**","image":{"lines":[{"t":"총 **2체 전신 채색**"}]},"text":{"lines":[{"t":"총 **2체**가 등장하는 글"},{"t":"공백 미포함 **1,000자 이상**"}]},"notes":["※ 개체의 관계란에 등록된 관계여야 합니다."],"either":true},
+          prompt_image: '본인 소유 개체 1체와 해당 개체의 관계 상대 1체, 총 2체의 전신 단색이상 채색',
+          prompt_text: '본인 소유 개체 1체와 해당 개체의 관계 상대 1체가 등장하는 글, 공백 미포함 1,000자 이상', prompt_spec: {"common":"본인 소유 개체 **1체** + 관계 상대 **1체**","image":{"lines":[{"t":"총 **2체 전신 단색이상 채색**"}]},"text":{"lines":[{"t":"총 **2체**가 등장하는 글"},{"t":"공백 미포함 **1,000자 이상**"}]},"notes":["※ 개체의 관계란에 등록된 관계여야 합니다."],"either":true},
           reward_amount: 200, reward_items: [{ item_id: null, name: '기다란 철사', qty: 1 }], reward_random: null,
           submit_limit: 'per_user_week', limit_count: 3, entry_rule: 'own_character_relation', image_url: null, starts_at: null, ends_at: null },
         { id: 4, code: 'monthly_labber_research', kind: 'general', title: '래버의 연구', category: '월간,래버', status: 'open', sort_order: 3,
@@ -265,6 +266,46 @@
       if (lockOf(p.id) === 'pending') return err('심사 중인 작품은 삭제할 수 없어요. 제출을 취소한 뒤 삭제해주세요.');
       if (lockOf(p.id) === 'approved') return err('승인된 작품은 삭제할 수 없어요. 필요하면 문의해주세요.');
       S.posts = S.posts.filter(x => x.id !== p.id); save(); return ok(true);
+    },
+    // ── 내 개체 갤러리에 담기(1107 SQL 과 같은 모양) — 내 개체 여부는 실제 공개 개체 정보를 "읽기만" 해서 판단 ──
+    //   ※ 담은 연결은 미리보기 저장소에만 있으므로 개체 상세(character.html, 미리보기 미적용)에는 보이지 않는다.
+    async gallery_link_state(a) {
+      const p = postById(a.p_post_id); if (!p) return err('게시물을 찾을 수 없어요. 삭제되었을 수 있어요.');
+      const u = await meUser();
+      const { data: mine } = await sb.from('characters_public').select('id').eq('owner_user_id', u.id).limit(1000);
+      const mineIds = new Set((mine || []).map(c => Number(c.id)));
+      const cid = a.p_character_id == null ? null : Number(a.p_character_id);
+      if (cid != null && !mineIds.has(cid)) return err('지금 소유한 개체만 고를 수 있어요.');
+      if (cid != null && !p.characters.some(c => Number(c.id) === cid)) return err('이 글에 연결된 개체만 고를 수 있어요.');
+      const links = S.links || [];
+      return ok({ post_id: p.id,
+        images: p.images.map(i => ({ id: i.id, path: i.path, thumb_path: i.thumb_path, width: i.width, height: i.height,
+                                     linked: cid != null && links.some(l => l.character_id === cid && l.image_id === i.id) })),
+        my_character_count: mineIds.size,
+        related_mine: p.characters.filter(c => mineIds.has(Number(c.id))),
+        character: cid != null ? await charBrief(cid) : null });
+    },
+    async gallery_link_images(a) {
+      const p = postById(a.p_post_id); if (!p) return err('게시물을 찾을 수 없어요. 삭제되었을 수 있어요.');
+      const u = await meUser();
+      const cid = Number(a.p_character_id);
+      const { data: c } = await sb.from('characters_public').select('id,owner_user_id').eq('id', cid).maybeSingle();
+      if (!c || c.owner_user_id !== u.id) return err('지금 소유한 개체에만 담을 수 있어요.');
+      if (!p.characters.some(x => Number(x.id) === cid)) return err('이 글에 연결된 개체에만 담을 수 있어요.');
+      const ids = (a.p_image_ids || []).map(Number);
+      if (!ids.length) return err('담을 이미지를 1장 이상 골라주세요.');
+      if (new Set(ids).size !== ids.length || ids.some(id => !p.images.some(i => i.id === id))) return err('이 게시물에 올라간 이미지가 아니에요. 화면을 새로고침해 주세요.');
+      S.links = S.links || [];
+      let added = 0;
+      ids.forEach(id => { if (!S.links.some(l => l.character_id === cid && l.image_id === id)) { S.links.push({ character_id: cid, image_id: id, created_at: nowIso() }); added++; } });
+      save();
+      return ok({ character_id: cid, added, already: ids.length - added,
+                  linked_image_ids: S.links.filter(l => l.character_id === cid && p.images.some(i => i.id === l.image_id)).map(l => l.image_id) });
+    },
+    async gallery_unlink_image(a) {
+      const before = (S.links || []).length;
+      S.links = (S.links || []).filter(l => !(l.character_id === Number(a.p_character_id) && l.image_id === Number(a.p_image_id)));
+      save(); return ok(S.links.length !== before);
     },
     async gallery_list_comments(a) {
       const u = await meUser();

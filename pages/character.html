@@ -750,6 +750,9 @@
     let _galleryLinked         = [];
     let _galleryLinkedManage   = false;  // 서버 판정(현재 소유주 / 운영진) — 클라이언트 role 로 정하지 않는다
     let _galleryLinkedExpanded = false;
+    // 접힌 상태 장수: 모바일(.character-grid 2열 구간) 4장, 그 외 8장
+    const _galleryLinkedMobile = window.matchMedia('(max-width: 767px)');
+    function galleryLinkedFoldLimit() { return _galleryLinkedMobile.matches ? 4 : 8; }
     let _galleryLinkedLbIdx    = null;
     let _galleryLinkedError    = '';     // 조회 실패 안내(함수 없음=미적용은 제외 — 그때만 구역을 숨긴다)
     let _galleryLinkedRevealed = new Set(); // 민감 개체: 이 화면에서 직접 눌러 본 그림(image_id) — 다시 그려도 유지
@@ -866,7 +869,7 @@
     }
 
     function renderGalleryLinkedGridInner() {
-      const limit = _galleryLinkedExpanded ? _galleryLinked.length : Math.min(4, _galleryLinked.length);
+      const limit = _galleryLinkedExpanded ? _galleryLinked.length : Math.min(galleryLinkedFoldLimit(), _galleryLinked.length);
       let html = '';
       for (let i = 0; i < limit; i++) {
         const it = _galleryLinked[i];
@@ -938,7 +941,7 @@
           <div class="char-gallery-linked" id="galleryLinkedWrap">
             <h3 class="char-gallery-subtitle">게시물에서 담은 그림 <span>${_galleryLinked.length}</span></h3>
             <div id="galleryLinkedGrid" class="character-grid">${renderGalleryLinkedGridInner()}</div>
-            <div style="text-align:center; margin-top:14px; ${_galleryLinked.length > 4 ? '' : 'display:none;'}">
+            <div id="galleryLinkedMoreWrap" style="text-align:center; margin-top:14px; ${_galleryLinked.length > galleryLinkedFoldLimit() ? '' : 'display:none;'}">
               <button type="button" class="btn-ghost" id="galleryLinkedMoreBtn" onclick="toggleGalleryLinkedExpand()">${_galleryLinkedExpanded ? '접기' : '더보기'}</button>
             </div>
           </div>`;
@@ -949,6 +952,14 @@
       document.getElementById('galleryLinkedGrid').innerHTML = renderGalleryLinkedGridInner();
       document.getElementById('galleryLinkedMoreBtn').textContent = _galleryLinkedExpanded ? '접기' : '더보기';
     }
+
+    // 화면 폭이 모바일 기준을 넘나들면 접힌 장수와 더보기 표시를 다시 맞춘다
+    _galleryLinkedMobile.addEventListener('change', () => {
+      const grid = document.getElementById('galleryLinkedGrid');
+      if (!grid) return;
+      if (!_galleryLinkedExpanded) grid.innerHTML = renderGalleryLinkedGridInner();
+      document.getElementById('galleryLinkedMoreWrap').style.display = _galleryLinked.length > galleryLinkedFoldLimit() ? '' : 'none';
+    });
 
     function renderGallerySectionHtml() {
       if (!_galleryItems.length && !_canManageGallery && !_galleryLinked.length && !_galleryLinkedError) return '';

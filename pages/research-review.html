@@ -63,6 +63,7 @@
     const $ = id => document.getElementById(id);
     const PER = 20;
     let status = 'pending', page = 1;
+    let focusId = /^\d+$/.test(new URLSearchParams(location.search).get('focus') || '') ? new URLSearchParams(location.search).get('focus') : '';   // 알림에서 들어온 제출 번호
 
     function itemHtml(s) {
       const reward = rtSubRewardText(s) + (s.reward_status === 'paid' && s.reward_paid_at ? ` (${glFmtDate(s.reward_paid_at, true)})` : '');   // 연구기록·아이템·무작위 결과 포함
@@ -106,6 +107,16 @@
       });
       $('list').innerHTML = (data.items || []).map(itemHtml).join('') || '<p class="gl-empty">해당하는 제출이 없어요.</p>';
       glRenderPager($('paginationWrap'), data.total, page, PER, p => { page = p; load(); });
+      if (focusId) {   // 뒤 페이지 → 이미 처리된 제출이면 전체 탭까지 찾아 본다
+        const el = $('list').querySelector(`[data-id="${focusId}"]`);
+        if (el) { focusId = ''; glFlashRow(el); }
+        else if (page * PER < (data.total || 0)) { page++; return load(); }
+        else if (status) {
+          status = ''; page = 1;
+          document.querySelectorAll('#tabs .rt-tab').forEach(x => x.classList.toggle('active', !x.dataset.st));
+          return load();
+        } else focusId = '';
+      }
       return true;
     }
 

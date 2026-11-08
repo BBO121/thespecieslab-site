@@ -62,11 +62,26 @@ function glFmtDate(iso, withTime = false) {
 function glRpcError(error, fallback = '처리 중 오류가 발생했어요.') {
   const msg = error?.message || '';
   if (!msg) return fallback;
+  const code = error?.code || '';
+  // 원인 추적용 원본 — 화면 문구로 뭉개지는 code/details/hint 를 콘솔에 남긴다
+  if (code) console.error('[gallery rpc]', { code, message: msg, details: error?.details, hint: error?.hint });
   if (/JWT|not authenticated|로그인/.test(msg)) return '로그인이 필요해요.';
   if (/Failed to fetch|NetworkError/.test(msg)) return '네트워크 연결을 확인해주세요.';
-  // 백엔드(SQL) 미적용 — 가짜 데이터로 숨기지 않고 그대로 알린다
-  if (error?.code === 'PGRST202' || /Could not find the function|schema cache/i.test(msg)) return '아직 서버에 적용되지 않은 기능이에요. (연구과제 SQL 미적용)';
+  // PGRST202 하나로는 함수 없음·인자 불일치·스키마 캐시 지연을 구분할 수 없다 — 어느 하나로 단정하지 않는다
+  if (code === 'PGRST202') return `서버에서 이 기능을 찾지 못했어요. 운영진에게 알려주세요. (${code})`;
+  if (code === 'PGRST203') return `서버 기능 정의가 중복되어 실행하지 못했어요. 운영진에게 알려주세요. (${code})`;
+  if (/^PGRST2/.test(code) || /schema cache/i.test(msg)) return `서버 구조 정보를 확인하지 못했어요. 잠시 후 다시 시도해주세요. (${code || 'schema cache'})`;
+  if (code === '42501' && /permission denied/i.test(msg)) return `이 기능을 사용할 권한이 없어요. (${code})`;
+  if (['42883', '42P01', '42703'].includes(code)) return `서버 기능 내부에서 오류가 발생했어요. 운영진에게 알려주세요. (${code})`;
   return msg.replace(/^.*?ERROR:\s*/, '');
+}
+
+// 알림으로 들어온 제출 행을 화면 중앙에 잠깐 강조
+function glFlashRow(el) {
+  el.scrollIntoView({ block: 'center' });
+  el.style.outline = '2px solid var(--sky-deep)';
+  el.style.outlineOffset = '2px';
+  setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 3000);
 }
 
 // ── 개체 표시 ──────────────────────────────────────────────

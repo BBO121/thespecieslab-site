@@ -65,6 +65,7 @@
     const PER = 10;
     const qs = new URLSearchParams(location.search);
     let page = Math.max(1, parseInt(qs.get('page'), 10) || 1);
+    let focusId = /^\d+$/.test(qs.get('focus') || '') ? qs.get('focus') : '';   // 알림에서 들어온 제출 번호
     const STATUS_LABEL = { pending: '승인 대기', approved: '승인', rejected: '반려', withdrawn: '제출 취소' };
 
     function itemHtml(s) {
@@ -91,7 +92,7 @@
 
     function syncUrl() {
       const u = new URL(location.href);
-      for (const [k, v] of [['task', $('fTask').value], ['status', $('fStatus').value], ['page', page > 1 ? page : '']]) { if (v) u.searchParams.set(k, v); else u.searchParams.delete(k); }
+      for (const [k, v] of [['task', $('fTask').value], ['status', $('fStatus').value], ['page', page > 1 ? page : ''], ['focus', '']]) { if (v) u.searchParams.set(k, v); else u.searchParams.delete(k); }
       history.replaceState(null, '', u);
     }
 
@@ -118,6 +119,12 @@
       $('list').innerHTML = (data.items || []).map(itemHtml).join('')
         || `<p class="gl-empty">${$('fTask').value || $('fStatus').value ? '조건에 맞는 제출이 없어요.' : '아직 제출한 연구가 없어요.'}<br><br><a class="btn-ghost" href="research-tasks.html">연구 과제 보기</a></p>`;
       glRenderPager($('paginationWrap'), data.total || 0, page, PER, p => { page = p; syncUrl(); window.scrollTo({ top: 0, behavior: 'smooth' }); load(); });
+      if (focusId) {   // 알림의 제출이 뒤 페이지에 있으면 찾을 때까지 넘긴다
+        const el = $('list').querySelector(`[data-id="${focusId}"]`);
+        if (el) { focusId = ''; glFlashRow(el); }
+        else if (page * PER < (data.total || 0)) { page++; return load(); }
+        else focusId = '';
+      }
     }
 
     $('fTask').addEventListener('change', () => { page = 1; syncUrl(); load(); });

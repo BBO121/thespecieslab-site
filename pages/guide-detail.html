@@ -120,6 +120,12 @@
       }
 
       document.getElementById('detailTitle').textContent = data.title;
+      applySeoMeta({
+        title: `${data.title} — 종족연구소`,
+        description: seoPlainText(data.content),
+        canonicalPath: `/pages/guide-detail.html?id=${encodeURIComponent(data.id)}`,
+        image: null,
+      });
       document.getElementById('detailAuthor').textContent = data.author || '관리자';
 
       const date = new Date(data.created_at).toLocaleDateString('ko-KR', {

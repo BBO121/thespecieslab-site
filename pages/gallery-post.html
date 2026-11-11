@@ -16,7 +16,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>갤러리 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-link">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-sens">
 </head>
 <body>
 
@@ -83,13 +83,16 @@
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
   <script src="../js/image-zoom-viewer.js"></script>
-  <script src="../js/gallery.js?v=20261107-link"></script>
-  <script src="../js/gallery-preview.js?v=20261107-link"></script>
+  <script src="../js/gallery.js?v=20261111-sens"></script>
+  <script src="../js/gallery-preview.js?v=20261111-sens"></script>
   <script>
     (async () => {
       const id = Number(new URLSearchParams(location.search).get('id'));
       const user = await getUser();
-      const { data: p, error } = id ? await sb.rpc('gallery_get_post', { p_post_id: id }) : { data: null };
+      // 글 + 민감한 요소 설정을 함께 받는다(설정 조회 실패 시 glFetchPostSensitivity 가 안전하게 '가림'으로 돌려줌)
+      const [{ data: p, error }, sensMap] = id
+        ? await Promise.all([sb.rpc('gallery_get_post', { p_post_id: id }), glFetchPostSensitivity([id])])
+        : [{ data: null }, new Map()];
       document.getElementById('pageLoading').style.display = 'none';
       if (error || !p) { document.getElementById('notFound').classList.remove('gl-hidden'); return; }
 
@@ -114,19 +117,43 @@
         chip.classList.remove('gl-hidden');
       }
 
-      document.getElementById('postContent').textContent = p.content || '';
-      if (!p.content) document.getElementById('postContent').classList.add('gl-hidden');
+      // 본문·이미지·담기 버튼 — 민감한 요소 자료는 공개 버튼을 누른 뒤에만 그린다(그 전에는 DOM 에도 이미지 주소·본문 없음)
+      function renderBody() {
+        document.getElementById('postContent').textContent = p.content || '';
+        document.getElementById('postContent').classList.toggle('gl-hidden', !p.content);
 
-      // 본 이미지는 상세에서만(목록·사이드바는 썸네일). 가로·세로를 알려줘 레이아웃 흔들림 방지.
-      document.getElementById('postImages').innerHTML = (p.images || []).map(img =>
-        `<img src="${glEsc(glImgUrl(img.path))}" width="${img.width}" height="${img.height}" alt="" loading="lazy" decoding="async" data-zoom>`).join('');
+        // 본 이미지는 상세에서만(목록·사이드바는 썸네일). 가로·세로를 알려줘 레이아웃 흔들림 방지.
+        document.getElementById('postImages').innerHTML = (p.images || []).map(img =>
+          `<img src="${glEsc(glImgUrl(img.path))}" width="${img.width}" height="${img.height}" alt="" loading="lazy" decoding="async" data-zoom>`).join('');
+
+        // 내 개체 갤러리에 담기 — 이 게시물에 직접 올라간 이미지가 있고 로그인했을 때만(작성자 본인 글도 가능)
+        if (typeof mountGalleryLinkButton === 'function') mountGalleryLinkButton(document.getElementById('linkBox'), p, user);   // 예전 gallery.js 캐시여도 상세는 그대로
+      }
       document.getElementById('postImages').addEventListener('click', e => {
         const img = e.target.closest('img[data-zoom]');
         if (img && typeof openImageZoomViewer === 'function') openImageZoomViewer(img.src);
       });
 
-      // 내 개체 갤러리에 담기 — 이 게시물에 직접 올라간 이미지가 있고 로그인했을 때만(작성자 본인 글도 가능)
-      if (typeof mountGalleryLinkButton === 'function') mountGalleryLinkButton(document.getElementById('linkBox'), p, user);   // 예전 gallery.js 캐시여도 상세는 그대로
+      // 민감한 요소: 개체·종족과 같은 기준 — 제목·작성자·날짜·관련 개체·댓글은 그대로, 본문·이미지만 가림.
+      //   '민감한 요소 바로 표시'(설정) 사용자는 바로 보인다. 설정 조회 실패·비로그인 = 가림(기존 기본값).
+      const sens = glSensOf(sensMap, p.id);
+      let autoReveal = false;
+      if (sens.on && user && typeof getUserSettings === 'function') {
+        try { autoReveal = (await getUserSettings(user.id)).auto_reveal_sensitive === true; } catch (e) { autoReveal = false; }
+      }
+      if (sens.on && !autoReveal) {
+        const gate = document.createElement('button');
+        gate.type = 'button';
+        gate.id = 'sensGate';
+        gate.className = 'gl-sens-gate';
+        gate.setAttribute('aria-label', `민감한 요소가 있는 자료${sens.note ? ` (${sens.note})` : ''} — 눌러서 내용 보기`);
+        gate.innerHTML = glSensInnerHtml(sens.note, (p.images || []).length ? '누르면 내용과 이미지가 보여요' : '누르면 내용이 보여요');
+        gate.addEventListener('click', () => { gate.remove(); renderBody(); });
+        document.getElementById('postContent').insertAdjacentElement('beforebegin', gate);
+        document.getElementById('postContent').classList.add('gl-hidden');
+      } else {
+        renderBody();
+      }
       const chars = p.characters || [];
       if (chars.length) {
         document.getElementById('postChars').innerHTML = chars.map(c => glCharCardHtml(c)).join('');

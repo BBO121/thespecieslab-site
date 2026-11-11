@@ -16,7 +16,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>연구 자료 보관소 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-sens">
 </head>
 <body>
 
@@ -73,8 +73,8 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
-  <script src="../js/gallery.js?v=20261107-research"></script>
-  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script src="../js/gallery.js?v=20261111-sens"></script>
+  <script src="../js/gallery-preview.js?v=20261111-sens"></script>
   <script>
     const PER = GALLERY_LIMITS.PAGE_SIZE;
     const qs = () => new URLSearchParams(location.search);
@@ -102,14 +102,19 @@
       const { data, error } = useArchiveFn
         ? await sb.rpc('research_archive_list', { p_task_id: f.task, p_week_id: f.week, p_limit: PER, p_offset: (page - 1) * PER })
         : await sb.rpc('gallery_list_posts', { p_board: 'research', p_week_id: null, p_limit: PER, p_offset: (page - 1) * PER });
+      if (error) {
+        document.getElementById('loadState').classList.add('gl-hidden');
+        document.getElementById('postGrid').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error, '목록을 불러오지 못했어요.'))}</p>`; return;
+      }
+      // 민감한 요소 설정을 먼저 받아서 카드를 그린다(가림 전 썸네일·미리보기가 잠깐이라도 보이지 않게)
+      const sens = await glFetchPostSensitivity((data?.items || []).map(p => p.id));
       document.getElementById('loadState').classList.add('gl-hidden');
-      if (error) { document.getElementById('postGrid').innerHTML = `<p class="gl-empty">${glEsc(glRpcError(error, '목록을 불러오지 못했어요.'))}</p>`; return; }
       const total = data?.total || 0;
       document.getElementById('postCount').textContent = total ? `연구 ${total}개` : '';
       const empty = document.getElementById('emptyState');
       empty.textContent = sel.value ? '이 과제에 제출된 연구가 아직 없어요.' : '아직 등록된 연구가 없어요.';
       empty.classList.toggle('gl-hidden', total > 0);
-      document.getElementById('postGrid').innerHTML = (data?.items || []).map(p => glPostCardHtml(p, 'research')).join('');
+      document.getElementById('postGrid').innerHTML = (data?.items || []).map(p => glPostCardHtml(p, 'research', glSensOf(sens, p.id))).join('');
       glRenderPager(document.getElementById('paginationWrap'), total, page, PER, p => {
         const url = new URL(location.href);
         if (p <= 1) url.searchParams.delete('page'); else url.searchParams.set('page', p);

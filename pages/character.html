@@ -864,8 +864,9 @@
     // 민감 요소 개체(is_sensitive)의 담은 그림은 이 페이지 대표·추가 이미지와 같은 정책으로 가린다:
     //   .blurred + .sensitive-overlay → 눌러야 보임. '민감한 요소 바로 표시'(html.show-sensitive) 사용자만 바로 보임.
     //   확대(라이트박스)는 가림을 푼 뒤에만 열린다 — 키보드 Enter/Space 로 타일을 눌러도 먼저 가림 해제만 한다.
+    //   + 원본 게시물(연구 자료)이 민감한 요소로 설정된 그림도 같은 방식으로 가린다(it.post_sensitive, 1111).
     function linkedTileNeedsReveal(it) {
-      return !!(_charData && _charData.is_sensitive) && !_galleryLinkedRevealed.has(String(it.image_id));
+      return (!!(_charData && _charData.is_sensitive) || it.post_sensitive === true) && !_galleryLinkedRevealed.has(String(it.image_id));
     }
 
     function renderGalleryLinkedGridInner() {
@@ -918,8 +919,28 @@
           if (isLinkedRpcMissing(error)) return { missing: true };
           if (error) { console.warn('[character.html] 담은 그림 조회 실패:', error); return { error }; }
           if (!data || !Array.isArray(data.items)) return { error: { message: 'bad response' } };
-          return { data };
+          return markLinkedPostSensitivity(data.items).then(() => ({ data }));
         }, e => { console.warn('[character.html] 담은 그림 조회 예외:', e); return { error: e }; });
+    }
+    // 원본 게시물의 민감한 요소 설정(gallery_post_sensitivity, 1111) → it.post_sensitive
+    //   200개씩 나눠 조회. 함수 없음(SQL 미적용) = 설정 없음.
+    //   조회 실패·응답 누락·게시물 ID 없음 = 안전하게 가림. is_sensitive 가 명시적으로 false 인 것만 가림 없음.
+    async function markLinkedPostSensitivity(items) {
+      const ids = [...new Set(items.map(it => Number(it.post_id)).filter(n => n > 0))];
+      const off = new Set();
+      let missingFn = false;
+      const chunks = [];
+      for (let i = 0; i < ids.length; i += 200) chunks.push(ids.slice(i, i + 200));
+      await Promise.all(chunks.map(async chunk => {
+        let res;
+        try { res = await sb.rpc('gallery_post_sensitivity', { p_post_ids: chunk }); } catch (e) { res = { error: e }; }
+        const msg = String(res?.error?.message || '');
+        if (res?.error && ((res.error.code === 'PGRST202' && (!msg || /gallery_post_sensitivity/.test(msg))) || (res.error.code === '42883' && /gallery_post_sensitivity/.test(msg)))) { missingFn = true; return; }
+        if (res?.error || !Array.isArray(res?.data)) { console.warn('[character.html] 게시물 민감 설정 조회 실패 — 안전하게 가림:', res?.error || res?.data); return; }
+        const want = new Set(chunk);
+        res.data.forEach(r => { if (want.has(Number(r?.id)) && r.is_sensitive === false) off.add(Number(r.id)); });
+      }));
+      items.forEach(it => { it.post_sensitive = missingFn ? false : !off.has(Number(it.post_id)); });
     }
     function applyLinkedGallery(r) {
       _galleryLinked       = r?.data ? r.data.items : [];

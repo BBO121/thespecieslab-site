@@ -743,3 +743,66 @@ a.rt-my-title:hover { color: var(--sky-deep); }
 .gl-link-msg { margin-top: 10px; line-height: 1.6; word-break: keep-all; }
 .gl-link-msg:empty { display: none; }
 .gl-link-empty { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 4px 0 8px; line-height: 1.6; }
+
+/* ── 민감한 요소 (연구 자료 보관소, 2026-11-11) ──
+   덮개 모양은 공통 .sensitive-overlay(css/style.css)를 그대로 쓰고, 여기서는 자리·크기만 맞춘다.
+   '민감한 요소 바로 표시'(html.show-sensitive) 사용자는 공통 규칙대로 덮개가 사라진다. */
+.gl-card-thumb.gl-sens-wrap { background: var(--white); }
+@media (max-width: 767px) {
+  .gl-card-thumb .sensitive-overlay { padding: 6px; }
+  .gl-card-thumb .sensitive-overlay svg { width: 20px; height: 19px; }
+  .gl-card-thumb .sensitive-overlay-inner { gap: 3px; }
+  .gl-card-thumb .sensitive-overlay-title { font-size: 12.5px; }
+  .gl-card-thumb .sensitive-overlay-note,
+  .gl-card-thumb .sensitive-overlay-hint { font-size: 10.5px; padding: 2px 6px; }
+}
+/* 블록 덮개(심사 화면의 제출 당시 내용) — 내용이 짧아도 덮개 문구가 다 보이게 최소 높이 */
+.gl-sens-block { position: relative; min-height: 150px; border-radius: 8px; overflow: hidden; }
+html.show-sensitive .gl-sens-block { min-height: 0; overflow: visible; }
+
+/* 상세 화면: 본문·이미지 자리를 대신하는 공개 버튼(누르기 전에는 본문·이미지를 아예 그리지 않는다) */
+.gl-sens-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 220px;
+  margin: 18px 0;
+  padding: 20px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--white);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+}
+.gl-sens-gate:hover { border-color: #fca5a5; }
+.gl-sens-gate:focus-visible { outline: 2px solid #b91c1c; outline-offset: 2px; }
+.gl-sens-gate .sensitive-overlay-note { max-width: 100%; }
+
+/* 작은 썸네일(과제 제출 선택·심사 목록) — 이미지는 .blurred(투명), 위에 '민감한 요소' 표시 */
+.gl-mini-sens-wrap { position: relative; display: block; }
+.gl-mini-sens {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: #fff;
+  border-radius: inherit;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.4;
+  word-break: keep-all;
+  pointer-events: none;
+}
+html.show-sensitive .gl-mini-sens { display: none; }
+
+/* 작성 화면: 민감한 요소 설정 */
+.gl-sens-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gl-sens-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 14px; font-weight: 500; color: var(--text); }
+.gl-sens-row input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--sky); flex-shrink: 0; }
+.gl-sens-row .form-input { flex: 1; min-width: 160px; }

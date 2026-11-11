@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>제출 심사 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261111-review-wrap">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-sens">
 </head>
 <body>
 
@@ -57,19 +57,20 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
-  <script src="../js/gallery.js?v=20261107-research"></script>
-  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script src="../js/gallery.js?v=20261111-sens"></script>
+  <script src="../js/gallery-preview.js?v=20261111-sens"></script>
   <script>
     const $ = id => document.getElementById(id);
     const PER = 20;
     let status = 'pending', page = 1;
     let focusId = /^\d+$/.test(new URLSearchParams(location.search).get('focus') || '') ? new URLSearchParams(location.search).get('focus') : '';   // 알림에서 들어온 제출 번호
 
-    function itemHtml(s) {
+    function itemHtml(s, sens) {
       const reward = rtSubRewardText(s) + (s.reward_status === 'paid' && s.reward_paid_at ? ` (${glFmtDate(s.reward_paid_at, true)})` : '');   // 연구기록·아이템·무작위 결과 포함
       const snapCover = s.snapshot?.images?.[0]?.thumb_path || s.post_cover;
+      const thumbImg = `<img class="rt-review-thumb${sens?.on ? ' blurred' : ''}" src="${glEsc(glImgUrl(snapCover))}" alt="" loading="lazy">`;
       return `<div class="rt-review-item" data-id="${s.id}">
-        ${snapCover ? `<a href="gallery-post.html?id=${s.post_id}&b=research" target="_blank" rel="noopener"><img class="rt-review-thumb" src="${glEsc(glImgUrl(snapCover))}" alt="" loading="lazy"></a>`
+        ${snapCover ? `<a href="gallery-post.html?id=${s.post_id}&b=research" target="_blank" rel="noopener">${sens?.on ? `<span class="gl-mini-sens-wrap" style="border-radius:8px;">${thumbImg}<span class="gl-mini-sens">민감한 요소</span></span>` : thumbImg}</a>`
                     : '<span class="rt-review-thumb" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-mute);">글 연구</span>'}
         <div style="min-width:0;">
           <div class="rt-sub-row">${rtStatusBadge(s.status)}${s.is_test ? '<span class="rt-flag-test">테스트</span>' : ''}<b>${glEsc(s.task_title || '')}</b>${s.week_title ? `<span class="gl-muted">· ${glEsc(s.week_title)}${s.week_character ? ` (${glEsc(glCharName(s.week_character))})` : ''}</span>` : ''}</div>
@@ -88,7 +89,7 @@
           ${s.status === 'rejected' && s.reject_reason ? `<div class="rt-reason" style="margin-top:6px;">반려 사유: ${glEsc(s.reject_reason)}</div>` : ''}
           <details class="rt-snap-wrap" ${s.status === 'pending' ? 'open' : ''}>
             <summary class="gl-sub" style="font-size:12px;cursor:pointer;margin-top:6px;">${s.status === 'pending' ? '제출 당시 내용' : '심사 당시 내용'} (제목·본문·이미지·관련 개체)</summary>
-            ${rtSnapshotHtml(s.snapshot)}
+            ${rtSnapshotHtml(s.snapshot, sens)}
           </details>
           ${s.status === 'pending' ? `<div class="rt-review-actions">
             <button type="button" class="btn-secondary rs-btn-sm" data-act="approve">승인</button>
@@ -107,7 +108,9 @@
         const n = b.dataset.st ? (c[b.dataset.st] || 0) : Object.values(c).reduce((a, x) => a + x, 0);
         b.textContent = b.textContent.replace(/\s\d+$/, '') + ` ${n}`;
       });
-      $('list').innerHTML = (data.items || []).map(itemHtml).join('') || '<p class="gl-empty">해당하는 제출이 없어요.</p>';
+      // 민감한 요소 자료(지금 설정 기준)는 썸네일·제출 당시 본문·이미지를 가린다 — 누르면 보임(심사는 그대로 가능)
+      const sens = await glFetchPostSensitivity((data.items || []).map(s => s.post_id).filter(Boolean));
+      $('list').innerHTML = (data.items || []).map(s => itemHtml(s, s.post_id ? glSensOf(sens, s.post_id) : { on: false })).join('') || '<p class="gl-empty">해당하는 제출이 없어요.</p>';
       glRenderPager($('paginationWrap'), data.total, page, PER, p => { page = p; load(); });
       if (focusId) {   // 뒤 페이지 → 이미 처리된 제출이면 전체 탭까지 찾아 본다
         const el = $('list').querySelector(`[data-id="${focusId}"]`);

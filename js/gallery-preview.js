@@ -37,7 +37,8 @@
     'research_review_submission', 'research_admin_list_tasks', 'research_admin_save_task',
     'gallery_admin_storage_report', 'gallery_admin_enqueue_orphans', 'gallery_admin_retry_purge',
     'research_archive_filters', 'research_archive_list', 'research_weekly_rollover_recover', 'research_post_link', 'research_entry_options', 'research_admin_search_items', 'research_relation_partners', 'research_my_submissions',
-    'gallery_link_state', 'gallery_link_images', 'gallery_unlink_image'];   // 내 개체 갤러리에 담기(1107) — 미리보기에선 이 브라우저에만 기록
+    'gallery_link_state', 'gallery_link_images', 'gallery_unlink_image',   // 내 개체 갤러리에 담기(1107) — 미리보기에선 이 브라우저에만 기록
+    'gallery_create_post_sensitive', 'gallery_update_post_sensitive', 'gallery_post_sensitivity'];   // 민감한 요소(1111) — 운영으로 보내지 않음
   const MOCKED = new Set(NAMES);
   const active = () => mode === 'on';
 
@@ -260,6 +261,35 @@
       if (a.p_task_link) { link = taskLink(a.p_task_link.task_id ?? null, p.link_task_id, p.link_week_id); if (link.error) return err(link.error); }
       Object.assign(p, { title: a.p_title, content: a.p_content || '', images: imgs, characters: [...keepTarget, ...chars], edited_at: nowIso(), link_task_id: link.task, link_week_id: link.week });
       save(); return ok(p.id);
+    },
+    // 민감한 요소(1111 SQL 래퍼와 같은 규칙): 기존 등록·수정을 먼저 하고, 성공하면 민감 설정 저장. 자유갤러리는 설정 불가.
+    async gallery_create_post_sensitive(a) {
+      // 같은 client_key 재전송 = 기존 결과만 반환, 아무것도 바꾸지 않음(SQL 래퍼와 같은 규칙)
+      const u0 = await meUser();
+      const dup = a.p_client_key && S.posts.find(p => p.user_id === u0.id && p.client_key === a.p_client_key);
+      if (dup) return ok(dup.id);
+      const on = !!a.p_is_sensitive, note = (a.p_sensitive_note || '').trim();
+      if (on && a.p_board !== 'research') return err('민감한 요소 설정은 연구 자료 보관소에서만 할 수 있어요.');
+      if (note.length > 100) return err('민감한 요소 설명은 100자까지 쓸 수 있어요.');
+      const r = await H.gallery_create_post(a); if (r.error) return r;
+      Object.assign(postById(r.data), { is_sensitive: on, sensitive_note: on ? (note || null) : null, client_key: a.p_client_key || null });
+      save(); return r;
+    },
+    async gallery_update_post_sensitive(a) {
+      const note = (a.p_sensitive_note || '').trim();
+      if (note.length > 100) return err('민감한 요소 설명은 100자까지 쓸 수 있어요.');
+      const r = await H.gallery_update_post(a); if (r.error) return r;
+      if (a.p_is_sensitive != null) {
+        const p = postById(a.p_post_id);
+        if (a.p_is_sensitive && p.board !== 'research') return err('민감한 요소 설정은 연구 자료 보관소에서만 할 수 있어요.');
+        Object.assign(p, { is_sensitive: !!a.p_is_sensitive, sensitive_note: a.p_is_sensitive ? (note || null) : null });
+        save();
+      }
+      return r;
+    },
+    async gallery_post_sensitivity(a) {
+      return ok((a.p_post_ids || []).slice(0, 200).map(postById).filter(Boolean)
+        .map(p => ({ id: p.id, is_sensitive: !!p.is_sensitive, sensitive_note: p.is_sensitive ? (p.sensitive_note || null) : null })));
     },
     async gallery_delete_post(a) {
       const p = postById(a.p_post_id); if (!p) return ok(false);

@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>과제 제출 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-sens">
 </head>
 <body>
 
@@ -91,8 +91,8 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
-  <script src="../js/gallery.js?v=20261107-research"></script>
-  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script src="../js/gallery.js?v=20261111-sens"></script>
+  <script src="../js/gallery-preview.js?v=20261111-sens"></script>
   <script>
     const $ = id => document.getElementById(id);
     const q = new URLSearchParams(location.search);
@@ -214,12 +214,19 @@
       const items = all.filter(p => p.lock === 'none');
       const hiddenN = all.length - items.length;
       // 등록한 연구가 없어도 제출 폼은 그대로 — 선택란에 빈 상태 표시(서버도 본인 연구 없이는 거부)
+      // 민감한 요소 자료는 썸네일·미리보기를 가리고 '민감한 요소' 표시(내 연구여도 목록과 같은 기준 — 제목은 그대로)
+      const sens = await glFetchPostSensitivity(items.map(p => p.id));
       if (!items.length) $('posts').innerHTML = `<p class="rt-pick-empty">${all.length ? '제출할 수 있는 연구가 없어요' : '등록한 연구가 없어요'}</p>`;
-      else $('posts').innerHTML = items.map(p => `<button type="button" class="rt-pick" data-id="${p.id}" ${p.lock === 'pending' ? 'disabled' : ''}>
+      else $('posts').innerHTML = items.map(p => {
+        const s = glSensOf(sens, p.id);
+        const cover = p.cover_thumb_path ? `<img src="${glEsc(glImgUrl(p.cover_thumb_path))}" alt="" loading="lazy"${s.on ? ' class="blurred"' : ''}>`
+                                         : `<span class="rt-pick-text${s.on ? ' blurred' : ''}">${glEsc(p.excerpt || '')}</span>`;
+        return `<button type="button" class="rt-pick" data-id="${p.id}" ${p.lock === 'pending' ? 'disabled' : ''}>
           ${p.lock !== 'none' ? `<span class="rt-pick-lock">${p.lock === 'pending' ? '심사 중' : '승인된 연구'}</span>` : ''}
-          ${p.cover_thumb_path ? `<img src="${glEsc(glImgUrl(p.cover_thumb_path))}" alt="" loading="lazy">` : `<span class="rt-pick-text">${glEsc(p.excerpt || '')}</span>`}
+          ${s.on ? `<span class="gl-mini-sens-wrap">${cover}<span class="gl-mini-sens">민감한 요소</span></span>` : cover}
           <span>${glEsc(p.title)}</span>
-        </button>`).join('');
+        </button>`;
+      }).join('');
       const pick = id => {
         selected = id;
         $('posts').querySelectorAll('.rt-pick').forEach(b => b.classList.toggle('is-selected', Number(b.dataset.id) === id));

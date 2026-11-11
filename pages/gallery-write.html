@@ -16,7 +16,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>연구 등록 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-sens">
 </head>
 <body>
 
@@ -67,6 +67,16 @@
           <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
         </div>
 
+        <!-- 민감한 요소(연구 자료 보관소만) — 종족·개체 등록 화면과 같은 구성. 켜면 목록·상세에서 본문·이미지를 가리고 누르면 보여요 -->
+        <div class="form-group gl-hidden" id="sensGroup">
+          <div class="gl-sens-row">
+            <label for="isSensitive"><input type="checkbox" id="isSensitive"> 민감한 요소 포함</label>
+            <input type="text" id="sensitiveNote" class="form-input" maxlength="100" placeholder="시선공포, 쨍한색 등" aria-label="민감한 요소 설명">
+          </div>
+          <p class="form-hint" style="margin-top:2px;">체크하면 목록·상세에서 본문과 이미지가 가려지고, 누른 사람에게만 보여요. 제목·작성자는 그대로 보여요.</p>
+          <p class="form-hint gl-hidden" id="sensLoadErr" style="margin-top:2px;color:#b91c1c;">지금 민감한 요소 설정을 불러오지 못했어요. 바꾸지 않고 저장하면 기존 설정이 그대로 유지돼요.</p>
+        </div>
+
         <div class="form-group gl-char-group">
           <label class="form-label">관련 개체 <span class="gl-muted">(선택)</span></label>
           <p class="gl-sub" style="margin-bottom:8px;">이 글이나 그림에 등장하는 개체를 추가해 주세요.</p>
@@ -96,8 +106,8 @@
   <script src="../js/bookmark.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/main.js"></script>
-  <script src="../js/gallery.js?v=20261107-research"></script>
-  <script src="../js/gallery-preview.js?v=20261107-research"></script>
+  <script src="../js/gallery.js?v=20261111-sens"></script>
+  <script src="../js/gallery-preview.js?v=20261111-sens"></script>
   <script>
     const params   = new URLSearchParams(location.search);
     const editId   = Number(params.get('id')) || null;
@@ -110,6 +120,8 @@
     // 이미지 항목: { key, kind:'existing'|'new', image_id?, upload_id?, url, status:'ready'|'processing'|'uploading'|'error', error? }
     let images = [];
     let seq = 0;
+    // 민감한 요소: 수정 화면에서 현재 설정을 불러왔는지 / 사용자가 바꿨는지
+    let sensKnown = false, sensDirty = false;
 
     const $ = id => document.getElementById(id);
 
@@ -199,6 +211,8 @@
     });
     $('titleInput').addEventListener('input', e => { $('titleCount').textContent = e.target.value.length; });
     $('contentInput').addEventListener('input', e => { $('contentCount').textContent = e.target.value.length; });
+    $('isSensitive').addEventListener('change', () => { sensDirty = true; });
+    $('sensitiveNote').addEventListener('input', () => { sensDirty = true; });
 
     // 연구 과제 드롭다운(보관소만): 기본 '선택 안 함', 진행 중 과제 + (수정 시) 이미 연결된 과제.
     //   주간 과제는 지금 회차(연구대상)를 보여주고, 저장하면 서버가 그 회차를 함께 기록한다.
@@ -236,15 +250,39 @@
       // 글만 / 그림만 / 글+그림 모두 가능 — 제목만 있는 빈 연구만 막는다(서버도 같은 기준)
       if (!ready.length && !content) { alert('본문을 쓰거나 이미지를 1장 이상 올려주세요. (제목만 있는 빈 연구는 등록할 수 없어요)'); return; }
 
+      // 민감한 요소(보관소만) — 켠 경우에만 설명 저장(종족·개체와 같음)
+      const sensOn = board === 'research' && $('isSensitive').checked;
+      const sensNote = $('sensitiveNote').value.trim();
+      if (sensOn && sensNote.length > GL_SENS_NOTE_MAX) { alert(`민감한 요소 설명은 ${GL_SENS_NOTE_MAX}자까지 쓸 수 있어요.`); return; }
+      // 수정 화면에서 현재 설정을 못 불러왔고 건드리지도 않았으면 서버 설정을 그대로 둔다(null)
+      const sendSens = board === 'research' && (!editId || sensKnown || sensDirty);
+
       const payload = ready.map(it => it.kind === 'existing' ? { image_id: it.image_id } : { upload_id: it.upload_id });
       submitting = true;
       $('submitBtn').disabled = true;
       $('submitBtn').textContent = '저장 중…';
-      const { data, error } = editId
-        ? await sb.rpc('gallery_update_post', { p_post_id: editId, p_title: title, p_content: content, p_images: payload, p_character_ids: picker.getIds(),
-            ...(board === 'research' ? { p_task_link: { task_id: Number($('taskSelect').value) || null } } : {}) })
-        : await sb.rpc('gallery_create_post', { p_board: board, p_title: title, p_content: content, p_images: payload, p_character_ids: picker.getIds(), p_client_key: clientKey,
-            ...(board === 'research' ? { p_task_id: Number($('taskSelect').value) || null } : {}) });
+      const base = editId
+        ? { p_post_id: editId, p_title: title, p_content: content, p_images: payload, p_character_ids: picker.getIds(),
+            ...(board === 'research' ? { p_task_link: { task_id: Number($('taskSelect').value) || null } } : {}) }
+        : { p_board: board, p_title: title, p_content: content, p_images: payload, p_character_ids: picker.getIds(), p_client_key: clientKey,
+            ...(board === 'research' ? { p_task_id: Number($('taskSelect').value) || null } : {}) };
+      const plainFn = editId ? 'gallery_update_post' : 'gallery_create_post';
+      let res;
+      if (board === 'research') {
+        // 보관소: 민감 설정까지 한 번에 저장하는 래퍼(기존 등록·수정 검사를 그대로 거친 뒤 같은 트랜잭션에서 저장)
+        const sensFn = editId ? 'gallery_update_post_sensitive' : 'gallery_create_post_sensitive';
+        res = await sb.rpc(sensFn, { ...base, p_is_sensitive: sendSens ? sensOn : null, p_sensitive_note: sendSens && sensOn ? (sensNote || null) : null });
+        const msg = String(res.error?.message || '');
+        const missing = (res.error?.code === 'PGRST202' && (!msg || msg.includes(sensFn))) || (res.error?.code === '42883' && msg.includes(sensFn));
+        if (missing) {
+          // 서버 미적용: 민감 설정을 켠 경우만 막고, 아니면 기존 등록·수정으로 저장
+          if (sendSens && sensOn) res = { error: { message: '민감한 요소 설정이 아직 서버에 적용되지 않았어요. 체크를 풀고 저장하거나 운영진에게 알려주세요.' } };
+          else res = await sb.rpc(plainFn, base);
+        }
+      } else {
+        res = await sb.rpc(plainFn, base);
+      }
+      const { data, error } = res;
       if (error) {
         submitting = false;
         $('submitBtn').disabled = false;
@@ -286,6 +324,21 @@
           $('researchInfo').classList.remove('gl-hidden');
         }
         if (board === 'research') await setupTaskSelect(null, editId);
+        if (board === 'research') {
+          // 현재 민감 설정 불러오기 — 실패하면 표시만 안내하고, 건드리지 않으면 저장 때 서버 설정 그대로 둔다
+          let sr;
+          try { sr = await sb.rpc('gallery_post_sensitivity', { p_post_ids: [editId] }); } catch (e) { sr = { error: e }; }
+          const row = !sr.error && Array.isArray(sr.data) ? sr.data.find(r => Number(r?.id) === editId) : null;
+          if (row && typeof row.is_sensitive === 'boolean') {
+            $('isSensitive').checked = row.is_sensitive;
+            $('sensitiveNote').value = row.is_sensitive ? (row.sensitive_note || '') : '';
+            sensKnown = true;
+          } else if (glIsSensRpcMissing(sr.error)) {
+            sensKnown = true;   // 서버 미적용 = 설정 없음
+          } else {
+            $('sensLoadErr').classList.remove('gl-hidden');
+          }
+        }
       } else if (board === 'research') {
         // 연구 자료 보관소 연구 등록 — 주차·연구대상 연결 없이 등록(과제 제출은 별도 화면)
         $('pageTitle').textContent = '연구 자료 보관소 연구 등록';
@@ -295,6 +348,7 @@
         $('pageTitle').textContent = '자유 갤러리 연구 등록';
       }
       if (typeof markGalleryMenu === 'function') markGalleryMenu(board);
+      $('sensGroup').classList.toggle('gl-hidden', board !== 'research');   // 민감한 요소 설정은 연구 자료 보관소만
 
       picker = createCharacterPicker($('charPicker'), { selected, locked });
       renderImages();

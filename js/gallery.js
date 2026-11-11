@@ -136,15 +136,100 @@ function glRenderPager(wrap, total, page, perPage, onGo) {
   wrap.querySelectorAll('.pg-btn:not([disabled])').forEach(b => b.addEventListener('click', () => onGo(+b.dataset.p)));
 }
 
+// ============================================================
+// 민감한 요소 (연구 자료 보관소, 2026-11-11) — supabase/research_post_sensitive_apply_1111.sql
+//   개체·종족과 같은 마크업(.blurred + .sensitive-overlay)·같은 문구·같은 '바로 표시' 설정(html.show-sensitive)을 쓴다.
+//   가림 범위(개체·종족 기준): 제목·작성자·날짜·관련 개체는 그대로, 이미지와 본문(글 연구의 글)만 가린다.
+//   가림 해제는 화면에서만 일어난다(서버 호출 없음) — 원래 열람 가능한 자료만 보이고 권한은 바뀌지 않는다.
+// ============================================================
+const GL_SENS_NOTE_MAX = 100;   // SQL gallery_posts_sensitive_chk 와 같은 값
+const GL_SENS_ICON = '<svg width="28" height="26" viewBox="0 0 28 26" fill="none" aria-hidden="true"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg>';
+
+// 오버레이 안쪽(경고 아이콘 · 민감한 요소 · 설명 · 안내) — 개체·종족 오버레이와 같은 구성
+function glSensInnerHtml(note, hint = '누르면 이미지가 보여요') {
+  return `<div class="sensitive-overlay-inner">${GL_SENS_ICON}<span class="sensitive-overlay-title">민감한 요소</span>`
+       + `${note ? `<span class="sensitive-overlay-note">${glEsc(note)}</span>` : ''}<span class="sensitive-overlay-hint">${glEsc(hint)}</span></div>`;
+}
+// 카드·썸네일용 덮개(.blurred 형제 위에 올라감) — html.show-sensitive 면 공통 CSS 가 덮개를 치운다
+function glSensOverlayHtml(note, hint) {
+  return `<div class="sensitive-overlay" data-gl-reveal>${glSensInnerHtml(note, hint)}</div>`;
+}
+
+// 게시물 ID 목록의 민감 설정 조회 → Map(id → { on, note })
+//   SQL 미적용(함수 없음) = 아무 글도 민감 설정을 가질 수 없음 → 전부 일반으로.
+//   그 밖의 실패(네트워크·서버 오류) = 안전하게 전부 가림(설명 없이). 개체 갤러리 담기 조회와 같은 판정.
+function glIsSensRpcMissing(error) {
+  const msg = String(error?.message || '');
+  const named = /gallery_post_sensitivity/.test(msg);
+  return (error?.code === 'PGRST202' && (named || !msg)) || (error?.code === '42883' && named);
+}
+//   · 200개(서버 1회 상한)씩 나눠서 모두 조회한다.
+//   · 응답에 없는 요청 ID(삭제·조회 누락·빈 응답)는 가림. is_sensitive 가 명시적으로 false 인 것만 '가림 없음'.
+//   · 조회하지 않은 ID 를 glSensOf 로 물어도 가림(기본값 = 가림).
+const GL_SENS_CHUNK = 200;   // SQL gallery_post_sensitivity 의 1회 상한과 같은 값
+const GL_SENS_HIDE = Object.freeze({ on: true, note: '' });
+const GL_SENS_OFF  = Object.freeze({ on: false, note: '' });
+async function glFetchPostSensitivity(ids) {
+  const list = [...new Set((ids || []).map(Number).filter(n => Number.isFinite(n) && n > 0))];
+  const map = new Map();
+  if (!list.length) return map;
+  const chunks = [];
+  for (let i = 0; i < list.length; i += GL_SENS_CHUNK) chunks.push(list.slice(i, i + GL_SENS_CHUNK));
+  const results = await Promise.all(chunks.map(async chunk => {
+    try { return { chunk, res: await sb.rpc('gallery_post_sensitivity', { p_post_ids: chunk }) }; }
+    catch (e) { return { chunk, res: { error: e } }; }
+  }));
+  // SQL 미적용(함수 없음) = 아무 글도 민감 설정을 가질 수 없음 → 요청한 전부 '가림 없음'
+  if (results.some(({ res }) => res?.error && glIsSensRpcMissing(res.error))) {
+    list.forEach(id => map.set(id, GL_SENS_OFF));
+    return map;
+  }
+  for (const { chunk, res } of results) {
+    const { data, error } = res || {};
+    if (error || !Array.isArray(data)) {
+      console.warn('[gallery] 민감 설정 조회 실패 — 안전하게 가림:', error || data);
+      continue;   // 이 묶음의 ID 는 아래에서 '가림'으로 채워진다
+    }
+    const want = new Set(chunk);
+    data.forEach(r => {
+      const id = Number(r?.id);
+      if (!want.has(id)) return;   // 요청하지 않은 ID 는 무시
+      map.set(id, r.is_sensitive === false ? GL_SENS_OFF : { on: true, note: r.is_sensitive === true ? (r.sensitive_note || '') : '' });
+    });
+  }
+  const missing = list.filter(id => !map.has(id));
+  if (missing.length) console.warn('[gallery] 민감 설정 응답에 없는 게시물 — 가림:', missing);
+  missing.forEach(id => map.set(id, GL_SENS_HIDE));
+  return map;
+}
+function glSensOf(map, id) { return map?.get(Number(id)) || GL_SENS_HIDE; }
+
+// 덮개 클릭 → 그 칸만 가림 해제(카드 링크 이동은 막음). 상세 화면의 큰 덮개는 각 페이지가 따로 처리.
+document.addEventListener('click', e => {
+  const ov = e.target.closest?.('[data-gl-reveal]');
+  if (!ov) return;
+  if (document.documentElement.classList.contains('show-sensitive')) return;   // 바로 표시 사용자: 덮개 없음 취급
+  e.preventDefault();
+  e.stopPropagation();
+  const wrap = ov.parentElement;
+  wrap.querySelectorAll('.blurred').forEach(el => { el.classList.remove('blurred'); });
+  wrap.classList.remove('gl-sens-wrap');
+  ov.remove();
+}, true);
+
 // 게시물 카드 (목록) — 작은 썸네일만 lazy 로딩
-function glPostCardHtml(p, board) {
+//   sens: { on, note } — 민감 자료면 썸네일·본문 미리보기를 가리고 덮개 표시(제목·작성자는 그대로)
+function glPostCardHtml(p, board, sens) {
+  const hide = !!sens?.on;
+  const blur = hide ? ' class="blurred"' : '';
   // 글만 있는 연구: 썸네일 자리에 '글' 표시 + 본문 미리보기(제목은 아래 카드 본문에)
   const thumb = p.cover_thumb_path
-    ? `<img src="${glEsc(glImgUrl(p.cover_thumb_path))}" alt="" loading="lazy" decoding="async">`
-    : `<span class="gl-card-thumb-label">글</span><span class="gl-card-thumb-text">${glEsc(p.excerpt || '')}</span>`;
+    ? `<img src="${glEsc(glImgUrl(p.cover_thumb_path))}" alt="" loading="lazy" decoding="async"${blur}>`
+    : `<span class="gl-card-thumb-label">글</span><span class="gl-card-thumb-text${hide ? ' blurred' : ''}">${glEsc(p.excerpt || '')}</span>`;
+  const cover = hide ? glSensOverlayHtml(sens.note, p.cover_thumb_path ? '누르면 이미지가 보여요' : '누르면 내용이 보여요') : '';
   // b= 는 사이드바 하위 메뉴 강조용 힌트일 뿐(상세 화면은 서버가 준 board 로 다시 맞춘다)
   return `<a class="gl-card" href="gallery-post.html?id=${encodeURIComponent(p.id)}&b=${board === 'research' ? 'research' : 'free'}">
-    <span class="gl-card-thumb${p.cover_thumb_path ? '' : ' is-text'}">${thumb}${p.image_count > 1 ? `<span class="gl-card-count">${p.image_count}장</span>` : ''}</span>
+    <span class="gl-card-thumb${p.cover_thumb_path ? '' : ' is-text'}${hide ? ' gl-sens-wrap' : ''}">${thumb}${cover}${p.image_count > 1 ? `<span class="gl-card-count">${p.image_count}장</span>` : ''}</span>
     <span class="gl-card-body">
       <span class="gl-card-title">${glEsc(p.title)}</span>
       <span class="gl-card-meta"><span>${glEsc(p.nickname || '(탈퇴한 회원)')}</span><span>${glFmtDate(p.created_at)}</span>${p.comment_count ? `<span>댓글 ${p.comment_count}</span>` : ''}</span>
@@ -690,14 +775,17 @@ function rtEntryText(e) {
   return `참여: ${c} (본인 소유 확인)`;
 }
 // 제출·심사 당시 내용(스냅샷) — 승인 뒤 원래 글이 바뀌어도 이 내용으로 확인
-function rtSnapshotHtml(snap) {
+//   sens: { on, note } — 지금 민감 설정된 연구면 본문·이미지를 덮개 아래에 둔다(제목·관련 개체는 그대로)
+function rtSnapshotHtml(snap, sens) {
   if (!snap) return '<p class="gl-sub gl-muted">제출 당시 내용 기록 없음</p>';
+  const hide = !!sens?.on;
   const imgs = (snap.images || []).map(i => `<a href="${glEsc(glImgUrl(i.path))}" target="_blank" rel="noopener"><img src="${glEsc(glImgUrl(i.thumb_path || i.path))}" alt="" loading="lazy"></a>`).join('');
   const chars = (snap.characters || []).map(c => `<span class="rt-snap-char${c.is_research_target ? ' is-target' : ''}">${glEsc(glCharName(c))}${c.species_name ? ` · ${glEsc(c.species_name)}` : ''}</span>`).join('');
+  const body = `${snap.content ? `<div class="rt-snap-content">${glEsc(snap.content)}</div>` : ''}
+    ${imgs ? `<div class="rt-snap-imgs">${imgs}</div>` : '<div class="gl-sub gl-muted" style="font-size:12px;">이미지 없음(글 연구)</div>'}`;
   return `<div class="rt-snap">
     <div class="rt-snap-title">${glEsc(snap.title || '')}</div>
-    ${snap.content ? `<div class="rt-snap-content">${glEsc(snap.content)}</div>` : ''}
-    ${imgs ? `<div class="rt-snap-imgs">${imgs}</div>` : '<div class="gl-sub gl-muted" style="font-size:12px;">이미지 없음(글 연구)</div>'}
+    ${hide ? `<div class="gl-sens-wrap gl-sens-block"><div class="blurred">${body}</div>${glSensOverlayHtml(sens.note, '누르면 내용이 보여요')}</div>` : body}
     ${chars ? `<div class="rt-snap-chars">관련 개체 ${chars}</div>` : ''}
     <div class="gl-sub gl-muted" style="font-size:11px;">기록 시각 ${glFmtDate(snap.captured_at, true)}</div>
   </div>`;

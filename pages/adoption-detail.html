@@ -1775,15 +1775,19 @@
         return;
       }
 
-      // 입찰 단위 체크
-      if (unitNum && (bidNum - startNum) % unitNum !== 0) {
-        errorEl.textContent = `입찰 단위는 ${unitNum.toLocaleString('ko-KR')}${auctionCurrencyUnit}이에요. (시작가 기준으로 ${unitNum.toLocaleString('ko-KR')}${auctionCurrencyUnit} 단위로 입찰)`;
-        return;
-      }
-
       // 즉분가 초과 체크
       if (instNum !== null && bidNum > instNum) {
         errorEl.textContent = `즉분가(${instNum.toLocaleString('ko-KR')}${auctionCurrencyUnit}) 이하로 입찰해주세요.`;
+        return;
+      }
+
+      // 즉분 판정 — 서버에서 받은 auction_details.instant_price 와 정확히 같은 금액일 때만.
+      // 즉분가는 입찰단위 배수 검사를 하지 않는다(서버 트리거 guard_auction_bids_atomic 과 동일 규칙).
+      const isInstantBid = instNum !== null && bidNum === instNum;
+
+      // 입찰 단위 체크 (일반 입찰만)
+      if (!isInstantBid && unitNum && (bidNum - startNum) % unitNum !== 0) {
+        errorEl.textContent = `입찰 단위는 ${unitNum.toLocaleString('ko-KR')}${auctionCurrencyUnit}이에요. (시작가 기준으로 ${unitNum.toLocaleString('ko-KR')}${auctionCurrencyUnit} 단위로 입찰)`;
         return;
       }
 
@@ -1826,7 +1830,7 @@
       document.getElementById('bidAmount').value = '';
 
       // 즉분가 입찰 → "즉분 대기중"으로 변경 (판매자 확정 대기)
-      if (instNum !== null && bidNum === instNum) {
+      if (isInstantBid) {
         const { data: instantUpdated, error: instantErr } = await sb.from('adoptions').update({
           status:         '즉분 대기중',
           winner_name:    myNick || '익명',

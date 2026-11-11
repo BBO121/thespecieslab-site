@@ -49,6 +49,16 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // 저장소를 쓸 수 없는 환경에서도 목록은 기본 정렬로 표시한다.
+  function storageGet(key) {
+    try { return localStorage.getItem(key); }
+    catch (e) { console.warn('[SpeciesCharList] localStorage 읽기 실패, 기본값 사용:', key, e); return null; }
+  }
+  function storageSet(key, value) {
+    try { localStorage.setItem(key, value); }
+    catch (e) { console.warn('[SpeciesCharList] localStorage 저장 실패:', key, e); }
+  }
+
   // LABBER 표시명 우선순위(2026-09-24, cfg.labberDisplay=true일 때만 적용): owner_custom_name
   // (소유주가 정한 이름)이 있으면 그걸, 없으면 등록명(character.name)을 쓴다. DB 값은
   // 바꾸지 않고 화면 표시에서만 적용 — 다른 종족(labberDisplay=false)은 항상 등록명 그대로.
@@ -91,13 +101,13 @@
     renderCategoryFilter();
     wireNameSearch();
 
-    const saved = localStorage.getItem(SORT_KEY);
+    const saved = storageGet(SORT_KEY);
     if (['recent', 'name', 'charNumber'].includes(saved) && $('charSort')) {
       $('charSort').value = saved;
     }
 
     try {
-      const savedDir = JSON.parse(localStorage.getItem(SORT_DIR_KEY) || '{}');
+      const savedDir = JSON.parse(storageGet(SORT_DIR_KEY) || '{}');
       sortDirections = Object.assign({}, DEFAULT_SORT_DIR, savedDir);
     } catch (e) {
       sortDirections = Object.assign({}, DEFAULT_SORT_DIR);
@@ -105,7 +115,7 @@
 
     if (!sortWired && $('charSort')) {
       $('charSort').addEventListener('change', () => {
-        localStorage.setItem(SORT_KEY, $('charSort').value);
+        storageSet(SORT_KEY, $('charSort').value);
         updateSortDirButton();
         renderChars();
       });
@@ -340,7 +350,7 @@
   function toggleSortDir() {
     const sortBy = currentSortBy();
     sortDirections[sortBy] = (sortDirections[sortBy] || 'asc') === 'asc' ? 'desc' : 'asc';
-    localStorage.setItem(SORT_DIR_KEY, JSON.stringify(sortDirections));
+    storageSet(SORT_DIR_KEY, JSON.stringify(sortDirections));
     updateSortDirButton();
     renderChars();
   }
@@ -386,12 +396,12 @@
   // 카드 목록과 동일한 기준을 읽어올 수 있도록 DOM 의존 없이 별도로 제공.
   function getSavedSort() {
     let sortBy = 'recent';
-    const saved = localStorage.getItem(SORT_KEY);
+    const saved = storageGet(SORT_KEY);
     if (['recent', 'name', 'charNumber'].includes(saved)) sortBy = saved;
 
     let dirs = Object.assign({}, DEFAULT_SORT_DIR);
     try {
-      const savedDir = JSON.parse(localStorage.getItem(SORT_DIR_KEY) || '{}');
+      const savedDir = JSON.parse(storageGet(SORT_DIR_KEY) || '{}');
       dirs = Object.assign({}, DEFAULT_SORT_DIR, savedDir);
     } catch (e) { /* ignore */ }
 

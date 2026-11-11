@@ -96,13 +96,32 @@
     // DOMPurify 기본 설정은 img의 data: URI를 막지 않으므로, sanitize와 별개로 이 필터를 함께 적용한다.
     function stripUnsafeRenderedImages(html) {
       if (!html) return html;
-      const div = document.createElement('div');
-      div.innerHTML = html;
-      div.querySelectorAll('img').forEach(img => {
+      // 화면 문서의 요소에 넣으면 분리된 상태여도 이미지 로드와 이벤트가 실행된다.
+      // template 내용은 비활성 문서에 속해 실행되지 않으며, 호출부는 정화된 HTML 만 넘긴다.
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html;
+      tpl.content.querySelectorAll('img').forEach(img => {
         const src = img.getAttribute('src') || '';
-        if (src.startsWith('data:') || src.startsWith('blob:')) img.remove();
+        if (!src || src.startsWith('data:') || src.startsWith('blob:')) img.remove();
       });
-      return div.innerHTML;
+      return tpl.innerHTML;
+    }
+
+    // 저장된 원문을 먼저 정화하고, 이미지 필터 뒤 직렬화 결과도 다시 정화해 정화된 결과만 렌더링한다.
+    // 정화 도구를 못 읽으면 HTML 로 해석하지 않고 글자만 표시한다.
+    const RICH_HTML_CONFIG = {
+      ADD_TAGS: ['img'],
+      ADD_ATTR: ['src', 'alt', 'style', 'class', 'width', 'height'],
+    };
+    function renderSafeRichHtml(html) {
+      if (!html) return '';
+      if (typeof DOMPurify !== 'undefined') {
+        return DOMPurify.sanitize(stripUnsafeRenderedImages(DOMPurify.sanitize(html, RICH_HTML_CONFIG)), RICH_HTML_CONFIG);
+      }
+      console.error('[event-detail.html] DOMPurify 없음: 본문을 텍스트로만 표시합니다.');
+      const box = document.createElement('div');
+      box.textContent = String(html).replace(/<[^>]*>/g, ' ');
+      return box.innerHTML;
     }
 
     async function initPage() {
@@ -143,10 +162,7 @@
       }).replace(/\. /g, '.').replace(/\.$/, '');
       document.getElementById('detailDate').textContent = date;
 
-      document.getElementById('detailContent').innerHTML = DOMPurify.sanitize(stripUnsafeRenderedImages(data.content), {
-        ADD_TAGS: ['img'],
-        ADD_ATTR: ['src', 'alt', 'style', 'class', 'width', 'height'],
-      });
+      document.getElementById('detailContent').innerHTML = renderSafeRichHtml(data.content);
 
       document.getElementById('pageLoading').style.display = 'none';
       document.getElementById('pageContent').style.display = 'block';

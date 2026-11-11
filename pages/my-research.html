@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>내 연구 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-reviewer">
 </head>
 <body>
 
@@ -81,10 +81,11 @@
         ${post}
         <dl class="rt-my-facts">
           <dt>제출일</dt><dd>${glFmtDate(s.created_at, true)}</dd>
-          ${s.reviewed_at ? `<dt>처리일</dt><dd>${glFmtDate(s.reviewed_at, true)}</dd>` : ''}
+          ${s.reviewed_at && s.status !== 'approved' ? `<dt>처리일</dt><dd>${glFmtDate(s.reviewed_at, true)}</dd>` : ''}
           <dt>보상</dt><dd>${glEsc(rtSubRewardText(s))}</dd>
           ${s.entry_check ? `<dt>참여</dt><dd>${glEsc(rtEntryText(s.entry_check).replace(/^참여: /, ''))}</dd>` : ''}
         </dl>
+        ${s.status === 'approved' ? `<div class="rt-reviewer">승인: ${glEsc(s.reviewer_name || '운영진')}${s.reviewed_at ? ` · ${glFmtDate(s.reviewed_at, true)}` : ''}</div>` : ''}
         ${s.status === 'approved' && s.review_comment ? `<div class="rt-comment"><b>운영진 코멘트</b>${glEsc(s.review_comment)}</div>` : ''}
         ${s.status === 'rejected' && s.reject_reason ? `<div class="rt-reason"><b>반려 사유</b> ${glEsc(s.reject_reason)}<br><span style="font-size:11.5px;">연구를 수정한 뒤 다시 제출할 수 있어요.</span></div>` : ''}
       </article>`;

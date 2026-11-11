@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>제출 심사 — 종족연구소</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/gallery.css?v=20261107-research">
+  <link rel="stylesheet" href="../css/gallery.css?v=20261111-review-wrap">
 </head>
 <body>
 
@@ -82,7 +82,9 @@
           ${s.message ? `<div class="gl-sub" style="margin-top:4px;">전달 사항: ${glEsc(s.message)}</div>` : ''}
           ${s.entry_check ? `<div class="rt-entry">${glEsc(rtEntryText(s.entry_check))} · 제출 당시 서버 확인</div>` : ''}
           <div class="gl-sub gl-muted" style="font-size:12px;margin-top:4px;">${glEsc(reward)}${s.reviewed_at ? ` · 처리 ${glEsc(s.reviewed_by_nick || '')} ${glFmtDate(s.reviewed_at, true)}` : ''}</div>
-          ${s.status === 'approved' && s.review_comment ? `<div class="rt-comment" style="margin-top:6px;"><b>운영진 코멘트</b>${glEsc(s.review_comment)}</div>` : ''}
+          ${s.status === 'approved' ? (s.review_comment   // 승인 탭·전체 탭 공통. 저장 안 된 과거 승인 건은 "없음"(복구하지 않음)
+            ? `<div class="rt-comment" style="margin-top:6px;"><b>운영진 코멘트</b>${glEsc(s.review_comment)}</div>`
+            : '<div class="rt-comment" style="margin-top:6px;background:#f8fafc;color:#64748b;"><b>운영진 코멘트</b>운영진 코멘트 없음</div>') : ''}
           ${s.status === 'rejected' && s.reject_reason ? `<div class="rt-reason" style="margin-top:6px;">반려 사유: ${glEsc(s.reject_reason)}</div>` : ''}
           <details class="rt-snap-wrap" ${s.status === 'pending' ? 'open' : ''}>
             <summary class="gl-sub" style="font-size:12px;cursor:pointer;margin-top:6px;">${s.status === 'pending' ? '제출 당시 내용' : '심사 당시 내용'} (제목·본문·이미지·관련 개체)</summary>

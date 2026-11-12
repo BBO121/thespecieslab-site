@@ -14,6 +14,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LABBER 관리소 — 종족연구소</title>
+  <link rel="canonical" href="https://thespecieslab.com/pages/labber-lab.html">
+  <meta name="description" content="종족연구소의 연구원 종족 LABBER(래버)의 세계관 기록과 POD·CARTRIDGE·INK·SUBJECT 특성, 디자인 가이드와 이용 가이드를 소개합니다.">
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
 </head>
@@ -183,6 +185,9 @@
           <p class="labberlab-traits-title">LABBER TRAITS</p>
 
           <!-- 하위 탭 (상위 탭과 구분되는 작은 pill 스타일) -->
+          <!-- 특성 데이터(js/labber-traits.js)를 그리지 못했을 때만 표시 -->
+          <p id="traitLoadError" class="empty-state-title" hidden style="display:none; margin:16px 0;">특성 정보를 불러오지 못했어요. 새로고침해 주세요.</p>
+
           <div class="labber-trait-subtabs" id="traitSubtabs">
             <button type="button" class="labber-trait-subtab active" data-trait="pod">포드</button>
             <button type="button" class="labber-trait-subtab" data-trait="cartridge">카트리지</button>
@@ -367,6 +372,12 @@
             <button type="button" class="shop-tab-btn" data-amode="subject">SUBJECT 승인</button>
           </div>
 
+          <!-- 로그인 확인 중 / 확인 불가 안내 (js/labber-lab.js llApplyAuthGate) -->
+          <div id="approvalAuthState" class="labberlab-login-prompt empty-state-wrap" hidden style="display:none;">
+            <div class="empty-state-icon">🔒</div>
+            <p class="empty-state-title" data-auth-msg></p>
+          </div>
+
           <!-- 비로그인 안내 -->
           <div id="approvalGuest" class="labberlab-login-prompt empty-state-wrap" hidden style="display:none;">
             <div class="empty-state-icon">🔒</div>
@@ -502,6 +513,12 @@
           <div class="shop-tab-row labberlab-status-row" id="updModeRow" hidden style="display:none;">
             <button type="button" class="shop-tab-btn" data-umode="mine">내 신청</button>
             <button type="button" class="shop-tab-btn active" data-umode="admin">업데이트 승인 관리</button>
+          </div>
+
+          <!-- 로그인 확인 중 / 확인 불가 안내 (js/labber-lab.js llApplyAuthGate) -->
+          <div id="updAuthState" class="labberlab-login-prompt empty-state-wrap" hidden style="display:none;">
+            <div class="empty-state-icon">🔒</div>
+            <p class="empty-state-title" data-auth-msg></p>
           </div>
 
           <div id="updGuest" class="labberlab-login-prompt empty-state-wrap" hidden style="display:none;">

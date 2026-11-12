@@ -68,7 +68,8 @@
   };
 
   const $ = (id) => document.getElementById(id);
-  const esc = (s) => escapeHtml(String(s == null ? '' : s));
+  // main.js(escapeHtml)가 없으면 js/labber-lab.js 의 이 페이지 전용 llEsc(같은 구현)를 쓴다 — 실행 시점에 확인
+  const esc = (s) => (typeof escapeHtml === 'function' ? escapeHtml : llEsc)(String(s == null ? '' : s));
 
   // ── 공용 표시 헬퍼 ───────────────────────────────────────
   function traitName(code) {
@@ -131,6 +132,8 @@
     return map[res && res.error] || `처리에 실패했어요. (${(res && res.error) || 'unknown'})`;
   }
   async function rpc(name, args) {
+    // 로그인 확인 전·확인 불가면 요청하지 않는다(js/labber-lab.js llAuthReady — 화면·요청 진입 차단용, 권한 판정은 서버)
+    if (typeof llAuthReady === 'function' && !llAuthReady()) throw new Error('로그인 상태를 확인하지 못했어요. 새로고침해 주세요.');
     const { data, error } = await sb.rpc(name, args || {});
     if (error) throw new Error(error.message);
     return data;
@@ -148,6 +151,7 @@
 
   async function init(opts = {}) {
     if (!DESIGN_UPDATE_ENABLED) { hideFeature(); return; }
+    if (typeof llAuthBlocked === 'function' && llAuthBlocked()) return;   // 로그인 확인 중·확인 불가 — 화면·이벤트를 열지 않음
     if (S.inited) return;
     S.inited = true;
     bindUi();
@@ -165,6 +169,7 @@
 
   function onTabShown() {
     if (!DESIGN_UPDATE_ENABLED) return;
+    if (typeof llAuthBlocked === 'function' && llAuthBlocked()) return;   // 확인 중·확인 불가 안내(llApplyAuthGate)를 유지
     if (!_llUser) {
       llShow('updGuest', true);
       ['updUserView', 'updAdminView', 'updModeRow'].forEach(id => llShow(id, false));
@@ -476,6 +481,7 @@
   }
 
   async function openForm(row) {
+    if (typeof llAuthReady === 'function' && !llAuthReady()) { onTabShown(); return; }
     if (!_llUser) { onTabShown(); return; }
     if (S.busy) return;
     resetForm();

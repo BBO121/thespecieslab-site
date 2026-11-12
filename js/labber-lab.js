@@ -82,6 +82,88 @@ const DESIGN_APPROVAL_ENABLED = true;
 let _llUser = null;
 let _llIsAdmin = false;
 
+// ── 로그인 상태 · 단계 격리 (1112) ─────────────────────────────
+// 공개 정적 본문(ABOUT·특성·디자인 가이드·이용 가이드)은 로그인 확인과 무관하게 먼저 보여준다.
+// 로그인 상태: 'pending'(확인 중) | 'user' | 'guest' | 'unknown'(확인 불가)
+//   - pending·unknown 이면 디자인 승인·업데이트·운영진 UI 를 숨기고 안내만 보여준다.
+//   - 로그인 확인은 LL_AUTH_TIMEOUT_MS 안에 끝나야 하며, 시간 초과·실패 뒤 늦게 온 응답으로는 상태를 바꾸지 않는다.
+//   - 쓰기·비공개 조회 진입점은 버튼 숨김과 별개로 llRequireAuth()/llRequireAdmin() 로 다시 확인한다.
+// 권한의 실제 판정은 지금처럼 서버(RPC·RLS·비공개 버킷)가 한다. 이건 화면·요청 진입 차단용이다.
+let _llAuthState = 'pending';
+const LL_AUTH_TIMEOUT_MS = 8000;
+const LL_AUTH_MSG = {
+  pending: '로그인 상태를 확인하는 중이에요...',
+  unknown: '로그인 상태를 확인하지 못해 디자인 승인·업데이트를 사용할 수 없어요. 새로고침해 주세요.',
+};
+
+// 이 파일 전용 이스케이프 — main.js 의 escapeHtml 이 있으면 그대로 쓰고, 없을 때만 같은 구현으로 대신한다.
+// (전역 escapeHtml 을 새로 정의하거나 덮어쓰지 않는다)
+function llEsc(str) {
+  if (typeof escapeHtml === 'function') return escapeHtml(str);
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function llAuthReady() { return _llAuthState === 'user' && !!_llUser; }
+function llAuthBlocked() { return _llAuthState === 'pending' || _llAuthState === 'unknown'; }
+// 쓰기·비공개 조회 진입점 공통 확인 — 확인 불가·확인 중이면 안내만 보여주고 요청하지 않는다.
+function llRequireAuth() {
+  if (llAuthReady()) return true;
+  console.warn('[labber-lab] 로그인 확인 전 동작 차단:', _llAuthState);
+  if (llAuthBlocked()) llApplyAuthGate();
+  return false;
+}
+function llRequireAdmin() { return llRequireAuth() && _llIsAdmin; }
+
+// 디자인 승인·업데이트 탭 표시 — 확인 중·확인 불가면 모든 하위 화면을 숨기고 안내만 보여준다.
+function llApplyAuthGate() {
+  const blocked = llAuthBlocked();
+  [
+    ['approvalAuthState', ['approvalUserView', 'approvalAdminView', 'approvalSubjectView', 'approvalModeRow', 'approvalGuest'], ['approvalUserView']],
+    ['updAuthState',      ['updUserView', 'updAdminView', 'updModeRow', 'updGuest'],                                           ['updUserView']],
+  ].forEach(([noteId, views, defaults]) => {
+    const note = llEl(noteId);
+    const msgEl = note && note.querySelector('[data-auth-msg]');
+    if (msgEl) msgEl.textContent = LL_AUTH_MSG[_llAuthState] || '';
+    llShow(noteId, blocked);
+    if (blocked) views.forEach(id => llShow(id, false));
+    else defaults.forEach(id => llShow(id, true));   // 기본으로 보이던 유저 화면만 되돌린다(나머지는 기존 흐름이 정함)
+  });
+}
+
+async function llResolveAuth() {
+  try {
+    if (typeof getUser !== 'function') return { state: 'unknown', user: null };
+    let timer;
+    const user = await Promise.race([
+      Promise.resolve().then(() => getUser()).finally(() => clearTimeout(timer)),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`로그인 확인 시간 초과(${LL_AUTH_TIMEOUT_MS}ms)`)), LL_AUTH_TIMEOUT_MS); }),
+    ]);
+    return user ? { state: 'user', user } : { state: 'guest', user: null };
+  } catch (e) {
+    console.warn('[labber-lab] 로그인 확인 실패 — 디자인 승인·업데이트 차단:', e);
+    return { state: 'unknown', user: null };
+  }
+}
+
+// 단계 격리 — 한 단계의 실패가 다른 단계·공개 본문을 막지 않게 한다.
+function llStep(name, fn, onFail) {
+  try { fn(); return true; }
+  catch (e) {
+    console.error(`[labber-lab] ${name} 실패:`, e);
+    if (onFail) { try { onFail(e); } catch (_) {} }
+    return false;
+  }
+}
+async function llStepAsync(name, fn) {
+  try { await fn(); }
+  catch (e) { console.error(`[labber-lab] ${name} 실패:`, e); }
+}
+
 // ── 유저 폼 상태 ──
 let _llMyRows = [];
 let _llApp = null;                 // 편집 중 신청서 { id, status, items } — null = 아직 서버에 없는 새 신청
@@ -116,64 +198,70 @@ let _llSubjectAdminBusy = false;
 // ── 초기화 ────────────────────────────────────────────────────
 async function initPage() {
   try {
-    _llUser = await getUser();
-    _llIsAdmin = !!_llUser && isAdminOrStaff(_llUser.user_metadata?.role);
-
-    setupTabs();
-    renderTraits();
-    setupTraitSubtabs();
-    runManagerTyping();
-
-    // DESIGN APPROVAL
-    if (DESIGN_APPROVAL_ENABLED) {
-      setupApprovalUi();
-    } else {
-      showApprovalPending();   // 런칭 임시 비공개 — 준비중 화면
-    }
-
+    // ① 공개 정적 본문 — 로그인 확인·특성·승인 단계와 무관하게 먼저 보여준다
+    llStep('탭', setupTabs);
+    llStep('NPC 대사', runManagerTyping);
+    llApplyAuthGate();   // 디자인 승인·업데이트 탭은 로그인 확인 전까지 '확인 중'
     document.getElementById('pageLoading').style.display = 'none';
     document.getElementById('pageContent').style.display = '';
 
-    // 딥링크: ?tab=about|traits|guide|usage|approval|update , ?app=<id>
+    // ② 특성(정적 데이터 js/labber-traits.js) — 실패하면 특성 탭에만 안내
+    llStep('특성', () => { renderTraits(); setupTraitSubtabs(); }, () => llShow('traitLoadError', true));
+
+    // ③ 딥링크: ?tab=about|traits|guide|usage|approval|update , ?app=<id>
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    if (tab === 'my') switchTab('approval');
-    else if (['about', 'traits', 'guide', 'usage', 'approval', 'update'].includes(tab)) switchTab(tab);
+    llStep('탭 딥링크', () => {
+      if (tab === 'my') switchTab('approval');
+      else if (['about', 'traits', 'guide', 'usage', 'approval', 'update'].includes(tab)) switchTab(tab);
+    });
 
     // 특성 딥링크(#trait-*) — ?tab= 처리 뒤에 실행해 특성 탭/하위 탭을 확정하고 스크롤
-    handleTraitHashDeepLink();
-    window.addEventListener('hashchange', handleTraitHashDeepLink);
+    llStep('특성 딥링크', handleTraitHashDeepLink);
+    window.addEventListener('hashchange', () => llStep('특성 딥링크', handleTraitHashDeepLink));
     // 같은 #trait-* 링크를 다시 누르면 hashchange 가 안 생기므로 직접 처리 (가이드 → 특성 → 가이드 → 재클릭)
     document.addEventListener('click', e => {
       const a = e.target.closest('a[href^="#trait-"]');
       if (a && location.hash === a.getAttribute('href')) {
         e.preventDefault();
-        handleTraitHashDeepLink();
+        llStep('특성 딥링크', handleTraitHashDeepLink);
       }
     });
 
-    // 데이터 로드 (디자인 승인 공개 시에만)
-    if (DESIGN_APPROVAL_ENABLED) {
+    // ④ 로그인 확인 — 시간 제한. 실패·시간 초과는 확인 불가(늦은 응답으로 다시 열지 않음)
+    const auth = await llResolveAuth();
+    _llAuthState = auth.state;
+    _llUser = auth.user;
+    _llIsAdmin = !!_llUser && typeof isAdminOrStaff === 'function' && isAdminOrStaff(_llUser.user_metadata?.role);
+    llApplyAuthGate();
+    if (_llAuthState === 'unknown') return;   // 신청·업데이트·운영진 UI 를 열지 않는다
+
+    // ⑤ 디자인 승인
+    await llStepAsync('디자인 승인', async () => {
+      if (!DESIGN_APPROVAL_ENABLED) { showApprovalPending(); return; }   // 런칭 임시 비공개 — 준비중 화면
+      setupApprovalUi();
       if (!_llUser) {
         showLoginPrompt();
-      } else {
-        await loadMyList();
-        if (_llIsAdmin) {
-          await loadAdminList();
-          await loadSubjectApprovalList();
-        }
-        const focusId = params.get('app');
-        if (focusId && tab !== 'update') {
-          if (_llIsAdmin) setApprovalMode('mine');   // 알림 링크는 "내 신청" 카드로 연결된다
-          focusApplication(focusId);
-        }
+        return;
       }
-    }
+      await loadMyList();
+      if (_llIsAdmin) {
+        await llStepAsync('승인 관리 목록', loadAdminList);
+        await llStepAsync('SUBJECT 승인 목록', loadSubjectApprovalList);
+      }
+      const focusId = params.get('app');
+      if (focusId && tab !== 'update') {
+        if (_llIsAdmin) setApprovalMode('mine');   // 알림 링크는 "내 신청" 카드로 연결된다
+        focusApplication(focusId);
+      }
+    });
 
-    // 디자인 업데이트 탭 (js/labber-design-update.js — 디자인 승인과 별도 상태/별도 RPC)
-    if (window.LabberDesignUpdate) {
+    // ⑥ 디자인 업데이트 탭 (js/labber-design-update.js — 디자인 승인과 별도 상태/별도 RPC)
+    await llStepAsync('디자인 업데이트', async () => {
+      if (!window.LabberDesignUpdate) return;
       await LabberDesignUpdate.init({ focusId: tab === 'update' ? params.get('app') : null });
-    }
+      if (!llEl('tab-update')?.hidden) LabberDesignUpdate.onTabShown();   // 딥링크로 먼저 연 탭의 비로그인 안내
+    });
   } catch (e) {
     console.error('[labber-lab] initPage 오류:', e);
     document.getElementById('pageLoading').textContent = '불러오기 실패. 새로고침 해주세요.';
@@ -197,9 +285,9 @@ function setupTabs() {
 // CSS: .labber-trait-ph-pending (_labber-lab.scss)
 function traitPendingArtworkHtml(subLabel) {
   return `
-        <div class="labber-trait-ph-pending" role="img" aria-label="준비중 — ${escapeHtml(subLabel)}">
+        <div class="labber-trait-ph-pending" role="img" aria-label="준비중 — ${llEsc(subLabel)}">
           <span class="labber-trait-ph-pending-main">준비중</span>
-          <span class="labber-trait-ph-pending-sub">${escapeHtml(subLabel)}</span>
+          <span class="labber-trait-ph-pending-sub">${llEsc(subLabel)}</span>
         </div>`;
 }
 
@@ -219,12 +307,12 @@ function renderTraitCard(t, opts = {}) {
     let acqValueHtml;
     if (acq.label && acq.url && acq.enabled) {
       // 공개됨 — 실제 이동 링크
-      acqValueHtml = `<a class="labber-trait-acquisition-link" href="${escapeHtml(acq.url)}">${escapeHtml(acq.label)}</a>`;
+      acqValueHtml = `<a class="labber-trait-acquisition-link" href="${llEsc(acq.url)}">${llEsc(acq.label)}</a>`;
     } else if (acq.label) {
       // 목적지는 data-href 로 준비, 현재 비활성 — href 없음(이동/# 튐 없음), aria-disabled.
       // 공개 시 acq.enabled 를 true 로 바꾸면 위 분기로 실제 링크가 된다.
-      const dataHref = acq.url ? ` data-href="${escapeHtml(acq.url)}"` : '';
-      acqValueHtml = `<a class="labber-trait-acquisition-link is-disabled" role="link" aria-disabled="true"${dataHref}>${escapeHtml(acq.label)}</a>`;
+      const dataHref = acq.url ? ` data-href="${llEsc(acq.url)}"` : '';
+      acqValueHtml = `<a class="labber-trait-acquisition-link is-disabled" role="link" aria-disabled="true"${dataHref}>${llEsc(acq.label)}</a>`;
     } else {
       acqValueHtml = `<span class="labber-trait-acquisition-null">null</span>`;
     }
@@ -234,7 +322,7 @@ function renderTraitCard(t, opts = {}) {
 
   // 준비중이면 DESIGN BY 줄 자체를 렌더링하지 않는다(빈 줄도 남기지 않음).
   const creditHtml = (!pending && t.designer)
-    ? `<p class="labber-trait-credit">DESIGN BY <span class="labber-trait-credit-name">${escapeHtml(t.designer)}</span></p>`
+    ? `<p class="labber-trait-credit">DESIGN BY <span class="labber-trait-credit-name">${llEsc(t.designer)}</span></p>`
     : '';
 
   // 아트워크 영역:
@@ -249,14 +337,14 @@ function renderTraitCard(t, opts = {}) {
     artworkInner = traitPendingArtworkHtml('ARTWORK PENDING');
   } else {
     const artworkHtml = t.image
-      ? `<img src="${escapeHtml(t.image)}" alt="${escapeHtml(t.name)}">`
-      : (t.artwork ? `<!-- artwork 예정: ${escapeHtml(t.artwork)} -->` : '');
+      ? `<img src="${llEsc(t.image)}" alt="${llEsc(t.name)}">`
+      : (t.artwork ? `<!-- artwork 예정: ${llEsc(t.artwork)} -->` : '');
     artworkInner = `
         <span class="labber-trait-artwork-ph">ARTWORK</span>
         ${artworkHtml}`;
   }
 
-  const idAttr = t.anchor ? ` id="${escapeHtml(t.anchor)}"` : '';
+  const idAttr = t.anchor ? ` id="${llEsc(t.anchor)}"` : '';
 
   return `
     <article class="labber-trait-item"${idAttr}>
@@ -264,7 +352,7 @@ function renderTraitCard(t, opts = {}) {
       </div>
       <div class="labber-trait-body">
         <div class="labber-trait-head">
-          <h4 class="labber-trait-name">${escapeHtml(t.name)}</h4>
+          <h4 class="labber-trait-name">${llEsc(t.name)}</h4>
           <span class="labber-trait-grade ${gradeClass}">${gradeLabel}</span>
         </div>
         ${descHtml}
@@ -280,7 +368,7 @@ function renderTraitSection(containerId, catLabel, groups, opts = {}) {
   if (!el) return;
   let html = `<p class="labber-trait-cat">${catLabel}</p>`;
   groups.forEach((g) => {
-    if (g.group) html += `<p class="labber-trait-group">${escapeHtml(g.group)}</p>`;
+    if (g.group) html += `<p class="labber-trait-group">${llEsc(g.group)}</p>`;
     const groupOpts = g.pending !== undefined ? { ...opts, pending: g.pending } : opts;
     html += g.items.map(it => renderTraitCard(it, groupOpts)).join('');
   });
@@ -364,6 +452,8 @@ function switchTab(tab) {
   url.searchParams.delete('app');
   history.replaceState(null, '', url);
 
+  // 로그인 확인 중·확인 불가면 llApplyAuthGate 의 안내를 유지한다(로그인 안내로 바꾸지 않음)
+  if (llAuthBlocked()) { llApplyAuthGate(); return; }
   if (DESIGN_APPROVAL_ENABLED && tab === 'approval' && !_llUser) showLoginPrompt();
   if (tab === 'update' && window.LabberDesignUpdate) LabberDesignUpdate.onTabShown();
 }
@@ -417,6 +507,7 @@ function runManagerTyping() {
 // ── signed URL ──────────────────────────────────────────────
 async function signedUrlFor(path) {
   if (!path) return null;
+  if (!llAuthReady()) return null;   // 비공개 버킷 — 로그인 확인 전에는 요청하지 않는다
   const { data, error } = await sb.storage.from(LL_BUCKET).createSignedUrl(path, LL_SIGNED_TTL);
   if (error) { console.warn('[labber-lab] signed URL 실패:', error.message); return null; }
   return data?.signedUrl || null;
@@ -425,6 +516,7 @@ async function signedUrlFor(path) {
 async function signedUrlMap(paths) {
   const uniq = [...new Set(paths.filter(Boolean))];
   const map = {};
+  if (!llAuthReady()) return map;   // 비공개 버킷 — 로그인 확인 전에는 요청하지 않는다
   if (!uniq.length) return map;
   const { data, error } = await sb.storage.from(LL_BUCKET).createSignedUrls(uniq, LL_SIGNED_TTL);
   if (error) { console.warn('[labber-lab] signed URLs 실패:', error.message); return map; }
@@ -512,7 +604,7 @@ function llErrText(res) {
 // 아이템 이미지 — items.image_url → image_path(http 만) → placeholder. (없으면 임시 이미지를 만들지 않는다)
 function llItemImg(it) {
   const u = (it && it.image_url) || (it && /^https?:/.test(it.image_path || '') ? it.image_path : null);
-  return u ? `<img src="${escapeHtml(u)}" alt="" loading="lazy">` : '<span class="llapp-item-ph">NO IMG</span>';
+  return u ? `<img src="${llEsc(u)}" alt="" loading="lazy">` : '<span class="llapp-item-ph">NO IMG</span>';
 }
 
 function llRowPaths(rows) {
@@ -586,9 +678,9 @@ function llSubjectCreditBlock(row) {
   const spName = row.subject_species_id ? (_llSpeciesNames[row.subject_species_id] || '(알 수 없는 종족)') : '';
   if (!des && !art && !spName) return '';
   return `<dl class="labberlab-app-fields llapp-subject-credit-fields">
-    ${des ? `<div><dt>SUBJECT 디자이너</dt><dd>${escapeHtml(des)}</dd></div>` : ''}
-    ${art ? `<div><dt>SUBJECT 아티스트</dt><dd>${escapeHtml(art)}</dd></div>` : ''}
-    ${spName ? `<div><dt>연결 종족</dt><dd>${escapeHtml(spName)}</dd></div>` : ''}
+    ${des ? `<div><dt>SUBJECT 디자이너</dt><dd>${llEsc(des)}</dd></div>` : ''}
+    ${art ? `<div><dt>SUBJECT 아티스트</dt><dd>${llEsc(art)}</dd></div>` : ''}
+    ${spName ? `<div><dt>연결 종족</dt><dd>${llEsc(spName)}</dd></div>` : ''}
   </dl>`;
 }
 
@@ -617,15 +709,15 @@ function appCardHtml(row, urls, opts = {}) {
           ? `<b class="llapp-state is-${it.state}">${LL_ITEM_STATE_KO[it.state]}</b>` : '';
         return `<li class="llapp-card-item">
           <span class="llapp-card-item-img">${llItemImg(it.item)}</span>
-          <span class="llapp-card-item-txt"><em>${llSlotLabel(it.slot)}</em><span>${escapeHtml((it.item && it.item.name) || '아이템')}</span>${badge}</span>
+          <span class="llapp-card-item-txt"><em>${llSlotLabel(it.slot)}</em><span>${llEsc((it.item && it.item.name) || '아이템')}</span>${badge}</span>
         </li>`;
       }).join('')}</ul>`
     : '<p class="llapp-hint">선택한 아이템이 없어요.</p>';
 
   const links = [
-    charUrl  ? `<button type="button" class="llapp-link" data-open-url="${escapeHtml(charUrl)}">원본 이미지</button>` : '',
-    thumbUrl && row.thumbnail_path ? `<button type="button" class="llapp-link" data-open-url="${escapeHtml(thumbUrl)}">썸네일</button>` : '',
-    subjUrl  ? `<button type="button" class="llapp-link" data-open-url="${escapeHtml(subjUrl)}">SUBJECT 이미지</button>` : '',
+    charUrl  ? `<button type="button" class="llapp-link" data-open-url="${llEsc(charUrl)}">원본 이미지</button>` : '',
+    thumbUrl && row.thumbnail_path ? `<button type="button" class="llapp-link" data-open-url="${llEsc(thumbUrl)}">썸네일</button>` : '',
+    subjUrl  ? `<button type="button" class="llapp-link" data-open-url="${llEsc(subjUrl)}">SUBJECT 이미지</button>` : '',
   ].filter(Boolean).join('');
 
   // 관리자 심사용 SUBJECT 이미지 미리보기 — SUBJECT 아이템이 선택돼 있고 subject_image_path 가 있을 때만 만든다.
@@ -639,11 +731,11 @@ function appCardHtml(row, urls, opts = {}) {
            (() => {
              const nm = subjItem.item && subjItem.item.name;
              if (!nm) return 'SUBJECT';
-             return /^SUBJECT/i.test(nm) ? escapeHtml(nm) : `SUBJECT <em>${escapeHtml(nm)}</em>`;   // 아이템명이 이미 "SUBJECT …"면 중복 표기 방지
+             return /^SUBJECT/i.test(nm) ? llEsc(nm) : `SUBJECT <em>${llEsc(nm)}</em>`;   // 아이템명이 이미 "SUBJECT …"면 중복 표기 방지
            })()
          }</span>
          ${subjUrl
-           ? `<img src="${escapeHtml(subjUrl)}" alt="SUBJECT 이미지 미리보기" loading="lazy" data-open-url="${escapeHtml(subjUrl)}" title="클릭하면 원본이 새 탭에서 열려요">`
+           ? `<img src="${llEsc(subjUrl)}" alt="SUBJECT 이미지 미리보기" loading="lazy" data-open-url="${llEsc(subjUrl)}" title="클릭하면 원본이 새 탭에서 열려요">`
            : '<span class="llapp-subject-preview-fail">이미지를 불러오지 못했어요.</span>'}
        </div>`
     : '';
@@ -651,7 +743,7 @@ function appCardHtml(row, urls, opts = {}) {
   const reasonBlock = (['rejected', 'draft'].includes(st) && row.rejection_reason)
     ? `<div class="labberlab-app-comment is-strong">
          <span class="labberlab-app-comment-label">${st === 'rejected' ? '거절 사유' : '이전 거절 사유'}</span>
-         <p>${escapeHtml(row.rejection_reason).replace(/\n/g, '<br>')}</p>
+         <p>${llEsc(row.rejection_reason).replace(/\n/g, '<br>')}</p>
        </div>`
     : '';
 
@@ -659,14 +751,14 @@ function appCardHtml(row, urls, opts = {}) {
   const historyBlock = events.length
     ? `<details class="llapp-history">
          <summary>심사 기록 ${events.length}건</summary>
-         <ul>${events.map(ev => `<li><span>${fmtDateTime(ev.created_at)}</span> <b>${LL_EVENT_KO[ev.action] || ev.action}</b>${ev.reason ? ` — ${escapeHtml(ev.reason)}` : ''}</li>`).join('')}</ul>
+         <ul>${events.map(ev => `<li><span>${fmtDateTime(ev.created_at)}</span> <b>${LL_EVENT_KO[ev.action] || ev.action}</b>${ev.reason ? ` — ${llEsc(ev.reason)}` : ''}</li>`).join('')}</ul>
        </details>`
     : '';
 
   return `
   <article class="labberlab-app-card llapp-card" data-id="${row.id}">
     <div class="labberlab-app-thumb">
-      ${thumbUrl ? `<img src="${escapeHtml(thumbUrl)}" alt="썸네일" loading="lazy" data-full="${escapeHtml(charUrl || thumbUrl)}">` : '<span>이미지 없음</span>'}
+      ${thumbUrl ? `<img src="${llEsc(thumbUrl)}" alt="썸네일" loading="lazy" data-full="${llEsc(charUrl || thumbUrl)}">` : '<span>이미지 없음</span>'}
     </div>
     <div class="labberlab-app-main">
       <div class="labberlab-app-top">
@@ -674,13 +766,13 @@ function appCardHtml(row, urls, opts = {}) {
         <span class="labberlab-app-no">No. ${shortId(row.id)}</span>
         <span class="labberlab-app-date">${row.submitted_at ? '제출 ' : '작성 '}${fmtDateTime(dateTs)}</span>
         ${row.is_legacy ? '<span class="llapp-legacy">이전 방식</span>' : ''}
-        ${opts.applicantNickname ? `<span class="labberlab-app-applicant">${escapeHtml(opts.applicantNickname)}</span>` : ''}
+        ${opts.applicantNickname ? `<span class="labberlab-app-applicant">${llEsc(opts.applicantNickname)}</span>` : ''}
       </div>
       ${itemsHtml}
       ${links ? `<div class="llapp-links">${links}</div>` : ''}
       ${subjectPreviewBlock}
-      ${(row.designer_nickname || row.artist_nickname || row.note) ? `<dl class="labberlab-app-fields">${row.designer_nickname ? `<div><dt>개체 디자이너</dt><dd>${escapeHtml(row.designer_nickname)}</dd></div>` : ''}${row.artist_nickname ? `<div><dt>개체 아티스트</dt><dd>${escapeHtml(row.artist_nickname)}</dd></div>` : ''}${row.note ? `<div><dt>하고 싶은 말</dt><dd>${escapeHtml(row.note)}</dd></div>` : ''}</dl>` : ''}
-      ${Array.isArray(row.decos) && row.decos.length ? `<dl class="labberlab-app-fields"><div><dt>적용 환경</dt><dd>${row.decos.map(escapeHtml).join(' · ')}</dd></div></dl>` : ''}
+      ${(row.designer_nickname || row.artist_nickname || row.note) ? `<dl class="labberlab-app-fields">${row.designer_nickname ? `<div><dt>개체 디자이너</dt><dd>${llEsc(row.designer_nickname)}</dd></div>` : ''}${row.artist_nickname ? `<div><dt>개체 아티스트</dt><dd>${llEsc(row.artist_nickname)}</dd></div>` : ''}${row.note ? `<div><dt>하고 싶은 말</dt><dd>${llEsc(row.note)}</dd></div>` : ''}</dl>` : ''}
+      ${Array.isArray(row.decos) && row.decos.length ? `<dl class="labberlab-app-fields"><div><dt>적용 환경</dt><dd>${row.decos.map(llEsc).join(' · ')}</dd></div></dl>` : ''}
       ${llSubjectCreditBlock(row)}
       ${reasonBlock}
       ${historyBlock}
@@ -693,13 +785,14 @@ function appCardHtml(row, urls, opts = {}) {
 // 내 신청 목록 (MY APPLICATIONS)
 // ══════════════════════════════════════════════════════════════
 async function loadMyList() {
+  if (!llRequireAuth()) return;
   const listEl = llEl('myAppList');
   const emptyEl = llEl('myEmpty');
   const { data, error } = await sb.from('labber_design_applications')
     .select(LL_APP_SELECT).eq('user_id', _llUser.id).order('created_at', { ascending: false });
 
   if (error) {
-    listEl.innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${escapeHtml(error.message)})</p>`;
+    listEl.innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${llEsc(error.message)})</p>`;
     return;
   }
   _llMyRows = data || [];
@@ -762,7 +855,7 @@ function mySubjectRegistrationCardHtml(row) {
   const reasonBlock = (st === 'rejected' && row.rejection_reason)
     ? `<div class="labberlab-app-comment is-strong">
          <span class="labberlab-app-comment-label">반려 사유</span>
-         <p>${escapeHtml(row.rejection_reason).replace(/\n/g, '<br>')}</p>
+         <p>${llEsc(row.rejection_reason).replace(/\n/g, '<br>')}</p>
        </div>`
     : '';
   // rejected/cancelled: 이 신청 자체는 수정하지 않는다(그대로 보존) — "다시 등록하기"는 가방으로
@@ -793,7 +886,7 @@ function mySubjectRegistrationCardHtml(row) {
   return `
   <article class="labberlab-app-card llapp-card" data-id="${row.id}">
     <div class="labberlab-app-thumb">
-      ${row.image_url ? `<img src="${escapeHtml(row.image_url)}" alt="SUBJECT 이미지" loading="lazy" data-full="${escapeHtml(row.image_url)}">` : '<span>아트웍 없음</span>'}
+      ${row.image_url ? `<img src="${llEsc(row.image_url)}" alt="SUBJECT 이미지" loading="lazy" data-full="${llEsc(row.image_url)}">` : '<span>아트웍 없음</span>'}
     </div>
     <div class="labberlab-app-main">
       <div class="labberlab-app-top">
@@ -802,7 +895,7 @@ function mySubjectRegistrationCardHtml(row) {
         <span class="labberlab-app-no">No. ${shortId(row.id)}</span>
         <span class="labberlab-app-date">신청 ${fmtDateTime(row.created_at)}</span>
       </div>
-      <p class="llapp-hint">SUBJECT: ${escapeHtml(row._subjectName || row.subject_code)}</p>
+      <p class="llapp-hint">SUBJECT: ${llEsc(row._subjectName || row.subject_code)}</p>
       ${subjectCreatorFieldsHtml(row)}
       ${reasonBlock}
       ${footer}
@@ -849,6 +942,7 @@ async function onMyListClick(e) {
 // 서버(cancel_labber_subject_bag_registration)가 소유주/상태를 다시 검증하므로, 운영진 승인과
 // 거의 동시에 눌려도 둘 중 하나만 성공한다(행 잠금으로 직렬화).
 async function cancelMySubjectRegistration(id) {
+  if (!llRequireAuth()) return;
   if (!confirm('SUBJECT 등록 신청을 취소할까요?')) return;
   const { data, error } = await sb.rpc('cancel_labber_subject_bag_registration', { p_id: id });
   if (error) { alert(`취소에 실패했어요. (${error.message})`); return; }
@@ -857,6 +951,7 @@ async function cancelMySubjectRegistration(id) {
 }
 
 async function deleteDraft(id) {
+  if (!llRequireAuth()) return;
   if (!confirm('이 임시저장 신청서를 삭제할까요? 업로드한 이미지도 함께 삭제되며 되돌릴 수 없어요.')) return;
   const { data, error } = await sb.rpc('delete_labber_design_draft', { p_id: id });
   if (error) { alert(`삭제에 실패했어요. (${error.message})`); return; }
@@ -928,7 +1023,7 @@ async function llCreatorsFromRow(row, kind) {
 }
 
 async function openForm(row) {
-  if (!_llUser) { showLoginPrompt(); return; }
+  if (!llRequireAuth()) { if (_llAuthState === 'guest') showLoginPrompt(); return; }
   if (_llBusy) return;
   llResetFormState();
 
@@ -984,6 +1079,7 @@ async function closeForm(reload) {
 
 // ── 인벤토리 / 아이템 선택 ────────────────────────────────────
 async function loadInventory() {
+  if (!llRequireAuth()) return;
   const { data, error } = await sb.rpc('get_my_labber_design_inventory');
   if (error) {
     _llInv = [];
@@ -1038,14 +1134,14 @@ function llSubjectInstanceCardHtml(i) {
   const checked = _llSel.subject === String(i.instance_id);
   const name = i.individual_name || i.subject_name || 'SUBJECT';
   const img = i.image_url
-    ? `<span class="llapp-item-img"><img src="${escapeHtml(i.image_url)}" alt="" loading="lazy"></span>`
+    ? `<span class="llapp-item-img"><img src="${llEsc(i.image_url)}" alt="" loading="lazy"></span>`
     : `<span class="llapp-item-img"><span class="llapp-item-ph">NO IMG</span></span>`;
   return `
     <label class="llapp-item${checked ? ' is-selected' : ''}">
       <input type="radio" name="pick-subject-instance" value="${i.instance_id}"${checked ? ' checked' : ''}>
       ${img}
-      <span class="llapp-item-name">${escapeHtml(name)}</span>
-      <span class="llapp-item-qty">${escapeHtml(i.subject_name || '')}</span>
+      <span class="llapp-item-name">${llEsc(name)}</span>
+      <span class="llapp-item-qty">${llEsc(i.subject_name || '')}</span>
     </label>`;
 }
 
@@ -1096,7 +1192,7 @@ function llCartCardHtml(i) {
   return `
     <button type="button" class="llapp-item llapp-item-cart${on ? ' is-selected' : ''}${off ? ' is-disabled' : ''}" data-cart-toggle="${i.item_id}" aria-pressed="${on}"${off ? ' disabled' : ''}>
       <span class="llapp-item-img">${llItemImg(i)}</span>
-      <span class="llapp-item-name">${escapeHtml(i.name)}</span>
+      <span class="llapp-item-name">${llEsc(i.name)}</span>
       <span class="llapp-item-qty">${llQtyText(i)}</span>
     </button>`;
 }
@@ -1111,7 +1207,7 @@ function renderPickers() {
     } else if (s.key === 'cartridge') {
       // CARTRIDGE: 토글형 복수 선택 — 카드를 누르면 선택/해제. 선택한 종류마다 정확히 1개가 예약·소비된다.
       body = `<div class="llapp-picker llapp-picker-cart" data-slot="cartridge">${items.map(llCartCardHtml).join('')}</div>
-        <p class="llapp-cart-summary" id="cartSummary">${escapeHtml(llCartSummaryText())}</p>`;
+        <p class="llapp-cart-summary" id="cartSummary">${llEsc(llCartSummaryText())}</p>`;
     } else {
       const noneChecked = !_llSel[s.key];
       const none = s.required ? '' : `
@@ -1126,7 +1222,7 @@ function renderPickers() {
       <label class="llapp-item${checked ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}">
         <input type="radio" name="pick-${s.key}" value="${i.item_id}"${checked ? ' checked' : ''}${disabled ? ' disabled' : ''}>
         <span class="llapp-item-img">${llItemImg(i)}</span>
-        <span class="llapp-item-name">${escapeHtml(i.name)}</span>
+        <span class="llapp-item-name">${llEsc(i.name)}</span>
         <span class="llapp-item-qty">${llQtyText(i)}</span>
       </label>`;
       }).join('');
@@ -1158,7 +1254,7 @@ function renderDecoEnv() {
       <p class="form-hint">디자인에 반영한 배양환경을 최대 ${LL_DECO_MAX}개까지 입력해주세요.</p>
       ${_llDecos.map((v, i) => `
         <div class="lldu-addon-row">
-          <input type="text" class="form-input" maxlength="${LL_DECO_NAME_MAX}" data-deco-env="${i}" value="${escapeHtml(v)}" placeholder="예: 별가루 · 산호 · 작은 인형">
+          <input type="text" class="form-input" maxlength="${LL_DECO_NAME_MAX}" data-deco-env="${i}" value="${llEsc(v)}" placeholder="예: 별가루 · 산호 · 작은 인형">
           <button type="button" class="btn-ghost llapp-mini-btn" data-deco-env-del="${i}">삭제</button>
         </div>`).join('')}
       <button type="button" class="btn-ghost llapp-mini-btn lldu-addon-add" data-deco-env-add${_llDecos.length >= Math.min(LL_DECO_MAX, llDecoAvailable()) ? ' disabled' : ''}>+ 환경 추가</button>
@@ -1363,6 +1459,7 @@ function onCropCancel() {
 // ── 저장 / 제출 ───────────────────────────────────────────────
 // 서버에 draft 를 만들고(없으면) → 새 이미지 업로드 → 저장 RPC → 이전 파일 정리. 신청서 id 를 반환.
 async function persistDraft() {
+  if (!llAuthReady()) throw new Error(LL_AUTH_MSG.unknown);
   const note = llEl('noteInput').value;
   if (note.length > LL_NOTE_MAX) throw new Error(`하고 싶은 말은 ${LL_NOTE_MAX}자 이하로 입력해주세요.`);
 
@@ -1433,6 +1530,7 @@ async function persistDraft() {
 
 async function onSaveDraft() {
   if (_llBusy) return;
+  if (!llRequireAuth()) return;
   llSetError('');
   llSetInfo('');
   setFormBusy(true);
@@ -1459,6 +1557,7 @@ function llMissingForSubmit() {
 
 async function onSubmitApplication() {
   if (_llBusy) return;
+  if (!llRequireAuth()) return;
   llSetError('');
   llSetInfo('');
   const missing = llMissingForSubmit();
@@ -1550,11 +1649,12 @@ function llRefreshSidebarBadge() {
 }
 
 async function loadAdminList() {
+  if (!llRequireAdmin()) return;
   const { data, error } = await sb.from('labber_design_applications')
     .select(LL_APP_SELECT).neq('status', 'draft')
     .order('submitted_at', { ascending: false, nullsFirst: false });
   if (error) {
-    llEl('adminAppList').innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${escapeHtml(error.message)})</p>`;
+    llEl('adminAppList').innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${llEsc(error.message)})</p>`;
     return;
   }
   _llAdminRows = (data || []).filter(adminVisible);
@@ -1608,7 +1708,7 @@ async function renderAdminList() {
            </div>
          </div>`
       : (row.status === 'approved' && !row.registered_character_id && !row.is_legacy
-          ? `<div class="labberlab-app-actions llapp-actions"><a class="btn-secondary llapp-char-link" href="${escapeHtml(regUrl(row.id))}">개체 등록 화면으로</a></div>`
+          ? `<div class="labberlab-app-actions llapp-actions"><a class="btn-secondary llapp-char-link" href="${llEsc(regUrl(row.id))}">개체 등록 화면으로</a></div>`
           : (row.status === 'registered' && row.registered_character_id
               ? `<div class="labberlab-app-actions llapp-actions"><p class="llapp-hint">${row.registered_at ? '등록 ' + fmtDateTime(row.registered_at) : '등록 완료'}</p><a class="btn-ghost llapp-char-link" href="character.html?id=${encodeURIComponent(row.registered_character_id)}">등록된 개체 보기</a></div>`
               : (row.reviewed_at ? `<p class="llapp-hint">검토 ${fmtDateTime(row.reviewed_at)}</p>` : '')));
@@ -1632,6 +1732,7 @@ function llSetCtlBusy(ctl, busy) {
 
 async function adminApprove(id, ctl) {
   if (_llAdminBusy) return;
+  if (!llRequireAdmin()) return;
   const row = _llAdminRows.find(r => r.id === id);
   if (!row) return;
   const errEl = ctl.querySelector('.labberlab-admin-err');
@@ -1662,6 +1763,7 @@ async function adminApprove(id, ctl) {
 
 async function adminReject(id, ctl) {
   if (_llAdminBusy) return;
+  if (!llRequireAdmin()) return;
   const row = _llAdminRows.find(r => r.id === id);
   if (!row) return;
   const errEl = ctl.querySelector('.labberlab-admin-err');
@@ -1714,12 +1816,13 @@ function setupSubjectApprovalStatusTabs() {
 }
 
 async function loadSubjectApprovalList() {
+  if (!llRequireAdmin()) return;
   const { data, error } = await sb
     .from('labber_subject_bag_registrations')
     .select('id, user_id, item_id, subject_code, image_url, status, rejection_reason, resulting_instance_id, reviewed_by, reviewed_at, created_at, designer_nickname, artist_nickname, subject_species_id')
     .order('created_at', { ascending: false });
   if (error) {
-    llEl('subjectApprovalList').innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${escapeHtml(error.message)})</p>`;
+    llEl('subjectApprovalList').innerHTML = `<p class="auth-error">목록을 불러오지 못했어요. (${llEsc(error.message)})</p>`;
     return;
   }
   _llSubjectAdminRows = data || [];
@@ -1781,9 +1884,9 @@ function subjectCreatorFieldsHtml(row) {
   const spName = row.subject_species_id ? (_llSpeciesNames[row.subject_species_id] || '(알 수 없는 종족)') : '';
   if (!row.designer_nickname && !row.artist_nickname && !isSpecies) return '';
   return `<dl class="labberlab-app-fields">
-    ${row.designer_nickname ? `<div><dt>SUBJECT 디자이너</dt><dd>${escapeHtml(row.designer_nickname)}</dd></div>` : ''}
-    ${row.artist_nickname ? `<div><dt>SUBJECT 아티스트</dt><dd>${escapeHtml(row.artist_nickname)}</dd></div>` : ''}
-    ${isSpecies ? `<div><dt>연결 종족</dt><dd>${spName ? escapeHtml(spName) : '연결 종족 없음'}</dd></div>` : ''}
+    ${row.designer_nickname ? `<div><dt>SUBJECT 디자이너</dt><dd>${llEsc(row.designer_nickname)}</dd></div>` : ''}
+    ${row.artist_nickname ? `<div><dt>SUBJECT 아티스트</dt><dd>${llEsc(row.artist_nickname)}</dd></div>` : ''}
+    ${isSpecies ? `<div><dt>연결 종족</dt><dd>${spName ? llEsc(spName) : '연결 종족 없음'}</dd></div>` : ''}
   </dl>`;
 }
 
@@ -1805,23 +1908,23 @@ function subjectApprovalCardHtml(row) {
   const reasonBlock = (st === 'rejected' && row.rejection_reason)
     ? `<div class="labberlab-app-comment is-strong">
          <span class="labberlab-app-comment-label">반려 사유</span>
-         <p>${escapeHtml(row.rejection_reason).replace(/\n/g, '<br>')}</p>
+         <p>${llEsc(row.rejection_reason).replace(/\n/g, '<br>')}</p>
        </div>`
     : '';
 
   return `
   <article class="labberlab-app-card llapp-card" data-id="${row.id}">
     <div class="labberlab-app-thumb">
-      ${row.image_url ? `<img src="${escapeHtml(row.image_url)}" alt="SUBJECT 이미지" loading="lazy" data-full="${escapeHtml(row.image_url)}">` : '<span>아트웍 없음</span>'}
+      ${row.image_url ? `<img src="${llEsc(row.image_url)}" alt="SUBJECT 이미지" loading="lazy" data-full="${llEsc(row.image_url)}">` : '<span>아트웍 없음</span>'}
     </div>
     <div class="labberlab-app-main">
       <div class="labberlab-app-top">
         <span class="labberlab-app-status ${LL_SUBJECT_STATUS_CLASS[st] || ''}">${LL_SUBJECT_STATUS_KO[st] || st}</span>
         <span class="labberlab-app-no">No. ${shortId(row.id)}</span>
         <span class="labberlab-app-date">신청 ${fmtDateTime(row.created_at)}</span>
-        <span class="labberlab-app-applicant">${escapeHtml(row._nick)}</span>
+        <span class="labberlab-app-applicant">${llEsc(row._nick)}</span>
       </div>
-      <p class="llapp-hint">SUBJECT: ${escapeHtml(row._subjectName)} · 아이템: ${escapeHtml(row._itemName)}</p>
+      <p class="llapp-hint">SUBJECT: ${llEsc(row._subjectName)} · 아이템: ${llEsc(row._itemName)}</p>
       ${subjectCreatorFieldsHtml(row)}
       ${reasonBlock}
       ${footer}
@@ -1853,6 +1956,7 @@ function onSubjectApprovalListClick(e) {
 
 async function subjectApprovalApprove(id, ctl) {
   if (_llSubjectAdminBusy) return;
+  if (!llRequireAdmin()) return;
   const row = _llSubjectAdminRows.find(r => r.id === id);
   if (!row) return;
   const errEl = ctl.querySelector('.labberlab-admin-err');
@@ -1882,6 +1986,7 @@ async function subjectApprovalApprove(id, ctl) {
 
 async function subjectApprovalReject(id, ctl) {
   if (_llSubjectAdminBusy) return;
+  if (!llRequireAdmin()) return;
   const row = _llSubjectAdminRows.find(r => r.id === id);
   if (!row) return;
   const errEl = ctl.querySelector('.labberlab-admin-err');

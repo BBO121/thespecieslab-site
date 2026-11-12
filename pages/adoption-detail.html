@@ -99,6 +99,12 @@
       background:#FFFBEB; border:1px solid #FCD34D; border-radius:var(--radius);
       padding:12px 16px; margin-top:12px; font-size:13px; color:#92400E; font-weight:600;
     }
+    /* 필수 정보·로그인 확인 실패 안내 — 관련 동작을 막았다는 사실을 함께 알린다 */
+    .adoption-trade-unavailable {
+      background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:var(--radius);
+      padding:12px 14px; font-size:13px; color:#92400E; line-height:1.6;
+      margin:0; word-break:keep-all; overflow-wrap:break-word;
+    }
     .img-modal-overlay {
       position:fixed; inset:0; background:rgba(0,0,0,0.88);
       display:flex; align-items:center; justify-content:center;
@@ -219,6 +225,9 @@
             <!-- 분양 정보 박스 -->
             <div id="adoptionInfoBox" class="adoption-info-box" style="display:none;"></div>
 
+            <!-- 로그인 상태 확인 불가 안내 (비로그인 화면 + 참여 기능 막음) -->
+            <p id="authUnknownNotice" class="adoption-trade-unavailable" style="display:none; margin-top:12px;">⚠ 로그인 상태를 확인하지 못해 입찰·제시·신청·댓글 작성 같은 참여 기능을 잠시 사용할 수 없어요. 새로고침해 주세요.</p>
+
             <!-- 무료 추첨 신청 영역 -->
             <div id="freeActionArea"></div>
 
@@ -267,6 +276,9 @@
                 <button onclick="openCompleteModal(null)" class="btn-secondary" style="font-size:13px; padding:6px 14px;">분양확정</button>
               </div>
             </div>
+
+            <!-- 경매 정보·입찰 내역·서버 시간 확인 실패 안내 -->
+            <p id="auctionTradeNotice" class="adoption-trade-unavailable" style="display:none; margin-bottom:12px;"></p>
 
             <!-- 입찰 안내문 -->
             <p id="bidNotice" style="display:none; font-size:13px; color:var(--text-sub); margin-bottom:12px; line-height:1.5;">
@@ -490,97 +502,297 @@
 
     function normalizeNick(s) { return (s || '').trim().toLowerCase(); }
 
+    // ── 데이터 클라이언트 · 로그인/필수 정보 상태 (1112) ─────────────────
+    // 정상: js/auth.js 의 sb(로그인 세션 포함)를 그대로 쓴다 — dataClient === sb.
+    // auth.js 가 로드되지 않았거나 초기화 도중 실패하면, 공개 본문을 읽기 위해서만 세션 없는 클라이언트를 만든다.
+    //   - 저장된 로그인 토큰·URL 의 인증 정보를 읽지 않는다(persistSession·detectSessionInUrl·autoRefreshToken 끔, 빈 저장소).
+    //   - 권한은 비로그인 방문자와 같은 anon(publishable 키)이고 RLS 가 그대로 적용된다.
+    //     이름이 '조회용'이라고 권한이 줄어드는 것은 아니므로, 쓰기·거래는 아래 guardTrade 로 막는다
+    //     (이 상태의 authState 는 'unknown' 이라 모든 쓰기·거래 핸들러가 첫 줄에서 멈춘다).
+    // 주소·키는 js/auth.js 의 SUPABASE_URL·SUPABASE_KEY 와 같은 값이어야 한다(바꿀 때 함께 수정).
+    const ADOPTION_FALLBACK_SUPABASE_URL = 'https://tnvkfcqphdxdyvswbkfe.supabase.co';
+    const ADOPTION_FALLBACK_SUPABASE_KEY = 'sb_publishable_iaH_vCaDJfekUiZ85_JO7w_T_iDGNfg';
+    const CORE_TIMEOUT_MS = 20000;  // 분양 본문 조회
+    const AUX_TIMEOUT_MS  = 8000;   // 부가 조회(서버 시간·경매·입찰·제시·댓글·신청자 등)
+    const AUTH_TIMEOUT_MS = 8000;   // 로그인 확인
+    const REVEAL_WAIT_MS  = 4000;   // 부가 조회가 늦어도 본문은 이 시간 뒤에 보여준다(관련 동작은 확인 전까지 닫힘)
+
+    // auth.js 초기화가 중간에 실패하면 sb 가 '초기화 전' 상태로 남아 typeof 조차 예외를 던진다.
+    function readAuthClient() {
+      try { return (typeof sb !== 'undefined' && sb && typeof sb.from === 'function') ? sb : null; }
+      catch (e) { return null; }
+    }
+    function createSessionlessClient() {
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
+      const emptyStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+      return window.supabase.createClient(ADOPTION_FALLBACK_SUPABASE_URL, ADOPTION_FALLBACK_SUPABASE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storage: emptyStorage, storageKey: 'adoption-detail-sessionless' },
+      });
+    }
+    const authClient = readAuthClient();
+    const dataClient = authClient || createSessionlessClient();
+    if (!authClient && dataClient) console.warn('[adoption-detail.html] 인증 초기화 실패 — 세션 없는 공개 조회로 본문만 표시합니다.');
+
+    // 로그인 상태: 'user'(로그인 확인) | 'guest'(비로그인 확인) | 'unknown'(확인 불가 → 비로그인 화면 + 참여 기능 막음)
+    let authState = 'unknown';
+    // 거래에 필요한 조회 결과: 'na'(해당 없음) | 'pending' | 'ok' | 'failed'
+    //   pending·failed 인 정보가 필요한 동작은 다시 조회해 ok 가 되기 전까지 열지 않는다.
+    const dataStatus = { auctionInfo: 'na', bids: 'na', serverTime: 'na', offers: 'na', applicants: 'na' };
+    const AUCTION_NEEDS = ['auctionInfo', 'bids', 'serverTime'];
+    const TRADE_BLOCK_MSG = {
+      auth:        '로그인 상태를 확인하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.',
+      auctionInfo: '경매 정보를 확인하지 못해 지금은 진행할 수 없어요. 새로고침해 주세요.',
+      bids:        '입찰 내역을 확인하지 못해 지금은 진행할 수 없어요. 새로고침해 주세요.',
+      serverTime:  '서버 시간을 확인하지 못해 지금은 진행할 수 없어요. 새로고침해 주세요.',
+      offers:      '제시 내역을 확인하지 못해 지금은 진행할 수 없어요. 새로고침해 주세요.',
+      applicants:  '신청자 목록을 확인하지 못해 지금은 진행할 수 없어요. 새로고침해 주세요.',
+    };
+
+    // 쓰기·거래 동작 공통 확인 — 버튼을 숨기는 것과 별개로 각 핸들러 첫 줄에서 다시 확인한다.
+    function tradeBlockReason(needs = []) {
+      if (authState !== 'user' || !currentUser || !readAuthClient()) return 'auth';
+      for (const k of needs) if (dataStatus[k] !== 'ok') return k;
+      return null;
+    }
+    function guardTrade(needs, errorEl) {
+      const reason = tradeBlockReason(needs);
+      if (!reason) return true;
+      console.warn('[adoption-detail.html] 동작 차단:', reason);
+      const msg = (reason === 'auth' && authState === 'guest') ? '로그인 후 이용할 수 있어요.'
+        : (reason !== 'auth' && dataStatus[reason] === 'pending') ? '필요한 정보를 아직 확인하는 중이에요. 잠시 후 다시 시도해 주세요.'
+        : TRADE_BLOCK_MSG[reason];
+      if (errorEl) errorEl.textContent = msg; else alert(msg);
+      return false;
+    }
+    // 경매는 경매 정보·입찰 내역·서버 시간이 모두 확인돼야 거래 동작을 연다
+    function auctionNeedsFor(a) { return a?.adoption_type === 'auction' ? AUCTION_NEEDS : []; }
+    // 경매 글 수정·삭제는 입찰 수가 확인돼야 연다(모르면 0건으로 보지 않음)
+    function authorEditNeedsFor(a) { return a?.adoption_type === 'auction' ? ['auctionInfo', 'bids'] : []; }
+
+    // 같은 목록을 다시 조회할 때, 늦게 도착한 이전 응답이 최신 결과·실패 상태를 덮지 않도록 요청 세대를 센다.
+    // (시간 초과로 끝난 요청의 늦은 응답은 settleQuery 에서 이미 버려지고, 이건 제한 시간 안의 순서 뒤바뀜용)
+    const _reqGen = { bids: 0, bidTimes: 0, offers: 0, applicants: 0, comments: 0 };
+    function nextReqGen(key) { return ++_reqGen[key]; }
+    function isLatestReq(key, gen) { return _reqGen[key] === gen; }
+
+    function withTimeout(promise, ms, label) {
+      let timer;
+      return Promise.race([
+        Promise.resolve(promise).finally(() => clearTimeout(timer)),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} 시간 초과(${ms}ms)`)), ms); }),
+      ]);
+    }
+    // 부가 조회 — 예외·시간 초과도 { data: null, error } 로 돌려준다(실패와 빈값의 구분은 호출부에서)
+    async function settleQuery(query, label, ms = AUX_TIMEOUT_MS) {
+      try {
+        const res = await withTimeout(query, ms, label);
+        return res || { data: null, error: new Error(`${label} 응답 없음`) };
+      } catch (e) {
+        return { data: null, error: e };
+      }
+    }
+    async function runAuxStep(name, fn) {
+      try { await fn(); }
+      catch (e) { console.error(`[adoption-detail.html] 부가 처리 실패(${name}):`, e); }
+    }
+
+    async function resolveAuthState() {
+      if (!authClient) return { state: 'unknown', user: null };
+      try {
+        if (typeof getUser !== 'function') return { state: 'unknown', user: null };
+        const user = await withTimeout(getUser(), AUTH_TIMEOUT_MS, '로그인 확인');
+        return user ? { state: 'user', user } : { state: 'guest', user: null };
+      } catch (e) {
+        console.warn('[adoption-detail.html] 로그인 확인 실패 — 비로그인 화면으로 표시:', e);
+        return { state: 'unknown', user: null };
+      }
+    }
+
+    // 종족 링크·LABBER 판정이 같은 조회를 쓰므로 한 번만 요청한다
+    let _speciesLookup = null;
+    function lookupSpeciesByName(name) {
+      if (!_speciesLookup) _speciesLookup = settleQuery(dataClient.from('species').select('id').eq('name', name).maybeSingle(), '종족 조회');
+      return _speciesLookup;
+    }
+
     // LABBER 개체 분양 여부 — 장착 SUBJECT 동반 이전 안내용(renderMain 에서 1회 판정).
     // 실제 동반 이전은 소유권 변경 시 DB 트리거가 처리하고, 이건 표시만 담당한다.
+    // true / false / null(확인 불가 — 안내가 "있다면" 조건부 문구라 보이는 쪽으로 처리)
     let _isLabberAdoption = false;
     async function resolveIsLabberAdoption(a) {
-      if (!a?.character_id || !a.species_name || typeof LABBER_SPECIES_ID === 'undefined') return false;
-      const { data } = await sb.from('species').select('id').eq('name', a.species_name).maybeSingle();
+      if (!a?.character_id || !a.species_name) return false;
+      if (typeof LABBER_SPECIES_ID === 'undefined') return null;
+      const { data, error } = await lookupSpeciesByName(a.species_name);
+      if (error) return null;
       return data?.id != null && String(data.id) === String(LABBER_SPECIES_ID);
     }
 
+    // 핵심: 분양 본문 조회 + renderMain. 여기서 난 예외(renderMain 의 비동기 실패 포함)는 initPage().catch 의 오류 안내로 간다.
+    // 부가: 서버 시간·경매 정보·입찰·제시·댓글·작성자 버튼 — 각자 실패를 화면에 표시하고 관련 동작을 닫는다.
     async function initPage() {
       if (!adoptionId) { window.location.href = 'adoption.html'; return; }
+      if (!dataClient) throw new Error('Supabase 클라이언트를 만들 수 없음(supabase-js 미로드)');
 
-      currentUser = await getUser();
-      myNick = currentUser?.user_metadata?.display_name || currentUser?.user_metadata?.nickname || null;
-
-      const [{ data: adoption, error }, { count }, { data: userList }] = await Promise.all([
-        sb.from('adoptions').select('*, characters(is_sensitive, sensitive_note)').eq('id', adoptionId).single(),
-        sb.from('adoptions').select('*', { count: 'exact', head: true }),
-        sb.rpc('get_all_users'),
+      const authPromise = resolveAuthState();
+      const [adoptionRes, countRes, usersRes] = await Promise.all([
+        withTimeout(dataClient.from('adoptions').select('*, characters(is_sensitive, sensitive_note)').eq('id', adoptionId).single(), CORE_TIMEOUT_MS, '분양 조회'),
+        settleQuery(dataClient.from('adoptions').select('*', { count: 'exact', head: true }), '분양 수'),
+        settleQuery(dataClient.rpc('get_all_users'), '회원 목록'),
       ]);
 
-      if (error || !adoption) { window.location.href = 'adoption.html'; return; }
-      if (userList) userList.forEach(u => {
+      const { data: adoption, error } = adoptionRes || {};
+      // 없는 분양(0행)·잘못된 id 는 기존처럼 목록으로. 그 밖의 조회 오류는 핵심 실패 → 오류 안내.
+      if (!adoption && (!error || error.code === 'PGRST116' || error.code === '22P02')) { window.location.href = 'adoption.html'; return; }
+      if (error || !adoption) throw error || new Error('분양 조회 결과 없음');
+
+      const auth = await authPromise;
+      authState   = auth.state;
+      currentUser = auth.user;
+      myNick = currentUser?.user_metadata?.display_name || currentUser?.user_metadata?.nickname || null;
+
+      const userList = usersRes.data;
+      if (Array.isArray(userList)) userList.forEach(u => {
         if (u.id && u.nickname) idToNick[u.id] = u.nickname;
         if (u.nickname) allNicknames.push(u.nickname);
       });
+      else console.warn('[분양 상세] 회원 목록 조회 실패 — 저장된 닉네임으로 표시', usersRes.error);
 
       currentAdoption = adoption;
       document.title = `${adoption.character_name} 분양 — 종족연구소`;
+      const count = countRes.count;
       if (count) document.getElementById('navCount').textContent = `분양 총 ${count}개`;
+      document.getElementById('authUnknownNotice').style.display = authState === 'unknown' ? 'block' : 'none';
 
-      renderMain(adoption);
+      await renderMain(adoption);
       loadAdSense();
 
-      // 서버 시계 동기화 — 경매 남은시간 / 제시 기간 판정에 클라이언트 PC 시계 오차가 끼지 않도록.
-      // (최종 입찰·제시 가능 여부는 서버 트리거가 판정하고, 이건 표시/선제안내용)
-      if (adoption.adoption_type === 'auction' || isOfferEligibleAdoption(adoption)) {
-        try {
-          const { data: st } = await sb.rpc('get_server_time');
-          if (st) serverClockOffsetMs = new Date(st).getTime() - Date.now();
-        } catch (e) { console.warn('[분양 상세] 서버 시계 동기화 실패, 클라 시계 사용', e); }
-      }
-
-      if (adoption.adoption_type === 'auction') {
-        document.getElementById('auctionSection').style.display = 'block';
-
-        const [{ data: details }, { data: bids }] = await Promise.all([
-          sb.from('auction_details').select('*').eq('adoption_id', adoptionId).single(),
-          sb.from('auction_bids').select('*').eq('adoption_id', adoptionId).order('created_at', { ascending: false }),
-        ]);
-
-        auctionDetails = details;
-        bidOpenAt = details?.bid_open_at ? new Date(details.bid_open_at) : null;
-        auctionEndAt = computeAuctionEndAt(details, bids || []);
-        auctionClosed = !!(auctionEndAt && serverNow() >= auctionEndAt.getTime());
-        renderAuctionInfo(details);
-        renderBids(adoption, bids || []);
-        startAuctionCountdown();
-        loadComments();
-      } else if (adoption.adoption_type === 'free') {
-        if (adoption.free_type === 'random') {
-          document.getElementById('applicantSection').style.display = 'block';
-        }
-        loadComments();
-      } else {
-        loadComments();
-      }
-
-      if (isOfferEligibleAdoption(adoption)) {
-        await initOffers();
-      }
-
-      refreshAuthorActions();
+      // 부가 조회가 늦어져도 REVEAL_WAIT_MS 뒤에는 본문을 보여준다(관련 동작은 확인 전까지 닫힘)
+      const aux = loadAuxSections(adoption);
+      await Promise.race([aux, new Promise(resolve => setTimeout(resolve, REVEAL_WAIT_MS))]);
 
       document.getElementById('pageLoading').style.display = 'none';
       document.getElementById('pageContent').style.display = 'block';
+    }
+
+    async function loadAuxSections(adoption) {
+      const isAuction     = adoption.adoption_type === 'auction';
+      const offerEligible = isOfferEligibleAdoption(adoption);
+
+      if (isAuction) {
+        AUCTION_NEEDS.forEach(k => { dataStatus[k] = 'pending'; });
+        document.getElementById('auctionSection').style.display = 'block';
+        document.getElementById('bidCount').textContent = '확인 중';
+        document.getElementById('bidList').innerHTML = '<p class="adoption-no-bids">입찰 내역을 불러오는 중...</p>';
+      }
+      if (offerEligible) { dataStatus.offers = 'pending'; dataStatus.serverTime = 'pending'; }
+      if (adoption.adoption_type === 'free' && adoption.free_type === 'random') {
+        document.getElementById('applicantSection').style.display = 'block';
+      }
+      loadComments().catch(e => console.error('[adoption-detail.html] 부가 처리 실패(댓글):', e));
+
+      // 서버 시계 동기화 — 경매 남은시간 / 제시 기간 판정에 클라이언트 PC 시계 오차가 끼지 않도록.
+      // 실패하면 표시는 기기 시계로 하되, 시간 판단이 필요한 거래 동작(입찰·즉분·확정·마감·제시)은 막는다.
+      if (isAuction || offerEligible) {
+        await runAuxStep('서버 시간', async () => {
+          const { data: st, error } = await settleQuery(dataClient.rpc('get_server_time'), '서버 시간');
+          const ms = st ? new Date(st).getTime() : NaN;
+          if (!error && Number.isFinite(ms)) {
+            serverClockOffsetMs = ms - Date.now();
+            dataStatus.serverTime = 'ok';
+          } else {
+            dataStatus.serverTime = 'failed';
+            console.warn('[분양 상세] 서버 시계 동기화 실패 — 표시는 기기 시계, 시간 판단 거래는 막음', error);
+          }
+        });
+        if (dataStatus.serverTime === 'pending') dataStatus.serverTime = 'failed';
+      }
+
+      if (isAuction) {
+        await runAuxStep('경매 정보·입찰 목록', () => loadAuctionSection(adoption));
+        // 중간 예외로 확인되지 않은 정보는 실패로 확정하고 화면에 표시한다
+        if (AUCTION_NEEDS.some(k => dataStatus[k] === 'pending')) {
+          AUCTION_NEEDS.forEach(k => { if (dataStatus[k] === 'pending') dataStatus[k] = 'failed'; });
+          await runAuxStep('경매 실패 표시', () => {
+            if (dataStatus.auctionInfo === 'failed') renderAuctionInfoUnavailable();
+            if (dataStatus.bids === 'failed') renderBids(adoption, null);
+            updateAuctionTradeNotice();
+          });
+        }
+      }
+      if (offerEligible) {
+        await runAuxStep('제시', () => initOffers());
+        if (dataStatus.offers === 'pending') { dataStatus.offers = 'failed'; await runAuxStep('제시 실패 표시', () => renderOffers()); }
+      }
+      await runAuxStep('작성자 버튼', () => refreshAuthorActions());
+    }
+
+    async function loadAuctionSection(adoption) {
+      const bidsGen = nextReqGen('bids');
+      const [detailsRes, bidsRes] = await Promise.all([
+        settleQuery(dataClient.from('auction_details').select('*').eq('adoption_id', adoptionId).single(), '경매 정보'),
+        settleQuery(dataClient.from('auction_bids').select('*').eq('adoption_id', adoptionId).order('created_at', { ascending: false }), '입찰 목록'),
+      ]);
+      // 더 새 입찰 조회가 있으면 이 응답은 버린다(확인되지 않은 정보는 pending 으로 남아 거래가 닫힌 채 유지)
+      if (!isLatestReq('bids', bidsGen)) { console.warn('[분양 상세] 이전 경매 조회 응답 무시'); return; }
+      const details = (!detailsRes.error && detailsRes.data) ? detailsRes.data : null;
+      const bids    = (!bidsRes.error && Array.isArray(bidsRes.data)) ? bidsRes.data : null;
+      dataStatus.auctionInfo = details ? 'ok' : 'failed';
+      dataStatus.bids        = bids    ? 'ok' : 'failed';
+      if (!details) console.warn('[분양 상세] 경매 정보 조회 실패', detailsRes.error);
+      if (!bids)    console.warn('[분양 상세] 입찰 목록 조회 실패', bidsRes.error);
+
+      auctionDetails = details;
+      if (!details) auctionCurrencyUnit = '';   // 화폐 단위를 모르면 '원'을 붙이지 않고 숫자만 표시
+      bidOpenAt      = details?.bid_open_at ? new Date(details.bid_open_at) : null;
+      // 마감 시각: date 방식은 경매 정보만으로, last_bid 방식은 입찰 목록이 확인된 경우에만 계산(0건으로 추정하지 않음)
+      auctionEndAt   = (details && (bids || details.close_method === 'date')) ? computeAuctionEndAt(details, bids || []) : null;
+      auctionClosed  = !!(auctionEndAt && serverNow() >= auctionEndAt.getTime());
+
+      if (details) renderAuctionInfo(details); else renderAuctionInfoUnavailable();
+      renderBids(adoption, bids);
+      updateAuctionTradeNotice();
+      if (details && bids) startAuctionCountdown();
+    }
+
+    function renderAuctionInfoUnavailable() {
+      const infoBox = document.getElementById('adoptionInfoBox');
+      infoBox.innerHTML = '<p class="adoption-trade-unavailable">⚠ 경매 정보를 불러오지 못했어요. 시작가·즉분가·입찰 단위·입찰 시작 시각을 확인할 수 없어 입찰과 확정을 잠시 막았어요. 새로고침해 주세요.</p>';
+      infoBox.style.display = 'block';
+    }
+
+    function updateAuctionTradeNotice() {
+      const el = document.getElementById('auctionTradeNotice');
+      if (!el) return;
+      const parts = [];
+      if (dataStatus.auctionInfo === 'failed') parts.push('경매 정보를 불러오지 못했어요.');
+      if (dataStatus.bids === 'failed')        parts.push('입찰 내역을 불러오지 못했어요.');
+      if (dataStatus.serverTime === 'failed')  parts.push('서버 시간을 확인하지 못해 남은 시간은 이 기기 시계 기준으로 보여요.');
+      if (!parts.length) { el.textContent = ''; el.style.display = 'none'; return; }
+      el.textContent = `⚠ ${parts.join(' ')} 확인되기 전까지 입찰·즉분·분양확정·마감은 잠시 막았어요. 새로고침해 주세요.`;
+      el.style.display = 'block';
     }
 
     // ── 작성자 영역: 수정 / 삭제 (분양중일 때만, DB 가드와 같은 기준) ──────────
     function refreshAuthorActions() {
       const a = currentAdoption;
       if (!a) return;
-      const isAuthor = !!(currentUser?.id && a.user_id && currentUser.id === a.user_id);
+      const isAuthor = authState === 'user' && !!(currentUser?.id && a.user_id && currentUser.id === a.user_id);
       const isOpen   = (a.status || '분양중') === '분양중';
       const editBtn  = document.getElementById('editPostBtn');
       const delBtn   = document.getElementById('deletePostBtn');
       editBtn.style.display = 'none';
       delBtn.style.display  = 'none';
+      editBtn.href = '#';
+      // 경매 글의 '분양 마감'은 경매 정보·입찰 내역·서버 시간이 확인된 경우에만 연다
+      if (a.adoption_type === 'auction') {
+        document.getElementById('closePostBtn').style.display =
+          (isAuthor && isOpen && !tradeBlockReason(AUCTION_NEEDS)) ? 'inline-flex' : 'none';
+      }
       if (!isAuthor || !isOpen) return;
+      if (tradeBlockReason(authorEditNeedsFor(a))) return;
 
       editBtn.href = `adoption-write.html?id=${encodeURIComponent(a.id)}`;
+      editBtn.onclick = e => { if (!guardTrade(authorEditNeedsFor(currentAdoption))) e.preventDefault(); };
       editBtn.style.display = 'inline-flex';
       // 입찰이 1건이라도 있는 경매는 삭제 불가
       if (!(a.adoption_type === 'auction' && auctionBidCount > 0)) {
@@ -596,6 +808,7 @@
     }
 
     function openDeleteModal() {
+      if (!guardTrade(authorEditNeedsFor(currentAdoption))) return;
       document.getElementById('deleteError').textContent = '';
       const btn = document.getElementById('confirmDeleteBtn');
       btn.disabled = false; btn.textContent = '삭제';
@@ -610,6 +823,7 @@
       const btn   = document.getElementById('confirmDeleteBtn');
       const errEl = document.getElementById('deleteError');
       errEl.textContent = '';
+      if (!guardTrade(authorEditNeedsFor(currentAdoption), errEl)) return;
       btn.disabled = true; btn.textContent = '삭제 중...';
 
       const { data, error } = await sb.from('adoptions').delete().eq('id', adoptionId).select('id');
@@ -699,13 +913,21 @@
 
     // 먼저 등록된 제시가 위 — 서버가 기록한 created_at, 같으면 id (결정적 순서)
     async function loadOffers() {
-      const { data, error } = await sb.from('adoption_offers')
+      const offersGen = nextReqGen('offers');
+      const { data, error } = await settleQuery(dataClient.from('adoption_offers')
         .select('id, user_id, author_nickname, content, created_at')
         .eq('adoption_id', adoptionId)
         .order('created_at', { ascending: true })
-        .order('id', { ascending: true });
-      if (error) console.error('[제시 목록 조회 실패]', error);
-      offerList = data || [];
+        .order('id', { ascending: true }), '제시 목록');
+      if (!isLatestReq('offers', offersGen)) return;   // 늦게 도착한 이전 응답 — 최신 결과를 덮지 않음
+      if (error || !Array.isArray(data)) {
+        console.error('[제시 목록 조회 실패]', error);
+        dataStatus.offers = 'failed';   // 0건과 구분 — 다시 조회해 확인되기 전까지 제시·확정을 닫는다
+        offerList = [];
+      } else {
+        dataStatus.offers = 'ok';
+        offerList = data;
+      }
       renderOffers();
     }
 
@@ -714,12 +936,15 @@
       const phase      = getOfferPhase();
       offerPhase       = phase;
       const isAuthor   = !!(currentUser?.id && a.user_id && currentUser.id === a.user_id);
-      const isOperator = isAdminOrStaff(currentUser?.app_metadata?.role);
+      const isOperator = typeof isAdminOrStaff === 'function' && isAdminOrStaff(currentUser?.app_metadata?.role);
+      const offersKnown = dataStatus.offers === 'ok';
 
-      document.getElementById('offerCount').textContent = `${offerList.length}건`;
+      document.getElementById('offerCount').textContent = offersKnown ? `${offerList.length}건` : '확인 불가';
 
       const listEl = document.getElementById('offerList');
-      if (offerList.length === 0) {
+      if (!offersKnown) {
+        listEl.innerHTML = '<p class="adoption-no-bids">제시 내역을 불러오지 못했어요. 새로고침해 주세요.</p>';
+      } else if (offerList.length === 0) {
         listEl.innerHTML = '<p class="adoption-no-bids">아직 제시가 없어요</p>';
       } else {
         // 분양글 작성자만, 분양중일 때 원하는 제시를 골라 분양확정 (자동 확정 없음)
@@ -757,6 +982,11 @@
         closedEl.style.display = 'block';
         return;
       }
+      if (authState === 'unknown') {
+        infoEl.textContent = '로그인 상태를 확인하지 못해 지금은 제시할 수 없어요. 새로고침해 주세요.';
+        infoEl.style.display = 'block';
+        return;
+      }
       if (!currentUser) {
         infoEl.textContent = '로그인 후 제시할 수 있어요.';
         infoEl.style.display = 'block';
@@ -764,6 +994,13 @@
       }
       if (isAuthor) {
         infoEl.textContent = '본인 분양글에는 제시할 수 없어요.';
+        infoEl.style.display = 'block';
+        return;
+      }
+      if (!offersKnown || dataStatus.serverTime !== 'ok') {
+        infoEl.textContent = !offersKnown
+          ? '제시 내역을 확인하지 못해 지금은 제시할 수 없어요. 새로고침해 주세요.'
+          : '서버 시간을 확인하지 못해 지금은 제시할 수 없어요. 새로고침해 주세요.';
         infoEl.style.display = 'block';
         return;
       }
@@ -785,7 +1022,7 @@
       const content = ta.value.trim();
       errorEl.textContent = '';
 
-      if (!currentUser) { errorEl.textContent = '로그인 후 제시할 수 있어요.'; return; }
+      if (!guardTrade(['offers', 'serverTime'], errorEl)) return;
       if (!content)     { errorEl.textContent = '제시 내용을 입력해주세요.'; return; }
       if (getOfferPhase() !== 'open') {
         errorEl.textContent = '지금은 제시할 수 없어요.';
@@ -819,6 +1056,7 @@
 
     // 운영진(admin/staff) 전용 — 문제 제시 관리용
     async function deleteOffer(id) {
+      if (!guardTrade(['offers'])) return;
       if (!confirm('운영진 권한으로 이 제시를 삭제할까요?\n삭제한 제시는 되돌릴 수 없어요.')) return;
       const { data, error } = await sb.from('adoption_offers').delete().eq('id', id).select('id');
       if (error || !data || data.length === 0) {
@@ -841,6 +1079,7 @@
     }
 
     async function renderMain(a) {
+      if (a.species_name) lookupSpeciesByName(a.species_name);   // 종족 링크·LABBER 판정용 조회를 먼저 시작
       const isSensitive   = a.characters?.is_sensitive === true;
       const sensitiveNote = a.characters?.sensitive_note || null;
 
@@ -906,7 +1145,7 @@
 
       const speciesName = a.species_name || '—';
       if (a.species_name) {
-        const { data: sp } = await sb.from('species').select('id').eq('name', a.species_name).maybeSingle();
+        const { data: sp } = await lookupSpeciesByName(a.species_name);   // 실패하면 링크 없이 이름만
         document.getElementById('detailSpecies').innerHTML = sp?.id
           ? `<a href="species.html?id=${sp.id}" class="detail-link">${speciesName}</a>`
           : speciesName;
@@ -986,7 +1225,7 @@
       }
 
       _isLabberAdoption = await resolveIsLabberAdoption(a);
-      document.getElementById('confirmLabberSubjectNotice').style.display = _isLabberAdoption ? 'block' : 'none';
+      document.getElementById('confirmLabberSubjectNotice').style.display = _isLabberAdoption !== false ? 'block' : 'none';
 
       // 당첨자 여부 — winner_user_id 우선, 없으면 닉네임 fallback
       const isWinner = !!(currentUser && (
@@ -1039,9 +1278,9 @@
         }, 5000);
       }
 
-      // 마감 버튼 / 마감됨 표시 (작성자 전용)
+      // 마감 버튼 / 마감됨 표시 (작성자 전용) — 경매는 필수 정보 확인 뒤 refreshAuthorActions 에서 연다
       if (isAuthor && isOpen) {
-        document.getElementById('closePostBtn').style.display = 'inline-flex';
+        if (a.adoption_type !== 'auction') document.getElementById('closePostBtn').style.display = 'inline-flex';
       } else if (isAuthor && a.status === '완료') {
         document.getElementById('closedPostLabel').style.display = 'inline-flex';
       }
@@ -1057,15 +1296,22 @@
 
       // 랜덤 추첨
       if (a.free_type === 'random') {
-        // 신청자 목록 전체 가져오기
-        const { data: applicants } = await sb.from('adoption_applications')
-          .select('applicant_nickname, applicant_id').eq('adoption_id', adoptionId).order('created_at');
-        const applicantList = applicants || [];
+        // 신청자 목록 전체 가져오기 — 실패는 0명과 구분하고, 확인 전까지 신청·추첨·리추첨을 닫는다
+        const applicantsGen = nextReqGen('applicants');
+        const { data: applicants, error: applicantsErr } = await settleQuery(dataClient.from('adoption_applications')
+          .select('applicant_nickname, applicant_id').eq('adoption_id', adoptionId).order('created_at'), '신청자 목록');
+        if (!isLatestReq('applicants', applicantsGen)) return;   // 더 새 조회가 그린다
+        const applicantsKnown = !applicantsErr && Array.isArray(applicants);
+        dataStatus.applicants = applicantsKnown ? 'ok' : 'failed';
+        if (!applicantsKnown) console.warn('[분양 상세] 신청자 목록 조회 실패', applicantsErr);
+        const applicantList = applicantsKnown ? applicants : [];
 
         // 신청자 목록 렌더링
         const applicantListEl = document.getElementById('applicantList');
         if (applicantListEl) {
-          if (applicantList.length > 0) {
+          if (!applicantsKnown) {
+            applicantListEl.innerHTML = '<p style="font-size:14px; color:var(--text-mute); padding:12px 0;">신청자 목록을 불러오지 못했어요. 새로고침해 주세요.</p>';
+          } else if (applicantList.length > 0) {
             applicantListEl.innerHTML = `
               <div style="background:#fff; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
                 ${applicantList.map((ap, i) => {
@@ -1090,7 +1336,9 @@
           }
 
           // 작성자 전용 — 리추첨 (당첨자가 14일간 확인 안 한 경우)
-          if (isAuthor && a.status === '확인 대기중' && a.winner_name) {
+          if (isAuthor && a.status === '확인 대기중' && a.winner_name && !applicantsKnown) {
+            area.innerHTML += `<p class="adoption-trade-unavailable" style="margin-top:8px;">⚠ 신청자 목록을 확인하지 못해 리추첨 가능 여부를 표시할 수 없어요. 새로고침해 주세요.</p>`;
+          } else if (isAuthor && a.status === '확인 대기중' && a.winner_name) {
             const drawnAt     = a.winner_drawn_at ? new Date(a.winner_drawn_at) : null;
             const daysElapsed = drawnAt ? (Date.now() - drawnAt.getTime()) / (1000 * 60 * 60 * 24) : 0;
             const remainCount = applicantList.filter(ap => a.winner_user_id
@@ -1110,7 +1358,9 @@
           return;
         }
 
-        if (!isPast) {
+        if (!applicantsKnown) {
+          area.innerHTML = `<p class="adoption-trade-unavailable" style="margin-top:12px;">⚠ 신청자 목록을 불러오지 못해 추첨 신청·추첨을 잠시 막았어요. 새로고침해 주세요.</p>`;
+        } else if (!isPast) {
           // 신청 가능 기간
           const myApp = currentUser ? applicantList.find(ap => ap.applicant_id === currentUser.id) : null;
           if (currentUser && !isAuthor) {
@@ -1202,6 +1452,7 @@
 
     async function applyRaffle() {
       console.log('[applyRaffle called]');
+      if (!guardTrade(['applicants'])) return;
       const btn = document.querySelector('#freeActionArea .apply-btn');
       if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
 
@@ -1220,6 +1471,7 @@
     }
 
     async function cancelRaffle() {
+      if (!guardTrade(['applicants'])) return;
       if (!confirm('추첨 신청을 취소할까요?')) return;
 
       const btn = document.querySelector('#freeActionArea .apply-btn--cancel');
@@ -1256,6 +1508,7 @@
 
     async function runRaffle() {
       console.log('[runRaffle called]');
+      if (!guardTrade(['applicants'])) return;
       if (!confirm('추첨을 진행할까요? 신청자 중 한 명이 랜덤으로 선택돼요.')) return;
 
       // 중복 클릭 방지 — 실제 안전장치는 서버 RPC의 FOR UPDATE 잠금이지만,
@@ -1292,6 +1545,7 @@
     }
 
     function openRedrawModal() {
+      if (!guardTrade(['applicants'])) return;
       document.getElementById('redrawError').textContent = '';
       document.getElementById('redrawModal').style.display = 'flex';
     }
@@ -1304,6 +1558,7 @@
       const btn = document.getElementById('confirmRedrawBtn');
       const errEl = document.getElementById('redrawError');
       errEl.textContent = '';
+      if (!guardTrade(['applicants'], errEl)) return;
       btn.disabled = true;
       btn.textContent = '처리 중...';
 
@@ -1323,6 +1578,7 @@
 
     async function applyFirstCome() {
       console.log('[applyFirstCome called]');
+      if (!guardTrade([])) return;
       const btn = document.querySelector('#freeActionArea .apply-btn');
       if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
@@ -1396,7 +1652,10 @@
       // 남은시간 — 공통 formatter. 종료시각이 아직 없으면(첫 입찰 전 last_bid 등) 안내 문구.
       let remainInner;
       if (auctionEndAt) {
-        remainInner = `<span id="auctionRemainLabel">${formatAuctionRemainingTime(auctionEndAt)}</span>`;
+        // 서버 시간을 확인하지 못했으면 기기 시계 기준임을 함께 표시(카운트다운이 바꾸는 span 밖에 둔다)
+        remainInner = `<span id="auctionRemainLabel">${formatAuctionRemainingTime(auctionEndAt)}</span>${dataStatus.serverTime === 'failed' ? ' <small style="font-weight:400; color:var(--text-mute);">(기기 시계 기준)</small>' : ''}`;
+      } else if (details.close_method === 'last_bid' && dataStatus.bids === 'failed') {
+        remainInner = '확인 불가 (입찰 내역을 불러오지 못했어요)';
       } else if (details.close_method === 'last_bid' && details.close_hours) {
         remainInner = `<span id="auctionRemainLabel">마지막 입찰 후 ${details.close_hours}시간 뒤 마감</span>`;
       } else if (details.close_method === 'date') {
@@ -1445,16 +1704,27 @@
       infoBox.style.display = 'block';
     }
 
+    // bids: 입찰 배열, 또는 null(조회 실패 — 0건과 구분해 표시하고 거래 버튼을 닫는다)
     function renderBids(adoption, bids) {
       const isAuthor = currentUser && (currentUser.id === adoption.user_id || myNick === adoption.author);
       // 종료시각이 지났으면(auctionClosed) 입찰·분양확정(임의지정)·안내문 등 진행중 UI는 모두 닫는다.
       const isOpen   = adoption.status === '분양중' && !auctionClosed;
+      const bidsKnown = Array.isArray(bids);
+      const knownBids = bidsKnown ? bids : [];
+      // 거래 버튼은 경매 정보·입찰 내역·서버 시간이 모두 확인된 경우에만 연다(핸들러에서도 다시 확인)
+      const tradeOk  = !tradeBlockReason(AUCTION_NEEDS);
 
-      auctionBidCount = bids.length;
-      document.getElementById('bidCount').textContent = `${bids.length}건`;
+      auctionBidCount = bidsKnown ? bids.length : null;
+      document.getElementById('bidCount').textContent = bidsKnown ? `${bids.length}건` : '확인 불가';
+
+      // 다시 그릴 때 이전 상태가 남지 않도록 거래 UI 를 먼저 닫고, 조건이 맞을 때만 연다
+      ['auctionConfirmWrap', 'instantConfirmWrap', 'bidLockedNotice', 'bidInputWrap', 'closeWrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
 
       // 작성자에게 분양확정 버튼 표시
-      if (isAuthor && isOpen) {
+      if (isAuthor && isOpen && tradeOk) {
         document.getElementById('auctionConfirmWrap').style.display = 'block';
       }
 
@@ -1465,7 +1735,7 @@
 
       // 낙찰 결과
       if (adoption.winner_name && adoption.status === '즉분 대기중') {
-        const winnerBid = bids.find(b => b.bidder_name === adoption.winner_name);
+        const winnerBid = knownBids.find(b => b.bidder_name === adoption.winner_name);
         const winnerDisplayName = (winnerBid?.bidder_id && idToNick[winnerBid.bidder_id]) || adoption.winner_name;
         document.getElementById('winnerBox').innerHTML = `
           <div class="adoption-winner-inner">
@@ -1478,11 +1748,11 @@
           </div>
         `;
         document.getElementById('winnerBox').style.display = 'block';
-        if (isAuthor) {
+        if (isAuthor && tradeOk) {
           document.getElementById('instantConfirmWrap').style.display = 'block';
         }
       } else if (adoption.winner_name && adoption.status === '확인 대기중') {
-        const winnerBid = bids.find(b => b.bidder_name === adoption.winner_name);
+        const winnerBid = knownBids.find(b => b.bidder_name === adoption.winner_name);
         const winnerDisplayName = (winnerBid?.bidder_id && idToNick[winnerBid.bidder_id]) || adoption.winner_name;
         document.getElementById('winnerBox').innerHTML = `
           <div class="adoption-winner-inner">
@@ -1496,7 +1766,7 @@
         `;
         document.getElementById('winnerBox').style.display = 'block';
       } else if (adoption.winner_name && adoption.status === '완료') {
-        const winnerBid = bids.find(b => b.bidder_name === adoption.winner_name);
+        const winnerBid = knownBids.find(b => b.bidder_name === adoption.winner_name);
         const winnerDisplayName = (winnerBid?.bidder_id && idToNick[winnerBid.bidder_id]) || adoption.winner_name;
         document.getElementById('winnerBox').innerHTML = `
           <div class="adoption-winner-inner">
@@ -1513,7 +1783,9 @@
 
       // 입찰 목록
       const listEl = document.getElementById('bidList');
-      if (bids.length === 0) {
+      if (!bidsKnown) {
+        listEl.innerHTML = '<p class="adoption-no-bids">입찰 내역을 불러오지 못했어요. 새로고침해 주세요.</p>';
+      } else if (bids.length === 0) {
         listEl.innerHTML = '<p class="adoption-no-bids">아직 입찰이 없어요</p>';
       } else {
         const instantPrice = auctionDetails?.instant_price ? Number(auctionDetails.instant_price) : null;
@@ -1531,7 +1803,7 @@
               ${isInstantWin ? `<span class="bid-instant-badge">✨즉분가 낙찰✨</span><span class="bid-instant-desc"> 분양자의 확인을 기다려주세요</span>` : ''}
               <span class="adoption-bid-time">${fmtKSTSec(bid.created_at)}</span>
             </div>
-            ${isAuthor && isOpen ? `
+            ${isAuthor && isOpen && tradeOk ? `
               <button class="btn-award"
                 data-name="${escAttr(currentBidderName)}"
                 data-amount="${escAttr(bid.bid_amount)}"
@@ -1542,8 +1814,8 @@
         }).join('');
       }
 
-      // 입찰 입력 (비작성자 + 로그인 + 분양중)
-      if (!isAuthor && currentUser && isOpen) {
+      // 입찰 입력 (비작성자 + 로그인 + 분양중 + 필수 정보 확인)
+      if (!isAuthor && currentUser && isOpen && tradeOk) {
         if (bidOpenAt && Date.now() < bidOpenAt.getTime()) {
           const notice = document.getElementById('bidLockedNotice');
           notice.textContent = `🕐 ${formatBidOpenAt(bidOpenAt)}부터 제시할 수 있어요.`;
@@ -1554,8 +1826,8 @@
         }
       }
 
-      // 마감 버튼 (작성자 + 분양중)
-      if (isAuthor && isOpen) {
+      // 마감 버튼 (작성자 + 분양중 + 필수 정보 확인)
+      if (isAuthor && isOpen && tradeOk) {
         document.getElementById('closeWrap').style.display = 'block';
       }
 
@@ -1568,7 +1840,12 @@
         const bidAmt = document.getElementById('bidAmount');
         if (bidAmt) bidAmt.disabled = true;
       }
-      renderAuctionClosedPanel(adoption, bids);
+      if (bidsKnown) {
+        renderAuctionClosedPanel(adoption, bids);
+      } else {
+        const panel = document.getElementById('auctionClosedPanel');
+        if (panel) panel.style.display = 'none';
+      }
     }
 
     function escAttr(str) {
@@ -1673,9 +1950,12 @@
       const tick = async () => {
         // last_bid 방식은 다른 사람의 새 입찰로 종료시각이 연장될 수 있어 매 틱 재계산
         if (auctionDetails.close_method === 'last_bid') {
-          const { data: freshBids } = await sb.from('auction_bids')
-            .select('created_at').eq('adoption_id', adoptionId);
-          auctionEndAt = computeAuctionEndAt(auctionDetails, freshBids || []);
+          const timesGen = nextReqGen('bidTimes');
+          const { data: freshBids, error: freshErr } = await settleQuery(dataClient.from('auction_bids')
+            .select('created_at').eq('adoption_id', adoptionId), '입찰 시각');
+          if (!isLatestReq('bidTimes', timesGen)) return;      // 더 새 틱의 결과를 덮지 않음
+          if (freshErr || !Array.isArray(freshBids)) return;   // 조회 실패 — 마지막으로 확인한 종료시각 유지
+          auctionEndAt = computeAuctionEndAt(auctionDetails, freshBids);
           if (!auctionEndAt) return;
         }
 
@@ -1695,9 +1975,16 @@
 
     // 최신 입찰 목록을 다시 받아 마감 상태로 renderBids 재실행
     async function refreshAuctionClosedState() {
-      const { data: finalBids } = await sb.from('auction_bids')
-        .select('*').eq('adoption_id', adoptionId).order('created_at', { ascending: false });
-      renderBids(currentAdoption, finalBids || []);
+      const bidsGen = nextReqGen('bids');
+      const { data: finalBids, error } = await settleQuery(dataClient.from('auction_bids')
+        .select('*').eq('adoption_id', adoptionId).order('created_at', { ascending: false }), '입찰 목록');
+      if (!isLatestReq('bids', bidsGen)) return;   // 늦게 도착한 이전 응답 — 최신 결과를 덮지 않음
+      const ok = !error && Array.isArray(finalBids);
+      if (!ok) console.warn('[분양 상세] 마감 후 입찰 목록 조회 실패', error);
+      dataStatus.bids = ok ? 'ok' : 'failed';   // 다시 조회해 확인된 경우에만 ok
+      renderBids(currentAdoption, ok ? finalBids : null);
+      updateAuctionTradeNotice();
+      refreshAuthorActions();
     }
 
     // 경매 마감(종료시각 도달) 패널 — 최고 입찰자 / 유찰 / 분양확정 CTA.
@@ -1708,7 +1995,8 @@
 
       if (!auctionClosed || adoption.status !== '분양중') { panel.style.display = 'none'; return; }
 
-      const isAuthor = !!(currentUser?.id && adoption.user_id && currentUser.id === adoption.user_id);
+      const isAuthor = !!(currentUser?.id && adoption.user_id && currentUser.id === adoption.user_id)
+        && !tradeBlockReason(AUCTION_NEEDS);
       const top = pickTopBid(bids);
 
       if (!top) {
@@ -1749,6 +2037,8 @@
       const raw     = document.getElementById('bidAmount').value.replace(/,/g, '').trim();
       const errorEl = document.getElementById('bidError');
       errorEl.textContent = '';
+      // 경매 정보·입찰 내역·서버 시간이 확인되지 않으면 입찰·즉분 모두 막는다
+      if (!guardTrade(AUCTION_NEEDS, errorEl)) return;
 
       // 서버(auction_bids INSERT 트리거)에서도 동일하게 검증하지만, 화면에 명확한
       // 메시지를 바로 보여주기 위한 선제 체크 — 실제 차단의 원천은 서버 트리거다.
@@ -1792,8 +2082,12 @@
       }
 
       // 현재 최고 입찰가 체크 (DB 재조회 — 동시 입찰 대응)
-      const { data: existingBids } = await sb.from('auction_bids')
+      const { data: existingBids, error: existingErr } = await sb.from('auction_bids')
         .select('bid_amount, bidder_name, bidder_id').eq('adoption_id', adoptionId);
+      if (existingErr || !Array.isArray(existingBids)) {
+        errorEl.textContent = '현재 입찰 내역을 확인하지 못해 입찰하지 않았어요. 잠시 후 다시 시도해 주세요.';
+        return;
+      }
       const currentMax = existingBids && existingBids.length > 0
         ? Math.max(...existingBids.map(b => Number(String(b.bid_amount).replace(/,/g, ''))))
         : 0;
@@ -1903,9 +2197,11 @@
     // 마감된 경매에서 "최고 입찰자"에게 분양확정 — 낙찰자 고정(임의 지정 불가).
     // DB에서 다시 최신 입찰을 읽어 최고가를 재확정한 뒤 처리한다.
     async function awardTopBidder() {
-      const { data: bids } = await sb.from('auction_bids')
+      if (!guardTrade(AUCTION_NEEDS)) return;
+      const { data: bids, error: bidsErr } = await sb.from('auction_bids')
         .select('*').eq('adoption_id', adoptionId).order('created_at', { ascending: false });
-      const top = pickTopBid(bids || []);
+      if (bidsErr || !Array.isArray(bids)) { alert('입찰 내역을 확인하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.'); return; }
+      const top = pickTopBid(bids);
       if (!top) { alert('입찰자가 없어요. (유찰)'); return; }
       const name   = (top.bidder_id && idToNick[top.bidder_id]) || top.bidder_name;
       const amtNum = Number(String(top.bid_amount).replace(/,/g, ''));
@@ -1918,6 +2214,7 @@
     }
 
     async function awardWinner({ name, amount, bidderId, confirmMsg }) {
+      if (!guardTrade(AUCTION_NEEDS)) return;
       if (!confirm(confirmMsg || `${name}님을 낙찰자로 확정할까요?`)) return;
 
       const { error } = await sb.from('adoptions').update({
@@ -1959,6 +2256,7 @@
     }
 
     async function confirmInstantBid() {
+      if (!guardTrade(AUCTION_NEEDS)) return;
       if (!confirm(`${currentAdoption.winner_name}님의 즉분가 낙찰을 확정하시겠어요?\n확정 후 당첨자에게 확인 요청이 전송됩니다.`)) return;
 
       const { error } = await sb.from('adoptions').update({
@@ -1995,6 +2293,7 @@
     let _confirmAdoptionBusy = false;   // 중복 클릭 방지(최종 차단은 서버 FOR UPDATE + 상태 검사)
     async function confirmAdoption() {
       console.log('[confirmAdoption called]');
+      if (!guardTrade([])) return;
       if (_confirmAdoptionBusy) return;
       _confirmAdoptionBusy = true;
       const btn = document.querySelector('#confirmBtnWrap button');
@@ -2089,6 +2388,7 @@
     }
 
     async function closeAuction() {
+      if (!guardTrade(AUCTION_NEEDS)) return;
       const lockMsg = closeWillLockRelist()
         ? '\n\n⚠ 경매 마감 전에 낙찰자 없이 직접 마감하면 해당 개체는 30일 동안 다시 분양 등록할 수 없습니다.'
         : '';
@@ -2138,6 +2438,7 @@
     }
 
     function openCompleteModal(prefilledNick, prefilledUserId = null) {
+      if (!guardTrade(auctionNeedsFor(currentAdoption))) return;
       _pendingRecipient   = prefilledNick || null;
       _pendingRecipientId = prefilledNick ? (prefilledUserId || null) : null;
       const input = document.getElementById('recipientInput');
@@ -2150,7 +2451,7 @@
         ? `<strong>${prefilledNick}</strong>님에게 캐릭터 소유권이 이전돼요. 확인해주세요.`
         : '분양받은 유저의 닉네임을 입력해주세요.<br>해당 유저에게 캐릭터 소유권이 이전돼요.';
       document.getElementById('completeCurrencyNotice').style.display = currentAdoption?.adoption_type === 'currency' ? 'block' : 'none';
-      document.getElementById('completeLabberSubjectNotice').style.display = _isLabberAdoption ? 'block' : 'none';
+      document.getElementById('completeLabberSubjectNotice').style.display = _isLabberAdoption !== false ? 'block' : 'none';
       document.getElementById('completeError').textContent = '';
       document.getElementById('completeModal').style.display = 'flex';
       if (!prefilledNick) input.focus();
@@ -2168,6 +2469,7 @@
       const errorEl   = document.getElementById('completeError');
       const btn       = document.getElementById('confirmCompleteBtn');
 
+      if (!guardTrade(auctionNeedsFor(currentAdoption), errorEl)) return;
       if (!recipient) { errorEl.textContent = '닉네임을 입력해주세요.'; return; }
 
       btn.textContent = '처리 중...';
@@ -2258,22 +2560,33 @@
 
     // ── 댓글 / 대댓글 ──────────────────────────────────
     // 이모지 반응 (js/comment-reactions.js, SQL adoption_comment_reactions_apply_1106.sql)
-    const commentReactions = createCommentReactions({
-      summaryRpc: 'adoption_comment_reaction_summary',
-      setRpc:     'set_adoption_comment_reaction',
-      isLoggedIn: () => !!currentUser,
-    });
+    // 반응 모듈이 없거나 로그인 클라이언트가 없으면(공개 조회 fallback) 반응 바 없이 댓글만 보여준다.
+    //   (js/comment-reactions.js 는 전역 sb 로 요청하므로 fallback 에서는 쓰지 않는다)
+    const commentReactions = (typeof createCommentReactions === 'function' && authClient)
+      ? createCommentReactions({
+          summaryRpc: 'adoption_comment_reaction_summary',
+          setRpc:     'set_adoption_comment_reaction',
+          isLoggedIn: () => authState === 'user' && !!currentUser,
+        })
+      : { barHtml: () => '', attach: () => {}, load: () => {} };
 
     async function loadComments() {
-      const { data } = await sb
+      const commentsGen = nextReqGen('comments');
+      const { data, error } = await settleQuery(dataClient
         .from('adoption_comments')
         .select('*')
         .eq('adoption_id', adoptionId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true }), '댓글');
+      if (!isLatestReq('comments', commentsGen)) return;   // 늦게 도착한 이전 응답 — 최신 결과를 덮지 않음
 
-      renderComments(data || []);
+      if (error || !Array.isArray(data)) {
+        console.warn('[분양 상세] 댓글 조회 실패', error);
+        document.getElementById('commentList').innerHTML = '<p style="font-size:14px; color:var(--text-mute); padding:12px 0;">댓글을 불러오지 못했어요. 새로고침해 주세요.</p>';
+      } else {
+        renderComments(data);
+      }
 
-      if (currentUser) {
+      if (authState === 'user' && currentUser) {
         document.getElementById('commentInputArea').style.display = 'block';
       }
     }
@@ -2559,6 +2872,7 @@
       const content = ta.value.trim();
       const errorEl = document.getElementById('commentError');
       errorEl.textContent = '';
+      if (!guardTrade([], errorEl)) return;
       if (!content) { errorEl.textContent = '내용을 입력해주세요.'; return; }
 
       const { error } = await sb.from('adoption_comments').insert({
@@ -2578,6 +2892,7 @@
     async function submitReply(parentId) {
       const ta      = document.getElementById(`replyText_${parentId}`);
       const content = ta.value.trim();
+      if (!guardTrade([])) return;
       if (!content) return;
 
       const { error } = await sb.from('adoption_comments').insert({
@@ -2606,6 +2921,7 @@
     }
 
     async function deleteComment(id, isReply) {
+      if (!guardTrade([])) return;
       if (!confirm('댓글을 삭제할까요?')) return;
       const { error } = await sb.from('adoption_comments').delete().eq('id', id);
       if (error) { alert(`삭제에 실패했어요. (${error.message})`); return; }
@@ -2613,6 +2929,7 @@
     }
 
     async function closePost() {
+      if (!guardTrade(auctionNeedsFor(currentAdoption))) return;
       const lockMsg = closeWillLockRelist()
         ? '\n\n⚠ 낙찰자 없이 직접 마감하면 해당 개체는 30일 동안 다시 분양 등록할 수 없습니다.'
         : '';

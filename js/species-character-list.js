@@ -27,6 +27,13 @@
 // 해당 페이지에서 처리되므로(별도 로직 없음) 카드 링크만 동일하게 유지하면 된다.
 //
 // 의존: utils.js (resolveCharacterImage / characterHasVisibleRealImage), 전역 sb (Supabase)
+//
+// mount 선택 옵션(1112, 기본값이면 기존 동작 그대로 — species.html 은 넘기지 않는다):
+//   client       목록 조회에 쓸 Supabase 클라이언트(기본: 전역 sb). 삭제는 항상 전역 sb 로만 한다.
+//   strictErrors true 면 조회 오류·중간 페이지 실패를 "0개"로 보이지 않고 예외로 던진다(기본 false).
+//   timeoutMs    페이지 조회 1회 시간 제한(기본 0 = 제한 없음).
+//   canDelete    삭제 직전 호출하는 권한 재확인 함수(async 가능, false 면 삭제하지 않음).
+// 카드에 넣는 이름·민감 안내·소유주 등은 일반 텍스트로 이스케이프한다.
 (function () {
   'use strict';
 
@@ -46,6 +53,7 @@
   let nameSearchWired = false;
   let nameQuery      = '';   // 정규화된 개체명 검색어 (trim + 소문자)
   let sortDirections = Object.assign({}, DEFAULT_SORT_DIR); // 기준(sortBy)별 현재 방향
+  let mountGen       = 0;    // mount 요청 번호 — 늦게 끝난 이전 요청이 최신 목록을 덮어쓰지 않게 한다
 
   const $ = (id) => document.getElementById(id);
 
@@ -68,34 +76,68 @@
     return custom || c.name || '';
   }
 
+  // 카드 템플릿(innerHTML)에 넣는 값은 일반 텍스트로만 취급한다. main.js 없이도 동작하도록 모듈 안에 둔다.
+  function escText(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+  // style 속성의 url('...') 안에 넣는 이미지 주소 — 따옴표·괄호·역슬래시·공백만 퍼센트 인코딩(일반 Storage 주소는 그대로).
+  function cssUrl(u) {
+    return escText(String(u == null ? '' : u).replace(/["'()\\\s<>]/g, ch => '%' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')));
+  }
+
+  function withTimeout(promise, ms, label) {
+    if (!ms) return Promise.resolve(promise);
+    let timer;
+    return Promise.race([
+      Promise.resolve(promise).finally(() => clearTimeout(timer)),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} 시간 초과(${ms}ms)`)), ms); }),
+    ]);
+  }
+
+  // 전역 sb — auth.js 가 없거나 초기화 도중 실패하면 null (초기화 전 상태에서는 typeof 도 예외를 던진다).
+  function readGlobalSb() {
+    try { return (typeof sb !== 'undefined' && sb && typeof sb.from === 'function') ? sb : null; }
+    catch (e) { return null; }
+  }
+
   // ── 진입점 ─────────────────────────────────────────────
   async function mount(opts) {
     // labberDisplay: true → LABBER 표시명 정책(owner_custom_name 우선) + 카드에 종족명 대신
     // 개체번호 표시(2026-09-24, 개체기록실 전용 opt-in). 기본 false — 다른 종족은 무변경.
-    cfg = Object.assign({ canManage: false, idToNick: {}, onCount: null, labberDisplay: false }, opts);
-    if (!cfg.speciesName) throw new Error('[SpeciesCharList] speciesName 이 필요합니다.');
+    const myCfg = Object.assign({ canManage: false, idToNick: {}, onCount: null, labberDisplay: false, client: null, strictErrors: false, timeoutMs: 0, canDelete: null }, opts);
+    if (!myCfg.speciesName) throw new Error('[SpeciesCharList] speciesName 이 필요합니다.');
+    const gen = ++mountGen;
+    cfg = myCfg;
 
     manageMode = false;
     activeCategory = null;
 
     // 소속 개체 (1000행 제한을 넘는 종족도 전부 가져오도록 페이지네이션)
+    // strictErrors: 한 페이지라도 실패·시간 초과면 받은 앞부분도 버리고 예외 — 잘린 목록을 전체처럼 보이지 않는다.
+    const db = myCfg.client || sb;
     const chars = [];
     {
       const pageSize = 1000;
       let from = 0;
       while (true) {
-        const { data: page } = await sb
+        const query = db
           .from('characters')
           .select('id, name, owner_custom_name, species_name, owner_nickname, owner_user_id, image_url, thumbnail_url, default_image_index, created_at, is_sensitive, sensitive_note, char_categories, char_number')
-          .eq('species_name', cfg.speciesName)
+          .eq('species_name', myCfg.speciesName)
           .order('created_at', { ascending: false })
           .range(from, from + pageSize - 1);
+        const { data: page, error } = await withTimeout(query, myCfg.timeoutMs, `소속 개체 조회(${from}~)`);
+        if (gen !== mountGen) return null;   // 더 새 mount 가 시작됨 — 이 결과는 버린다
+        if (myCfg.strictErrors && (error || !Array.isArray(page))) {
+          throw new Error(`[SpeciesCharList] 소속 개체 조회 실패(${from}~): ${(error && (error.message || error.code)) || '응답 없음'}`);
+        }
         if (!page || !page.length) break;
         chars.push(...page);
         if (page.length < pageSize) break;
         from += pageSize;
       }
     }
+    if (gen !== mountGen) return null;
 
     allChars = chars || [];
     renderCategoryFilter();
@@ -134,6 +176,15 @@
   }
 
   // ── 분류 필터 ──────────────────────────────────────────
+  // 관리(선택삭제) 버튼 열기/닫기 — mount 뒤 로그인 확인이 끝났을 때 호출(개체기록실). 닫으면 관리 모드도 끝낸다.
+  function setManageAllowed(allowed) {
+    if (!cfg) return;
+    cfg.canManage = !!allowed;
+    const btn = $('manageBtn');
+    if (btn) btn.style.display = cfg.canManage ? '' : 'none';
+    if (!cfg.canManage && manageMode) toggleManage();
+  }
+
   function renderCategoryFilter() {
     const seen = new Set();
     const cats = [];
@@ -467,22 +518,22 @@
       <div style="position:relative;" id="card_${c.id}">
         ${manageMode ? `
         <label style="position:absolute; top:8px; left:8px; z-index:2; cursor:pointer;">
-          <input type="checkbox" class="char-checkbox" data-id="${c.id}" onchange="onCheckChange()"
+          <input type="checkbox" class="char-checkbox" data-id="${escText(c.id)}" onchange="onCheckChange()"
             style="width:18px; height:18px; cursor:pointer; accent-color:var(--sky);">
         </label>` : ''}
-        <a href="${manageMode ? 'javascript:void(0)' : `character.html?id=${c.id}`}" class="character-card"
+        <a href="${manageMode ? 'javascript:void(0)' : `character.html?id=${encodeURIComponent(c.id)}`}" class="character-card"
           style="${manageMode ? 'cursor:default;' : ''}"
-          onclick="${manageMode ? `toggleCheck('${c.id}'); return false;` : ''}">
+          onclick="${manageMode ? `toggleCheck('${escText(c.id)}'); return false;` : ''}">
           ${c.is_sensitive && characterHasVisibleRealImage(c) ? `
           <div class="vc-sensitive-wrap" style="position:relative; overflow:hidden; border-radius:var(--radius);">
-            <div class="character-img blurred" style="background-image:url('${c.thumbnail_url || c.image_url}'); background-size:cover; background-position:center;"></div>
-            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div class="sensitive-overlay-inner"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span class="sensitive-overlay-title">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + c.sensitive_note + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
+            <div class="character-img blurred" style="background-image:url('${cssUrl(c.thumbnail_url || c.image_url)}'); background-size:cover; background-position:center;"></div>
+            <div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div class="sensitive-overlay-inner"><svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg><span class="sensitive-overlay-title">민감한 요소</span>${c.sensitive_note ? '<span class="sensitive-overlay-note">' + escText(c.sensitive_note) + '</span>' : ''}<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>
           </div>` : `
-          <div class="character-img" style="background-image:url('${resolveCharacterImage(c)}'); background-size:cover; background-position:center;"></div>`}
+          <div class="character-img" style="background-image:url('${cssUrl(resolveCharacterImage(c))}'); background-size:cover; background-position:center;"></div>`}
           <div class="character-info">
-            <p class="character-name">${cfg.labberDisplay ? charDisplayName(c) : c.name}</p>
-            <p class="character-species">${cfg.labberDisplay ? (c.char_number ? `#${c.char_number}` : '') : (c.species_name || '')}</p>
-            <p class="character-owner">소유주: ${(c.owner_user_id && idToNick[c.owner_user_id]) || c.owner_nickname || '—'}</p>
+            <p class="character-name">${escText(cfg.labberDisplay ? charDisplayName(c) : c.name)}</p>
+            <p class="character-species">${escText(cfg.labberDisplay ? (c.char_number ? `#${c.char_number}` : '') : (c.species_name || ''))}</p>
+            <p class="character-owner">소유주: ${escText((c.owner_user_id && idToNick[c.owner_user_id]) || c.owner_nickname || '—')}</p>
           </div>
         </a>
       </div>
@@ -491,6 +542,7 @@
 
   // ── 관리(선택 삭제) 모드 ───────────────────────────────
   function toggleManage() {
+    if (!manageMode && !(cfg && cfg.canManage)) return;   // 관리 권한이 닫혀 있으면 관리 모드를 열지 않는다
     manageMode = !manageMode;
     const manageBar = $('manageBar');
     const manageBtn = $('manageBtn');
@@ -528,12 +580,30 @@
   }
 
   async function deleteSelected() {
+    if (!cfg || !cfg.canManage) return;
     const checked = [...document.querySelectorAll('.char-checkbox:checked')];
     if (!checked.length) return;
+
+    // 삭제는 로그인 세션이 있는 전역 sb 로만 한다. 조회용 client(세션 없는 공개 조회 등)로는 삭제하지 않는다.
+    const authSb = readGlobalSb();
+    if (!authSb || (cfg.client && cfg.client !== authSb)) {
+      alert('로그인 상태를 확인할 수 없어 삭제할 수 없어요. 새로고침 후 다시 시도해주세요.');
+      return;
+    }
+    if (typeof cfg.canDelete === 'function') {
+      let ok = false;
+      try { ok = !!(await cfg.canDelete()); }
+      catch (e) { console.warn('[SpeciesCharList] 삭제 권한 확인 실패:', e); ok = false; }
+      if (!ok || !cfg.canManage) {
+        alert('삭제 권한을 확인할 수 없어요. 새로고침 후 다시 시도해주세요.');
+        return;
+      }
+    }
     if (!confirm(`선택한 ${checked.length}개의 개체를 정말 삭제할까요?`)) return;
+    if (!cfg.canManage) return;
 
     const ids = checked.map(cb => cb.dataset.id);
-    const { error } = await sb.from('characters').delete().in('id', ids);
+    const { error } = await authSb.from('characters').delete().in('id', ids);
     if (error) { alert('삭제에 실패했어요.'); return; }
 
     allChars = allChars.filter(c => !ids.includes(String(c.id)));
@@ -575,6 +645,7 @@
     mount,
     getChars: () => allChars,
     getOrderedList,
+    setManageAllowed,
     SUPER_ADMIN_USER_ID,
   };
 })();

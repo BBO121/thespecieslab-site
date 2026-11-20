@@ -28,6 +28,51 @@
       margin-top: 8px; font-size: 13px; color: #b91c1c; background: #fef2f2;
       border: 1px solid #fecaca; border-radius: 8px; padding: 8px 12px; line-height: 1.6; white-space: pre-line;
     }
+
+    /* 분양할 개체 선택 — 검색 드롭다운 (값은 숨긴 #characterSelect 에 저장) */
+    .char-pick { position: relative; }
+    .char-pick-trigger {
+      width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer;
+      min-height: 44px;
+    }
+    .char-pick-trigger:disabled { cursor: default; opacity: 0.7; background: var(--bg, #F8FAFC); }
+    .char-pick-trigger[aria-expanded="true"] { border-color: var(--sky); }
+    .char-pick-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .char-pick-value.is-placeholder { color: var(--text-mute); }
+    .char-pick-caret { flex-shrink: 0; color: var(--text-sub); font-size: 12px; transition: transform .15s; }
+    .char-pick-trigger[aria-expanded="true"] .char-pick-caret { transform: rotate(180deg); }
+    .char-pick-panel {
+      position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 50;
+      background: var(--white); border: 1.5px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow-md); padding: 8px;
+    }
+    .char-pick-panel[hidden] { display: none; }
+    .char-pick-search-wrap { position: relative; }
+    .char-pick-search { width: 100%; box-sizing: border-box; padding-right: 40px; font-size: 16px; /* iOS 확대 방지 */ }
+    .char-pick-search::-webkit-search-cancel-button { display: none; }
+    .char-pick-clear {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px; border: none; background: none; cursor: pointer;
+      color: var(--text-mute); font-size: 18px; line-height: 1; border-radius: 8px;
+    }
+    .char-pick-clear[hidden] { display: none; }
+    .char-pick-list {
+      position: relative; margin-top: 6px; max-height: min(320px, 50vh); overflow-y: auto; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .char-pick-group { font-size: 12px; font-weight: 700; color: var(--text-sub); padding: 8px 8px 4px; }
+    .char-pick-opt {
+      display: block; width: 100%; text-align: left; border: none; background: none; cursor: pointer;
+      padding: 9px 10px; border-radius: 8px; font-family: inherit; color: var(--text); min-height: 44px;
+    }
+    .char-pick-opt.is-active { background: var(--sky-pale); }
+    .char-pick-opt[aria-selected="true"] { background: var(--sky-light); }
+    @media (hover: hover) { .char-pick-opt:hover { background: var(--sky-pale); } }
+    .char-pick-opt-main { display: block; font-size: 14px; font-weight: 600; word-break: break-all; }
+    .char-pick-opt-num { font-weight: 500; color: var(--text-sub); margin-left: 4px; }
+    .char-pick-opt-sub { display: block; font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+    .char-pick-opt-sub .is-lock { color: #b91c1c; }
+    .char-pick-empty { padding: 14px 8px; font-size: 13px; color: var(--text-sub); text-align: center; }
   </style>
 </head>
 <body>
@@ -60,8 +105,26 @@
 
           <!-- 캐릭터 선택 -->
           <div class="form-group">
-            <label class="form-label">분양할 캐릭터 <span class="required">*</span></label>
-            <select id="characterSelect" class="form-input" onchange="onCharSelect(this.value)">
+            <label class="form-label" id="charPickLabel" for="charPickTrigger">분양할 캐릭터 <span class="required">*</span></label>
+            <div class="char-pick" id="charPick">
+              <button type="button" class="form-input char-pick-trigger" id="charPickTrigger"
+                      aria-haspopup="listbox" aria-expanded="false" aria-controls="charPickPanel" disabled>
+                <span class="char-pick-value is-placeholder" id="charPickValue">불러오는 중...</span>
+                <span class="char-pick-caret" aria-hidden="true">▼</span>
+              </button>
+              <div class="char-pick-panel" id="charPickPanel" hidden>
+                <div class="char-pick-search-wrap">
+                  <input type="search" id="charPickSearch" class="form-input char-pick-search"
+                         placeholder="개체명 또는 개체 번호 검색" maxlength="50"
+                         autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search"
+                         aria-label="개체명 또는 개체 번호 검색" aria-controls="charPickList">
+                  <button type="button" class="char-pick-clear" id="charPickClear" aria-label="검색어 지우기" hidden>×</button>
+                </div>
+                <div class="char-pick-list" id="charPickList" role="listbox" aria-labelledby="charPickLabel"></div>
+              </div>
+            </div>
+            <!-- 실제 선택 값 저장소(숨김) — 등록 검증·onCharSelect 연동은 이 값을 기준으로 그대로 동작 -->
+            <select id="characterSelect" class="form-input" onchange="onCharSelect(this.value)" hidden aria-hidden="true" tabindex="-1">
               <option value="">불러오는 중...</option>
             </select>
             <div id="charPreview" style="display:none; margin-top:10px; width:100px; height:100px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);">
@@ -279,7 +342,7 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.5</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.6</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -617,7 +680,7 @@
         : { data: [] };
 
       const [{ data: chars }, { data: slots }, { data: activeAdoptions }, { data: allSpecies }] = await Promise.all([
-        sb.from('characters').select('id, name, species_name, image_url, thumbnail_url, allow_free_adoption, allow_resale, allow_paid_adoption, allow_other_adoption')
+        sb.from('characters').select('id, name, char_number, species_name, image_url, thumbnail_url, allow_free_adoption, allow_resale, allow_paid_adoption, allow_other_adoption')
           .eq('owner_user_id', user.id).neq('owner_is_offsite', true).order('name'),
         slotsQuery,
         // 진행 중(완료 아님) 분양글이 있는 개체는 제외 — DB 중복 차단 기준과 동일 (즉분 대기중 포함)
@@ -650,19 +713,216 @@
       if (myCharacters.length > 0) {
         html += '<optgroup label="캐릭터">' +
           myCharacters.map(c =>
-            `<option value="c:${c.id}">${c.name}${c.species_name ? ` (${c.species_name})` : ''}${lockedSuffix(`c:${c.id}`)}</option>`
+            `<option value="c:${c.id}">${escHtml(c.name)}${c.species_name ? ` (${escHtml(c.species_name)})` : ''}${lockedSuffix(`c:${c.id}`)}</option>`
           ).join('') + '</optgroup>';
       }
 
       if (mySlots.length > 0) {
         html += '<optgroup label="디자인권">' +
           mySlots.map(s =>
-            `<option value="s:${s.id}">[디자인권${s.speciesName ? `-${s.speciesName}` : ''}] ${s.name}${s.slot_number ? ` (${s.slot_number})` : ''}${lockedSuffix(`s:${s.id}`)}</option>`
+            `<option value="s:${s.id}">[디자인권${s.speciesName ? `-${escHtml(s.speciesName)}` : ''}] ${escHtml(s.name)}${s.slot_number ? ` (${escHtml(s.slot_number)})` : ''}${lockedSuffix(`s:${s.id}`)}</option>`
           ).join('') + '</optgroup>';
       }
 
       select.innerHTML = html;
+
+      // 검색 드롭다운 후보 = 위 <select> 와 같은 목록·같은 순서
+      charPickItems = [
+        ...myCharacters.map(c => ({
+          val: `c:${c.id}`, group: '캐릭터', name: c.name || '', num: c.char_number, species: c.species_name || '',
+          locked: !!getRelistUntil(`c:${c.id}`),
+        })),
+        ...mySlots.map(s => ({
+          val: `s:${s.id}`, group: '디자인권', name: s.name || '', num: s.slot_number, species: s.speciesName || '',
+          locked: !!getRelistUntil(`s:${s.id}`),
+        })),
+      ];
+      charPickEnable();
     }
+
+    // ── 분양할 개체 검색 드롭다운 ─────────────────────────────
+    // 후보는 이미 불러온 분양 가능 목록(charPickItems)뿐 — 추가 조회 없음.
+    // 선택 값은 숨긴 #characterSelect 에 넣고 onCharSelect 를 그대로 호출한다(기존 연동·검증 유지).
+    let charPickItems   = [];
+    let charPickQuery   = null;   // 마지막으로 그린 검색어(정규화) — 같은 값이면 다시 그리지 않음(모바일 IME 탭 유실 방지)
+    let charPickVisible = [];     // 지금 목록에 보이는 후보(키보드 이동용)
+    let charPickActive  = -1;
+
+    const cpEl = id => document.getElementById(id);
+    const cpNorm = s => String(s ?? '').normalize('NFC').trim().toLowerCase();
+    const cpStripZeros = s => String(s ?? '').trim().replace(/^0+(?=\d)/, '');
+
+    // 0 = 불일치, 1 = 개체명·번호 부분 일치, 2 = 번호 정확히 일치(앞자리 0 무시) → 2 를 위로
+    function charPickScore(item, q) {
+      if (!q) return 1;
+      const num = String(item.num ?? '').trim();
+      const qNum = q.replace(/^(#|no\.?)\s*/, '');
+      if (num && /^\d+$/.test(qNum)) {
+        if (/^\d+$/.test(num)) {
+          const n = cpStripZeros(num), qn = cpStripZeros(qNum);
+          if (n === qn) return 2;
+          if (n.startsWith(qn)) return 1;
+        } else if (num.toLowerCase().includes(qNum)) {
+          return 1;
+        }
+      }
+      if (cpNorm(item.name).includes(q)) return 1;
+      return 0;
+    }
+
+    function charPickLabelHtml(item) {
+      const num = String(item.num ?? '').trim();
+      return `<span class="char-pick-opt-main">${escHtml(item.name || '(이름 없음)')}${num ? `<span class="char-pick-opt-num">#${escHtml(num)}</span>` : ''}</span>`
+        + `<span class="char-pick-opt-sub">${item.group === '디자인권' ? '디자인권' : ''}${item.group === '디자인권' && item.species ? ' · ' : ''}${escHtml(item.species)}`
+        + `${item.locked ? `${item.species || item.group === '디자인권' ? ' · ' : ''}<span class="is-lock">재등록 제한 중</span>` : ''}</span>`;
+    }
+
+    function charPickRender(force) {
+      const q = cpNorm(cpEl('charPickSearch').value);
+      if (!force && q === charPickQuery) return;
+      charPickQuery = q;
+      cpEl('charPickClear').hidden = !cpEl('charPickSearch').value;
+
+      const scored = charPickItems.map((it, i) => ({ it, i, s: charPickScore(it, q) })).filter(x => x.s > 0);
+      // 검색어 없음 → 원래 순서 그대로 / 검색 중 → 번호 정확 일치를 위로, 나머지는 원래 순서
+      if (q) scored.sort((a, b) => (b.s - a.s) || (a.i - b.i));
+      charPickVisible = scored.map(x => x.it);
+
+      const cur = cpEl('characterSelect').value;
+      const list = cpEl('charPickList');
+      if (!charPickVisible.length) {
+        list.innerHTML = '<p class="char-pick-empty">검색 결과가 없어요.</p>';
+        charPickActive = -1;
+        return;
+      }
+      let html = '', lastGroup = null;
+      charPickVisible.forEach((it, idx) => {
+        // 검색어가 없을 때만 기존 optgroup 처럼 그룹 제목 표시
+        if (!q && it.group !== lastGroup && charPickItems.some(x => x.group !== it.group)) {
+          html += `<div class="char-pick-group" role="presentation">${it.group}</div>`;
+        }
+        lastGroup = it.group;
+        html += `<button type="button" class="char-pick-opt" role="option" id="charPickOpt${idx}" data-val="${escHtml(it.val)}" aria-selected="${it.val === cur}">${charPickLabelHtml(it)}</button>`;
+      });
+      list.innerHTML = html;
+      charPickSetActive(q ? 0 : Math.max(0, charPickVisible.findIndex(it => it.val === cur)), !q);
+    }
+
+    function charPickSetActive(idx, scroll = true) {
+      const opts = cpEl('charPickList').querySelectorAll('.char-pick-opt');
+      opts.forEach(o => o.classList.remove('is-active'));
+      charPickActive = opts.length ? Math.min(Math.max(idx, 0), opts.length - 1) : -1;
+      const el = opts[charPickActive];
+      if (!el) { cpEl('charPickSearch').removeAttribute('aria-activedescendant'); return; }
+      el.classList.add('is-active');
+      cpEl('charPickSearch').setAttribute('aria-activedescendant', el.id);
+      if (scroll) {   // 목록 안에서만 스크롤(페이지는 움직이지 않음)
+        const list = cpEl('charPickList');
+        if (el.offsetTop < list.scrollTop) list.scrollTop = el.offsetTop;
+        else if (el.offsetTop + el.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = el.offsetTop + el.offsetHeight - list.clientHeight;
+      }
+    }
+
+    function charPickOpen() {
+      const trigger = cpEl('charPickTrigger');
+      if (trigger.disabled) return;
+      cpEl('charPickPanel').hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      cpEl('charPickSearch').value = '';
+      charPickRender(true);
+      // PC 는 바로 입력 가능하게, 모바일(터치)은 키보드가 목록을 가리지 않도록 검색칸을 눌렀을 때만 입력
+      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) cpEl('charPickSearch').focus();
+    }
+
+    function charPickClose(focusTrigger) {
+      if (cpEl('charPickPanel').hidden) return;
+      cpEl('charPickPanel').hidden = true;
+      cpEl('charPickTrigger').setAttribute('aria-expanded', 'false');
+      if (focusTrigger) cpEl('charPickTrigger').focus();
+    }
+
+    function charPickUpdateValue() {
+      const val = cpEl('characterSelect').value;
+      const it = charPickItems.find(x => x.val === val);
+      const out = cpEl('charPickValue');
+      if (!it) { out.textContent = '선택하세요'; out.classList.add('is-placeholder'); return; }
+      const num = String(it.num ?? '').trim();
+      out.textContent = `${it.group === '디자인권' ? '[디자인권] ' : ''}${it.name || '(이름 없음)'}${num ? ` #${num}` : ''}${it.species ? ` (${it.species})` : ''}`;
+      out.classList.remove('is-placeholder');
+    }
+
+    function charPickChoose(val) {
+      const select = cpEl('characterSelect');
+      select.value = val;
+      if (select.value !== val) return;   // 후보에 없는 값은 무시
+      onCharSelect(val);                  // 기존 연동(미리보기·재분양/재등록 경고·LABBER 안내)
+      charPickUpdateValue();
+      cpEl('charPickSearch').blur();
+      charPickClose(true);
+    }
+
+    function charPickEnable() {
+      cpEl('charPickTrigger').disabled = false;
+      charPickUpdateValue();
+    }
+
+    // 수정 모드: 대상 개체 변경 불가 → 이름만 보여주고 잠금
+    function charPickLock(label) {
+      const out = cpEl('charPickValue');
+      out.textContent = label;
+      out.classList.remove('is-placeholder');
+      cpEl('charPickTrigger').disabled = true;
+      charPickClose(false);
+    }
+
+    (function wireCharPick() {
+      const trigger = cpEl('charPickTrigger');
+      const search  = cpEl('charPickSearch');
+      const list    = cpEl('charPickList');
+
+      trigger.addEventListener('click', () => cpEl('charPickPanel').hidden ? charPickOpen() : charPickClose(false));
+      trigger.addEventListener('keydown', e => {
+        if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && cpEl('charPickPanel').hidden) {
+          e.preventDefault(); charPickOpen(); search.focus();
+        }
+      });
+
+      // 한글 조합 중에도 바로 거르고, 조합 확정 때 한 번 더(같은 검색어면 다시 그리지 않음)
+      search.addEventListener('input', () => charPickRender(false));
+      search.addEventListener('compositionend', () => charPickRender(false));
+      search.addEventListener('keydown', e => {
+        if (e.isComposing || e.keyCode === 229) return;   // IME 조합 중 Enter/방향키는 조합 확정용
+        if (e.key === 'ArrowDown') { e.preventDefault(); charPickSetActive(charPickActive + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); charPickSetActive(charPickActive - 1); }
+        else if (e.key === 'Enter') {
+          e.preventDefault();   // 폼 제출 방지
+          const it = charPickVisible[charPickActive];
+          if (it) charPickChoose(it.val);
+        } else if (e.key === 'Escape') { e.preventDefault(); charPickClose(true); }
+      });
+
+      cpEl('charPickClear').addEventListener('mousedown', e => e.preventDefault());   // 검색칸 포커스 유지
+      cpEl('charPickClear').addEventListener('click', () => {
+        search.value = '';
+        charPickRender(true);
+        search.focus();
+      });
+
+      // 목록을 눌러도 검색칸 포커스를 빼앗지 않음 → 모바일 IME 확정으로 목록이 다시 그려져 탭이 사라지는 것 방지
+      list.addEventListener('mousedown', e => { if (e.target.closest('.char-pick-opt')) e.preventDefault(); });
+      list.addEventListener('click', e => {
+        const opt = e.target.closest('.char-pick-opt');
+        if (opt) charPickChoose(opt.dataset.val);
+      });
+
+      // 바깥을 누르면 닫기
+      document.addEventListener('pointerdown', e => {
+        if (!cpEl('charPickPanel').hidden && !cpEl('charPick').contains(e.target)) charPickClose(false);
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !cpEl('charPickPanel').hidden) charPickClose(true);
+      });
+    })();
 
     function showNoChars(msg) {
       document.getElementById('noCharsMsg').textContent = msg;
@@ -767,6 +1027,7 @@
       const select = document.getElementById('characterSelect');
       select.innerHTML = `<option value="">${a.slot_id ? '[디자인권] ' : ''}${escHtml(a.character_name || '—')}${a.species_name ? ` (${escHtml(a.species_name)})` : ''}</option>`;
       select.disabled = true;
+      charPickLock(`${a.slot_id ? '[디자인권] ' : ''}${a.character_name || '—'}${a.species_name ? ` (${a.species_name})` : ''}`);
       const previewUrl = a.thumbnail_url || a.image_url;
       if (previewUrl) {
         document.getElementById('charPreviewImg').src = previewUrl;

@@ -42,6 +42,14 @@
       .salary-guide-grid { grid-template-columns:1fr; }
     }
     #salarySqlPre { margin:0; flex:1; overflow:auto; background:#0f172a; color:#e2e8f0; font-size:12px; line-height:1.5; padding:12px; border-radius:10px; white-space:pre; font-family:monospace; }
+    /* 개체 미등록 종족 정리(1122): 마감·처리 시각은 모바일에서도 보이게(.admin-card-date 는 모바일에서 숨김) */
+    #speciesGraceSection .sg-when { font-size:12px; color:var(--text-mute); white-space:nowrap; }
+    @media (max-width: 767px) {
+      #speciesGraceSection .admin-card-row { flex-wrap:wrap; row-gap:4px; }
+      #speciesGraceSection .admin-card-left { flex-wrap:wrap; flex-basis:100%; }
+      #speciesGraceSection .admin-card-meta { white-space:normal; }
+      #speciesGraceSection .admin-card-right { width:100%; justify-content:flex-end; }
+    }
   </style>
 </head>
 <body>
@@ -277,6 +285,23 @@
 
         <!-- 종족 관리 탭 -->
         <div id="tabSpecies" class="tab-content" style="display:none;">
+          <!-- 개체 미등록 종족 정리(1122) — 읽기 전용 현황. 정책 시작·자동 삭제 켜기는 SQL 로만(서버 전용 권한) -->
+          <section class="section" id="speciesGraceSection">
+            <div class="section-header" style="margin-bottom:12px;">
+              <h2 class="settings-section-title" style="margin-bottom:0;">개체 미등록 종족 정리</h2>
+              <button type="button" class="admin-btn-edit" onclick="loadSpeciesGrace()">새로고침</button>
+            </div>
+            <div id="speciesGraceStatus" style="font-size:13px;line-height:1.7;color:#475569;margin-bottom:12px;word-break:keep-all;">불러오는 중…</div>
+            <h3 style="font-size:14px;font-weight:700;margin:0 0 8px;" id="speciesGraceTargetsTitle">만료 예정 대상</h3>
+            <div class="admin-card-list" id="speciesGraceTargets"></div>
+            <p id="speciesGraceTargetsEmpty" class="empty-state" style="display:none;">대상이 없어요.</p>
+            <details style="margin-top:14px;">
+              <summary style="cursor:pointer;font-size:14px;font-weight:700;">처리 기록 (최근 300건)</summary>
+              <div class="admin-card-list" id="speciesGraceEvents" style="margin-top:8px;"></div>
+              <p id="speciesGraceEventsEmpty" class="empty-state" style="display:none;">기록이 없어요.</p>
+            </details>
+          </section>
+
           <section class="section">
             <div class="section-header" style="margin-bottom:12px;">
               <h2 class="settings-section-title" style="margin-bottom:0;">종족 목록</h2>
@@ -555,7 +580,7 @@
         tabLoaded.DevLogs = true; loadDevLogs();
       }
       if (name === 'Species' && !tabLoaded.Species) {
-        tabLoaded.Species = true; loadAdminSpecies();
+        tabLoaded.Species = true; loadAdminSpecies(); loadSpeciesGrace();
       }
       if (name === 'Characters' && !tabLoaded.Characters) {
         tabLoaded.Characters = true; loadAdminChars();
@@ -1300,6 +1325,114 @@
       if (error) { alert('삭제에 실패했어요: ' + error.message); return; }
       await logAdminAction('species_delete', 'species', id, name);
       loadAdminSpecies();
+    }
+
+    // ── 개체 미등록 종족 정리(1122) — admin_species_grace_overview (읽기 전용, app_metadata admin/staff) ──
+    const SG_REASON = {
+      linked_characters: '연결된 개체 있음',
+      linked_character_step_images: '개체 Step 이미지 연결',
+      pending_registration_request: '개체 등록 요청 대기',
+      active_adoption: '진행 중인 분양(거래 종료 후 다시 판정)',
+      linked_shop_item: '상점 상품 연결',
+      'fk:labber_design_applications.subject_species_id': 'LABBER 디자인 신청 연결',
+      'fk:labber_subject_bag_registrations.subject_species_id': 'LABBER SUBJECT 가방 등록 연결',
+      'fk:labber_subject_credits.species_id': 'LABBER SUBJECT 크레딧 연결',
+      'fk:labber_subject_instance_credits.species_id': 'LABBER SUBJECT 개체 크레딧 연결',
+      kept_other_species: '다른 보유 종족 있음 → 종족주 유지',
+      kept_operator: '운영진 권한 → 유지',
+      kept_no_species_owner_role: '종족주 role 아님 → 변경 없음',
+      demoted: '보유 종족 0개 → 일반회원 전환',
+      no_owner: '소유자 없음',
+      owner_account_missing: '소유자 계정 없음',
+      legacy_deadline_passed: '기존 종족 마감 경과',
+      new_deadline_passed: '신규 종족 14일 경과',
+      character_registered: '개체 등록',
+      species_already_removed: '이미 삭제된 종족',
+      notice_published: '공지 게시 = 정책 시작',
+    };
+    const SG_EVENT = {
+      activated: ['정책 시작', '#0369A1'], satisfied: ['제외(등록 완료)', '#15803D'], skipped: ['보류(운영진 확인)', '#B45309'],
+      deleted: ['삭제', '#B91C1C'], role_demoted: ['일반회원 전환', '#B91C1C'], role_kept: ['등급 유지', '#475569'],
+      gone: ['이미 없음', '#64748B'], error: ['오류(재시도 대기)', '#B91C1C'],
+    };
+    const sgReason = r => (r || '').split(',').filter(Boolean)
+      .map(x => SG_REASON[x] || (x.startsWith('fk:') ? `연결 데이터(${x.slice(3)})` : x)).join(', ');
+    const sgKst = t => t ? new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+    function sgRemain(deadline, now) {
+      const ms = new Date(deadline) - new Date(now);
+      if (ms <= 0) return '<span style="color:#B91C1C;font-weight:700;">만료</span>';
+      const h = Math.floor(ms / 3600000);
+      return h >= 24 ? `D-${Math.ceil(ms / 86400000)}` : `${h}시간 남음`;
+    }
+
+    async function loadSpeciesGrace() {
+      const statusEl = document.getElementById('speciesGraceStatus');
+      const tBox = document.getElementById('speciesGraceTargets');
+      const eBox = document.getElementById('speciesGraceEvents');
+      const { data, error } = await sb.rpc('admin_species_grace_overview');
+      if (error) {
+        statusEl.textContent = /function|schema cache/i.test(error.message)
+          ? '아직 DB 구조가 적용되지 않았어요(species_grace_apply_1122.sql).'
+          : '불러오지 못했어요: ' + error.message;
+        tBox.innerHTML = ''; eBox.innerHTML = '';
+        return;
+      }
+      const c = data.config || {}, n = data.counts || {}, cron = c.cron || {};
+      const on = '<b style="color:#15803D;">켜짐</b>', off = '<b style="color:#B45309;">꺼짐</b>';
+      const lastRun = cron.last_run ? ` · 마지막 실행 ${sgKst(cron.last_run.start_time)} (${escapeHtml(cron.last_run.status || '')})` : '';
+      statusEl.innerHTML = [
+        `정책: ${c.activated_at ? `<b>시작됨</b> ${sgKst(c.activated_at)}${c.notice_id ? ` · <a href="notice-detail.html?id=${encodeURIComponent(c.notice_id)}">공지</a>` : ''}` : '<b style="color:#B45309;">시작 전</b> (공지 게시 SQL로 시작)'}`,
+        `기존 종족 마감: ${sgKst(c.legacy_deadline_at)} · 신규 종족: 등록 후 14일`,
+        `자동 삭제: ${c.auto_delete_enabled ? on : off} · 예약 작업: ${cron.scheduled ? (cron.active ? on : off) + ` (${escapeHtml(cron.schedule || '')})` : '미등록'}${lastRun}`,
+        `대기 ${n.pending || 0} · 보류(운영진 확인) ${n.skipped || 0} · 제외(등록 완료) ${n.satisfied || 0} · 삭제 ${n.deleted || 0}${n.gone ? ` · 이미 없음 ${n.gone}` : ''}`,
+      ].join('<br>');
+      // 후보 집계 — precheck 와 같은 기준(디자인권·분양 이력은 보류 사유 아님, 삭제 영향으로만 표시)
+      const es = data.estimate || {};
+      statusEl.innerHTML += '<br>' + [
+        `<b>자동 삭제 후보 ${es.candidates || 0}</b> · 보류(운영진 확인) ${es.held || 0} · 일반회원 전환 예상 ${es.expected_demotions || 0}명`,
+        `삭제 영향: 디자인권 ${es.slots_to_delete || 0}개(다른 회원 소유 ${es.slots_other_members || 0}) · 디자인권 연결이 비워질 분양 글 ${es.adoptions_slot_unlinked || 0}건(진행 중 ${es.adoptions_slot_unlinked_active || 0}) · 종족명 분양 기록 ${es.adoptions_by_species_name || 0}건(유지)`,
+      ].join('<br>');
+
+      const preview = !!data.preview_mode;
+      const rows = data.targets || [];
+      document.getElementById('speciesGraceTargetsTitle').textContent =
+        preview ? `지금 시작하면 대상이 될 종족 (개체 0개 · ${rows.length}개)` : `만료 예정 대상 (${rows.length}개)`;
+      document.getElementById('speciesGraceTargetsEmpty').style.display = rows.length ? 'none' : 'block';
+      tBox.innerHTML = rows.map(t => {
+        const name = `<a href="species.html?id=${encodeURIComponent(t.species_id)}" class="admin-card-name">${escapeHtml(t.name || '')}</a>`;
+        const im = t.impact || {};
+        const impact = (im.slots || im.adoptions_by_species_name)
+          ? `삭제 시 디자인권 ${im.slots || 0}(다른 회원 ${im.slots_other_members || 0}) · 분양 연결 해제 ${im.adoptions_slot_unlinked || 0}${im.adoptions_slot_unlinked_active ? `(진행 중 ${im.adoptions_slot_unlinked_active})` : ''}`
+          : '';
+        const extra = [
+          t.candidate ? '<span style="color:#B91C1C;">자동 삭제 후보</span>'
+                      : `<span style="color:#B45309;">보류(운영진 확인): ${escapeHtml(sgReason((t.skip_reasons || []).join(',')))}</span>`,
+          escapeHtml(impact),
+          t.last_error ? `<span style="color:#B91C1C;">오류(${t.attempt_count}회): ${escapeHtml(t.last_error)}</span>` : '',
+          t.character_count ? `현재 개체 ${t.character_count}` : '',
+        ].filter(Boolean).join(' · ');
+        const when = preview
+          ? `등록 ${sgKst(t.registered_at)}`
+          : `마감 ${sgKst(t.deadline_at)} · ${sgRemain(t.deadline_at, data.now)}`;
+        return `<div class="admin-card-row"><div class="admin-card-left">${name}
+          <span class="admin-card-meta">${preview ? '' : (t.cohort === 'new' ? '신규 · ' : '기존 · ')}${escapeHtml(t.owner_nickname || '—')} · ${extra}</span></div>
+          <div class="admin-card-right"><span class="sg-when">${when}</span></div></div>`;
+      }).join('');
+
+      const ev = data.events || [];
+      document.getElementById('speciesGraceEventsEmpty').style.display = ev.length ? 'none' : 'block';
+      eBox.innerHTML = ev.map(e => {
+        const [label, color] = SG_EVENT[e.event] || [e.event, '#475569'];
+        const who = e.owner_nickname ? ` · ${escapeHtml(e.owner_nickname)}` : '';
+        const what = e.event === 'activated'
+          ? `기존 종족 대상 ${escapeHtml(String(e.details?.legacy_targets ?? ''))}개 확정`
+          : escapeHtml(e.species_name || '');
+        return `<div class="admin-card-row"><div class="admin-card-left">
+          <span style="font-weight:700;color:${color};white-space:nowrap;">${escapeHtml(label)}</span>
+          <span class="admin-card-meta">${what}${who}${e.reason ? ' · ' + escapeHtml(sgReason(e.reason)) : ''}</span></div>
+          <div class="admin-card-right"><span class="sg-when">${sgKst(e.created_at)}</span></div></div>`;
+      }).join('');
     }
 
     // ── 개체 관리 ────────────────────────────

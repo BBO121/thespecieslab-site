@@ -33,7 +33,7 @@
   <meta name="twitter:description" content="종족과 개체를 기록하고 관리하는 아카이브">
   <meta name="twitter:image" content="https://thespecieslab.com/images/og-thumbnail.jpg">
 
-  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/style.css?v=20261129-homead">
   <style>
     /* 배지가 3개([경매][재화거래][상태])일 때 좁은 모바일 카드에서 넘치지 않도록 줄바꿈 */
     .adoption-card-badges { flex-wrap: wrap; row-gap: 4px; }
@@ -174,7 +174,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/achievements.js"></script>
-  <script src="../js/sidebar.js?v=20261128-collection"></script>
+  <script src="../js/sidebar.js?v=20261129-homead"></script>
   <script src="../js/notifications.js"></script>
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
@@ -350,7 +350,11 @@
       }
 
       // 종족 또는 분양 카드가 실제로 렌더된 경우에만 광고 로드
-      if ((speciesList && speciesList.length) || (adoptionList && adoptionList.length)) loadAdSense();
+      if ((speciesList && speciesList.length) || (adoptionList && adoptionList.length)) {
+        loadAdSense();
+        // 사이드바 후원 카드 아래 수동 광고 — 같은 스크립트 재사용, 한 번만 초기화(PC·모바일 드로어)
+        if (typeof initSidebarHomeAd === 'function') initSidebarHomeAd();
+      }
     }
 
     loadIndex();

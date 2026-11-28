@@ -238,6 +238,7 @@ async function initSidebar() {
       </span>
       <span class="sidebar-donate-card-arrow">›</span>
     </a>
+    ${isSidebarHomeAdPage(path) ? SIDEBAR_HOME_AD_HTML : ''}
   `;
 
   // 현재 페이지에 해당하는 아코디언 자동 열기
@@ -318,6 +319,64 @@ async function initSidebar() {
   ensureGalleryStyles();
   loadResearchSideCard();
   initResearchNoticeLoader();
+  initSidebarHomeAd();
+}
+
+// ── 홈 사이드바 수동 광고 (후원 카드 아래, PC·모바일 드로어 공통) ─────────────────
+// 스크립트(adsbygoogle.js)는 새로 넣지 않는다 — 홈 콘텐츠 렌더 후 loadAdSense()(utils.js)가 로드한 것을 재사용.
+// 초기화(push)는 ① 로더가 있고 ② 아직 안 한 슬롯일 때 한 번만.
+// 호출 지점: initSidebar() 끝 + index.html 의 loadAdSense() 직후 (둘 중 늦게 오는 쪽에서 실제 초기화).
+// 모바일 드로어는 닫혀 있어도 화면 밖(left:-280px)에 폭 260px 그대로라 닫힌 상태에서 초기화해도 폭 0 오류가 없다.
+const SIDEBAR_HOME_AD_MOBILE_MQ = '(max-width: 767px)'; // 사이드바 반응형 기준(initHamburger·closeSidebar 와 동일)
+const SIDEBAR_HOME_AD_HTML = `
+    <div class="sidebar-home-ad" id="sidebarHomeAd">
+      <!-- 세로형 -->
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-1578944209330245"
+           data-ad-slot="3978720441"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+    </div>`;
+
+function isSidebarHomeAdPage(path) {
+  return path === 'index.html' || path === '';
+}
+
+function isSidebarHomeAdPreview() {
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).get('adPreview') === '1';
+}
+
+function showSidebarHomeAdPreview(ins) {
+  if (ins.dataset.slAdPreview === '1') return;
+  ins.dataset.slAdPreview = '1';
+  ins.style.textDecoration = 'none'; // <ins> 기본 밑줄은 자식에서 못 끔
+  ins.innerHTML = `<div style="height:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    background:repeating-linear-gradient(45deg,#fff4cf 0 10px,#ffe9a8 10px 20px);border:1px dashed #c9a000;border-radius:10px;
+    font-size:12px;color:#7a5b00;text-align:center;text-decoration:none;">광고 자리<br><span style="font-size:10.5px;">adPreview · slot 3978720441</span></div>`;
+}
+
+function initSidebarHomeAd() {
+  const ins = document.querySelector('#sidebarHomeAd ins.adsbygoogle');
+  if (!ins) return;
+  // 로컬 확인용: localhost/127.0.0.1 + ?adPreview=1 → 광고 요청 없이 자리표시 상자만
+  if (isSidebarHomeAdPreview()) { showSidebarHomeAdPreview(ins); return; }
+  // 이미 초기화한 슬롯(우리 표시 또는 AdSense 가 붙인 상태값)은 다시 push 하지 않는다
+  if (ins.dataset.slAdInit === '1' || ins.hasAttribute('data-adsbygoogle-status')) return;
+  // 홈 콘텐츠가 렌더되어 loadAdSense() 가 스크립트를 넣었을 때만
+  if (!document.querySelector('script[data-adsense-loader]')) return;
+
+  // 모바일: full-width-responsive 가 켜져 있으면 광고가 화면 전체 폭으로 커져 260px 드로어 밖으로 튀어나간다
+  // → 모바일에서만 드로어 폭에 맞추도록 끈다(push 전에만 효과 있음)
+  if (window.matchMedia(SIDEBAR_HOME_AD_MOBILE_MQ).matches) ins.dataset.fullWidthResponsive = 'false';
+
+  ins.dataset.slAdInit = '1';
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+  } catch (e) {
+    console.warn('[sidebar ad] init failed', e);
+  }
 }
 
 // ── 관리자 전용 사이드바 (2026-11-07) ─────────────────────────────

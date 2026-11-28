@@ -503,6 +503,18 @@ async function updateUserSettings(userId, patch) {
   return { data, error };
 }
 
+// ── 상점 아이템(프레임·스티커 등) 현재 보유 판정 ─────────────────
+// 내 가방(js/my-bag.js)과 콜렉션(js/collection.js)이 같은 기준을 쓰도록 한 곳에 둔다.
+// 기준: user_items 에 (user_id = 나, item_id = shop_items.id) 행이 있으면 보유.
+//   무료(0원) 기본 프레임도 받기(구매) 시 같은 user_items 행이 생기므로 따로 분기하지 않는다.
+// user_id 를 명시해서 거른다 — RLS 가 본인 행만 주더라도, 운영진 예외 정책이 생겨도 타인 보유가 섞이지 않게.
+async function getMyShopItemRows(userId, columns = 'item_id, purchased_at, item_key, quantity') {
+  if (!userId) return { data: [], error: null };
+  return sb.from('user_items')
+    .select(columns)
+    .eq('user_id', userId);
+}
+
 // ── 민감한 요소 바로 표시 ─────────────────────────────────────
 // 로그인 사용자의 auto_reveal_sensitive 가 true 일 때만 <html> 에 .show-sensitive 를 붙인다.
 // 표시 방식은 css/scss/style.scss 의 html.show-sensitive 규칙이 담당하고, 각 페이지의
@@ -519,6 +531,70 @@ function setSensitiveReveal(on) {
     .then(settings => setSensitiveReveal(settings?.auto_reveal_sensitive === true))
     .catch(e => console.warn('[민감 요소 표시] 설정 조회 실패 — 기본(가림) 유지:', e?.message || e));
 })();
+
+// ── 디자인권(slots) 사용기한·민감한 요소 (2026-11-28) ─────────────────
+// expires_on(date, 'YYYY-MM-DD')은 한국시간 기준 그날 23:59:59까지 사용 가능. NULL = 기한 없음.
+// 실제 차단은 DB 트리거(trg_slots_expiry_guard)가 하고, 여기는 화면 표시용 판정이다.
+function kstTodayYmd(now = new Date()) {
+  return new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function formatYmdDot(ymd) {
+  return /^\d{4}-\d{2}-\d{2}/.test(ymd || '') ? String(ymd).slice(0, 10).replace(/-/g, '.') : '';
+}
+
+// 'used'(사용완료, 기한보다 우선) | 'expired'(기한 지남·미사용) | 'active'(기한 있음·사용 가능) | 'none'(기한 없음)
+function slotExpiryState(slot, now = new Date()) {
+  if (!slot) return 'none';
+  if (slot.status === 'used') return 'used';
+  if (!slot.expires_on) return 'none';
+  return String(slot.expires_on).slice(0, 10) < kstTodayYmd(now) ? 'expired' : 'active';
+}
+
+// 서버 오류 → 사용자 문구 (트리거 메시지 코드 기준)
+function slotErrorMessage(error, fallback) {
+  const msg = String(error?.message || '');
+  if (msg.includes('SLOT_EXPIRED'))        return '사용기한이 지난 디자인권이라 사용할 수 없어요.';
+  if (msg.includes('SLOT_META_FORBIDDEN')) return '사용기한·민감한 요소는 종족주 또는 운영진만 바꿀 수 있어요.';
+  return fallback ? `${fallback}: ${msg}` : msg;
+}
+
+// 공통 민감 오버레이 마크업(.sensitive-overlay + 공용 클래스). 메모는 이스케이프한다.
+// 감싸는 요소는 position:relative, 가릴 이미지는 .blurred — html.show-sensitive 사용자는 CSS 가 바로 보여준다.
+function sensitiveOverlayHtml(note) {
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return '<div class="sensitive-overlay" onclick="revealSensitive(this,event)"><div class="sensitive-overlay-inner">'
+    + '<svg width="28" height="26" viewBox="0 0 28 26" fill="none"><path d="M14 2L26 24H2L14 2Z" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line x1="14" y1="9" x2="14" y2="16" stroke="#b91c1c" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="20" r="1.2" fill="#b91c1c"/></svg>'
+    + '<span class="sensitive-overlay-title">민감한 요소</span>'
+    + (note ? `<span class="sensitive-overlay-note">${esc(note)}</span>` : '')
+    + '<span class="sensitive-overlay-hint">누르면 이미지가 보여요</span></div></div>';
+}
+
+// 분양글(adoptions) 중 디자인권 분양(slot_id 있음, character_id 없음)에 디자인권 민감 표시를 붙인다.
+// row._slotSensitive = { is_sensitive, sensitive_note }. 조회 실패 시 안전하게 가림(true).
+// 컬럼이 아직 없는 DB(마이그레이션 전, 42703)는 민감 표시된 디자인권이 있을 수 없으므로 가림 없음.
+async function attachSlotSensitivity(rows, client = (typeof sb !== 'undefined' ? sb : null)) {
+  const list = (Array.isArray(rows) ? rows : [rows]).filter(a => a && a.slot_id && !a.character_id);
+  if (!list.length) return;
+  const ids = [...new Set(list.map(a => a.slot_id))];
+  const map = {};
+  let failClosed = !client;
+  for (let i = 0; client && i < ids.length; i += 200) {
+    let res;
+    try { res = await client.from('slots').select('id, is_sensitive, sensitive_note').in('id', ids.slice(i, i + 200)); }
+    catch (e) { res = { error: e }; }
+    if (res.error) {
+      if (res.error.code !== '42703') { failClosed = true; console.warn('[디자인권 민감 조회] 실패 — 가림 유지:', res.error.message || res.error); }
+      break;
+    }
+    (res.data || []).forEach(s => { map[s.id] = s; });
+  }
+  list.forEach(a => {
+    const s = map[a.slot_id];
+    a._slotSensitive = s ? { is_sensitive: s.is_sensitive === true, sensitive_note: s.sensitive_note || null }
+                         : { is_sensitive: failClosed, sensitive_note: null };
+  });
+}
 
 // ============================================
 // 검색엔진(SEO) 공용 헬퍼

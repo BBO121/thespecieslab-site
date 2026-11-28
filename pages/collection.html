@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E8JG7D53T5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-E8JG7D53T5');
+  </script>
+  <link rel="icon" href="../images/favicon.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>콜렉션 — 종족연구소</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">종족연구소</a>
+      <nav class="header-nav">
+        <a href="login.html" class="btn-login">로그인</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main">
+
+      <div id="pageLoading" class="page-loading">불러오는 중...</div>
+
+      <div id="pageContent" style="display:none;">
+
+        <div class="list-page-header" style="margin-bottom:0;">
+          <div>
+            <div class="breadcrumb" style="margin-bottom:8px;">
+              <a href="index.html">홈</a>
+              <span>/</span>
+              <span>MY</span>
+              <span>/</span>
+              <span>콜렉션</span>
+            </div>
+            <h1 class="list-page-title">콜렉션</h1>
+            <p class="collection-summary" id="collectionSummary"></p>
+          </div>
+        </div>
+
+        <!-- 콜렉션 탭(프레임/스티커) + 민감한 요소 토글 — 상점과 같은 탭 바 -->
+        <div class="shop-tab-bar">
+          <div class="shop-tab-row" id="collectionTabRow">
+            <button class="shop-tab-btn active" data-tab="frame">프레임</button>
+            <button class="shop-tab-btn" data-tab="sticker">스티커</button>
+          </div>
+          <label class="shop-sensitive-toggle" for="collectionSensitiveToggle">
+            <span class="shop-sensitive-toggle-label">민감한 요소 보이기</span>
+            <span class="switch">
+              <input type="checkbox" id="collectionSensitiveToggle">
+              <span class="switch-slider"></span>
+            </span>
+          </label>
+        </div>
+
+        <!-- 분류별 목록 (JS 렌더) — 상점 꾸미기 카드 UI 재사용 -->
+        <div class="shop-tab-panel">
+          <div id="collectionCategories"></div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.7</span></p>
+  </footer>
+
+  <!-- 상세 모달 — 열람 전용(가격·구매 버튼 없음). 상점 상세 모달과 같은 카드 -->
+  <div class="modal-overlay" id="collectionDetailModal" style="display:none;" onclick="if(event.target===this)closeCollectionDetail()">
+    <div class="shop-detail-card" role="dialog" aria-modal="true" aria-labelledby="colDetailName">
+      <button type="button" class="shop-detail-close" id="colDetailClose" onclick="closeCollectionDetail()" aria-label="닫기">×</button>
+      <div class="shop-detail-preview" id="colDetailPreview"></div>
+      <div class="shop-detail-info">
+        <div class="shop-detail-name-row">
+          <p class="shop-detail-name" id="colDetailName"></p>
+          <span class="shop-detail-credit" id="colDetailCredit"></span>
+        </div>
+        <p class="shop-detail-desc" id="colDetailDesc"></p>
+        <div id="colDetailSpeciesLink"></div>
+        <p class="shop-detail-sale-end" id="colDetailSaleEnd" style="display:none;"></p>
+        <div class="shop-detail-footer">
+          <div class="collection-detail-status" id="colDetailStatus"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sidebar.js?v=20261128-collection"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/utils.js?v=20261128-collection"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/collection.js?v=20261128-collection"></script>
+</body>
+</html>

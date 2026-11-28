@@ -452,13 +452,13 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.6</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.7</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/achievements.js"></script>
-  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/sidebar.js?v=20261128-collection"></script>
   <script src="../js/notifications.js"></script>
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
@@ -1082,8 +1082,14 @@
 
     async function renderMain(a) {
       if (a.species_name) lookupSpeciesByName(a.species_name);   // 종족 링크·LABBER 판정용 조회를 먼저 시작
-      const isSensitive   = a.characters?.is_sensitive === true;
-      const sensitiveNote = a.characters?.sensitive_note || null;
+      // 개체 분양 = 개체 민감 표시, 디자인권 분양 = 디자인권 민감 표시
+      if (a.slot_id && !a.character_id && !a._slotSensitive) {
+        if (typeof attachSlotSensitivity === "function") await attachSlotSensitivity(a, dataClient);
+        else a._slotSensitive = { is_sensitive: true, sensitive_note: null };   // 옛 utils.js 캐시 — 안전하게 가림
+      }
+      const sens          = a.characters || a._slotSensitive || null;
+      const isSensitive   = sens?.is_sensitive === true;
+      const sensitiveNote = sens?.sensitive_note || null;
 
       // 메인 이미지 — thumbnail_url 우선, 없으면 image_url fallback
       const mainImg  = document.getElementById('mainImg');
@@ -2628,7 +2634,7 @@
             </div>
             <p class="comment-content">${highlightMentions(escapeHtml(c.content))}</p>
             <div class="cr-row">
-              ${currentUser ? `<button class="comment-reply-btn" onclick="toggleReply('${c.id}')">답글</button>` : ''}
+              ${currentUser ? `<button class="comment-reply-btn" data-reply-nick="${escAttr(c.author_nickname)}" onclick="replyToComment('${c.id}', this.dataset.replyNick)">답글</button>` : ''}
               ${commentReactions.barHtml(c.id)}
             </div>
 
@@ -2645,7 +2651,7 @@
                       </div>
                       <p class="comment-content">${highlightMentions(escapeHtml(r.content))}</p>
                       <div class="cr-row">
-                        ${currentUser ? `<button class="comment-reply-btn" onclick="replyToReply('${c.id}')">답글</button>` : ''}
+                        ${currentUser ? `<button class="comment-reply-btn" data-reply-nick="${escAttr(r.author_nickname)}" onclick="replyToReply('${c.id}', this.dataset.replyNick)">답글</button>` : ''}
                         ${commentReactions.barHtml(r.id)}
                       </div>
                     </div>
@@ -2843,6 +2849,63 @@
       ta.focus();
     }
 
+    // 답글 입력창별 "자동으로 넣은 멘션" 닉네임 (taId → nick)
+    // 답글 대상을 바꿀 때 맨 앞의 이전 자동 멘션만 걷어내고 사용자가 쓴 본문은 보존한다.
+    const autoReplyMentions = new Map();
+
+    function setAutoReplyMention(ta, nick) {
+      const prev = autoReplyMentions.get(ta.id);
+      let body = ta.value;
+      if (prev) {
+        const prefix = `@${prev}`;
+        // 사용자가 자동 멘션을 지우거나 고쳤다면 건드리지 않는다
+        if (body === prefix || body.startsWith(prefix + ' ') || body.startsWith(prefix + '\n')) {
+          body = body.substring(prefix.length).replace(/^[ ]/, '');
+          const mentions = activeMentions.get(ta.id);
+          if (mentions && !body.includes(prefix)) mentions.delete(prev);
+        }
+        autoReplyMentions.delete(ta.id);
+      }
+      if (nick && nick !== myNick) {
+        const prefix = `@${nick}`;
+        const alreadyLeading = body === prefix || body.startsWith(prefix + ' ') || body.startsWith(prefix + '\n');
+        if (!alreadyLeading) body = `${prefix} ${body}`;
+        if (!activeMentions.has(ta.id)) activeMentions.set(ta.id, new Set());
+        activeMentions.get(ta.id).add(nick);
+        autoReplyMentions.set(ta.id, nick);
+      }
+      ta.value = body;
+      updateMentionChips(ta);
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+
+    // 답글 입력창을 열고(또는 열린 채로) 답글 대상(nick)을 자동 멘션한다.
+    // 저장 위치는 기존과 같이 최상위 댓글(parentId) 아래로 유지된다.
+    function openReplyTo(parentId, nick) {
+      const wrap = document.getElementById(`replyWrap_${parentId}`);
+      const ta   = document.getElementById(`replyText_${parentId}`);
+      if (!wrap || !ta) return;
+      wrap.style.display = 'block';
+      wrap.dataset.replyTarget = nick || '';
+      setAutoReplyMention(ta, nick);
+    }
+
+    // 최상위 댓글의 '답글' 버튼: 같은 대상으로 이미 열려 있으면 닫고(기존 토글 유지), 아니면 대상 전환
+    function replyToComment(parentId, nick) {
+      const wrap = document.getElementById(`replyWrap_${parentId}`);
+      if (wrap && wrap.style.display === 'block' && wrap.dataset.replyTarget === (nick || '')) {
+        toggleReply(parentId);
+        return;
+      }
+      openReplyTo(parentId, nick);
+    }
+
+    // 답글(대댓글)의 '답글' 버튼: 그 답글 작성자를 자동 멘션
+    function replyToReply(parentId, nick) {
+      openReplyTo(parentId, nick);
+    }
+
     function toggleReply(parentId) {
       const wrap   = document.getElementById(`replyWrap_${parentId}`);
       const isOpen = wrap.style.display === 'block';
@@ -2850,33 +2913,11 @@
         activeMentions.delete(`replyText_${parentId}`);
         const chips = document.getElementById(`replyMentionChips_${parentId}`);
         if (chips) chips.innerHTML = '';
+        wrap.style.display = 'none';
+        wrap.dataset.replyTarget = '';
+        return;
       }
-      wrap.style.display = isOpen ? 'none' : 'block';
-      if (!isOpen) {
-        const ta         = document.getElementById(`replyText_${parentId}`);
-        const parentNick = wrap.dataset.parentNick;
-        if (parentNick && parentNick !== myNick && !ta.value.trim()) {
-          ta.value = `@${parentNick} `;
-          if (!activeMentions.has(ta.id)) activeMentions.set(ta.id, new Set());
-          activeMentions.get(ta.id).add(parentNick);
-          updateMentionChips(ta);
-        }
-        ta.focus();
-      }
-    }
-
-    function replyToReply(parentId) {
-      const wrap       = document.getElementById(`replyWrap_${parentId}`);
-      wrap.style.display = 'block';
-      const ta         = document.getElementById(`replyText_${parentId}`);
-      const parentNick = wrap.dataset.parentNick;
-      if (parentNick && parentNick !== myNick && !ta.value.trim()) {
-        ta.value = `@${parentNick} `;
-        if (!activeMentions.has(ta.id)) activeMentions.set(ta.id, new Set());
-        activeMentions.get(ta.id).add(parentNick);
-        updateMentionChips(ta);
-      }
-      ta.focus();
+      openReplyTo(parentId, wrap.dataset.parentNick);
     }
 
     async function submitComment() {
@@ -2916,6 +2957,7 @@
       if (error) { alert('등록에 실패했어요.'); return; }
       ta.value = '';
       activeMentions.delete(ta.id);
+      autoReplyMentions.delete(ta.id);
       const chipsEl = getChipsEl(ta);
       if (chipsEl) chipsEl.innerHTML = '';
 

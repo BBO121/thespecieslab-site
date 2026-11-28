@@ -246,9 +246,8 @@ async function loadData() {
   console.log('[my-bag] loadData 시작, user.id =', _user.id);
 
   const [userItemsRes, equipRes, repProfileRes] = await Promise.all([
-    sb.from('user_items')
-      .select('item_id, purchased_at, item_key, quantity')
-      .eq('user_id', _user.id),
+    // 현재 보유 판정 — 콜렉션(js/collection.js)과 같은 공용 함수(js/utils.js)
+    getMyShopItemRows(_user.id, 'item_id, purchased_at, item_key, quantity'),
     sb.from('user_equipment')
       .select('equipped_frame_id, equipped_sticker_id, equipped_char_frame_id, equipped_char_sticker_id')
       .eq('user_id', _user.id)

@@ -121,16 +121,16 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.6</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.7</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/auth.js"></script>
-  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/sidebar.js?v=20261128-collection"></script>
   <script src="../js/notifications.js"></script>
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
-  <script src="../js/utils.js?v=20260919"></script>
+  <script src="../js/utils.js?v=20261128-slot"></script>
   <script src="../js/main.js?v=20260617"></script>
   <script>
     const TYPE_LABEL = { free: '무료', paid: '유료', currency: '재화거래', auction: '경매', etc: '기타' };
@@ -228,8 +228,10 @@
     }
 
     function buildAdoptionCard(a) {
-      const isSensitive   = a.characters?.is_sensitive === true;
-      const sensitiveNote = a.characters?.sensitive_note || null;
+      // 개체 분양 = 개체 민감 표시, 디자인권 분양 = 디자인권 민감 표시(attachSlotSensitivity)
+      const sens          = a.characters || a._slotSensitive || null;
+      const isSensitive   = sens?.is_sensitive === true;
+      const sensitiveNote = sens?.sensitive_note || null;
       const typeLabel = TYPE_LABEL[a.adoption_type] || '';
       const typeClass = TYPE_CLASS[a.adoption_type] || '';
       const closed    = a.status === '완료';
@@ -400,6 +402,7 @@
         document.getElementById('emptyState').style.display = 'flex';
         return;
       }
+      await attachSlotSensitivity(data);
 
       // URL에서 이전 상태 복원
       const _p = new URLSearchParams(location.search);

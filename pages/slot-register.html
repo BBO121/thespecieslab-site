@@ -127,6 +127,27 @@
             <input type="text" id="slotNumber" class="form-input" placeholder="예) SLOT-001">
           </div>
 
+          <!-- 사용기한 (선택) — 한국시간 기준 지정한 날 23:59까지 사용 가능, 비우면 기한 없음 -->
+          <div class="form-group">
+            <label class="form-label" for="slotExpiresOn">사용기한 <span class="form-hint-inline">선택사항</span></label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="date" id="slotExpiresOn" class="form-input" style="flex:1; min-width:0;">
+              <button type="button" class="btn-ghost" onclick="document.getElementById('slotExpiresOn').value=''" style="flex-shrink:0; white-space:nowrap;">기한 없음</button>
+            </div>
+            <p class="form-hint" style="margin-top:6px;">한국시간 기준 지정한 날까지 사용할 수 있어요. 비워두면 기한 없이 사용할 수 있어요.<br>기한이 지나면 새 사용 요청·승인이 막히고, 이미 사용한 디자인권은 그대로 유지돼요.</p>
+          </div>
+
+          <!-- 민감한 요소 (개체 등록과 같은 항목) -->
+          <div class="form-group">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap; font-size:14px; font-weight:500; color:var(--text);">
+                <input type="checkbox" id="isSensitive" style="width:16px; height:16px; cursor:pointer; accent-color:var(--sky); flex-shrink:0;">
+                민감한 요소 포함
+              </label>
+              <input type="text" id="sensitiveNote" class="form-input" placeholder="시선공포, 쨍한색 등" style="flex:1; min-width:160px;">
+            </div>
+          </div>
+
           <!-- 항목 (자유 입력) -->
           <div class="form-group">
             <label class="form-label">항목 <span class="form-hint-inline">선택사항 · 자유롭게 추가</span></label>
@@ -153,14 +174,14 @@
   </div>
 
   <footer class="footer">
-    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.6</span></p>
+    <p class="footer-links"><span>© 2026 종족연구소</span><a href="terms.html">이용약관</a><a href="privacy.html">개인정보처리방침</a><a href="credits.html">운영진</a><a href="mailto:contact@thespecieslab.com">문의</a><a href="https://x.com/thespecieslab" target="_blank" rel="noopener">X</a><span>ver.3.1.7</span></p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/achievements.js"></script>
-  <script src="../js/sidebar.js?v=20261107-research"></script>
+  <script src="../js/sidebar.js?v=20261128-collection"></script>
   <script src="../js/notifications.js"></script>
   <script src="../js/chat.js"></script>
   <script src="../js/bookmark.js"></script>
@@ -459,6 +480,9 @@
         designer = document.getElementById('designerExternalName').value.trim() || null;
       }
 
+      const isSensitive   = document.getElementById('isSensitive').checked;
+      const sensitiveNote = document.getElementById('sensitiveNote').value.trim();
+
       btn.textContent = '등록 중...';
       btn.disabled = true;
 
@@ -509,9 +533,12 @@
           thumbnail_url,
           trait_values:        collectTraitValues(),
           status:              'active',
+          expires_on:          document.getElementById('slotExpiresOn').value || null,
+          is_sensitive:        isSensitive,
+          sensitive_note:      isSensitive ? (sensitiveNote || null) : null,
         });
 
-        if (error) throw new Error(`등록 실패: ${error.message}`);
+        if (error) throw new Error(slotErrorMessage(error, '등록 실패'));
         window.location.href = speciesId ? `species.html?id=${speciesId}` : 'species-list.html';
       } catch (err) {
         errorEl.textContent = err.message;

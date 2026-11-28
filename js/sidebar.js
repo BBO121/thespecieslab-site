@@ -160,6 +160,7 @@ async function initSidebar() {
         <a href="achievements.html"     class="sidebar-subitem ${path === 'achievements.html' ? 'active' : ''}">업적</a>
         <a href="my-wallet.html"        class="sidebar-subitem ${path === 'my-wallet.html' ? 'active' : ''}">지갑</a>
         <a href="my-bag.html"           class="sidebar-subitem ${path === 'my-bag.html'    ? 'active' : ''}">가방</a>
+        <a href="collection.html"       class="sidebar-subitem ${path === 'collection.html' ? 'active' : ''}">콜렉션</a>
         <a href="item-transfer-history.html" class="sidebar-subitem ${path === 'item-transfer-history.html' ? 'active' : ''}">아이템 전송 내역</a>
         <div class="sidebar-divider" style="margin:8px 0;"></div>
         <a href="settings.html"         class="sidebar-subitem ${path === 'settings.html' ? 'active' : ''}">설정</a>
@@ -247,7 +248,7 @@ async function initSidebar() {
                         'adoption.html','adoption-detail.html','adoption-write.html','users.html'];
   const myPages      = ['my-species.html','my-characters.html','my-designs.html','my-slots.html',
                         'my-adoptions.html','my-research.html','notifications.html','transfer-history.html','my-wallet.html','my-bag.html',
-                        'item-transfer-history.html','settings.html','research-settings.html'];
+                        'collection.html','item-transfer-history.html','settings.html','research-settings.html'];
   const galleryPages = ['gallery-free.html','gallery-research.html','gallery-post.html','gallery-write.html','research-admin.html',
                         'research-tasks.html','research-task.html','research-submit.html','research-review.html','research-task-admin.html'];
   const supportPages = ['inquiry.html','inquiry-write.html','inquiry-detail.html',
